@@ -201,3 +201,5 @@ gradle-app.setting
 /.idea/misc.xml
 /.idea/vcs.xml
 /src/main/resources/application.properties
+/.idea/modules/my-project-1.main.iml
+/.idea/modules.xml
