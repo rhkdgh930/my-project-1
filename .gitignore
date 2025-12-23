@@ -203,3 +203,5 @@ gradle-app.setting
 /src/main/resources/application.properties
 /.idea/modules/my-project-1.main.iml
 /.idea/modules.xml
+/src/main/resources/application.yml
+/src/main/resources/application-prod.yml
