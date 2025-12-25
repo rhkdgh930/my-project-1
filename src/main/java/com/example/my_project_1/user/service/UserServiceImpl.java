@@ -23,7 +23,8 @@ public class UserServiceImpl implements UserService {
     public User signUp(UserSignUpRequest request) {
         validateDuplicateEmail(request.getEmail());
 
-        User user = User.signUp(request, passwordEncoder);
+        String encodedPassword = passwordEncoder.encode(request.getPassword());
+        User user = User.signUp(request, encodedPassword);
 
         return userRepository.save(user);
     }

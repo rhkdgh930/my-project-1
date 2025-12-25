@@ -39,10 +39,10 @@ public class User extends BaseEntity {
 
     private boolean deleted;
 
-    public static User signUp(UserSignUpRequest request, PasswordEncoder passwordEncoder) {
+    public static User signUp(UserSignUpRequest request, String encodedPassword) {
         User user = new User();
         user.email = request.getEmail();
-        user.password = passwordEncoder.encode(request.getPassword());
+        user.password = encodedPassword;
         user.nickname = request.getNickname();
         user.role = Role.USER;
         user.status = UserStatus.PENDING;
