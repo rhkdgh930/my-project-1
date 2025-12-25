@@ -17,7 +17,7 @@ public enum ErrorCode {
      * 400:
      */
     INVALID_INPUT_VALUE(HttpStatus.BAD_REQUEST, "입력 값이 유효하지 않습니다. 필수값을 확인해주세요."),
-
+    DUPLICATED_EMAIL(HttpStatus.BAD_REQUEST, "이미 존재하는 이메일입니다."),
 
     /**
      * 500:
