@@ -1,0 +1,17 @@
+package com.example.my_project_1.auth.filter;
+
+import com.example.my_project_1.common.exception.ErrorCode;
+import org.springframework.security.core.AuthenticationException;
+
+public class JwtAuthenticationException extends AuthenticationException {
+    private final ErrorCode errorCode;
+
+    public JwtAuthenticationException(ErrorCode errorCode) {
+        super(errorCode.getMessage());
+        this.errorCode = errorCode;
+    }
+
+    public ErrorCode getErrorCode() {
+        return errorCode;
+    }
+}
