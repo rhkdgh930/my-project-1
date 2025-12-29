@@ -48,4 +48,12 @@ public class User extends BaseEntity {
         user.status = UserStatus.PENDING;
         return user;
     }
+
+    public void changePassword(String password) {
+        this.password = password;
+    }
+
+    public void changeNickname(String nickname) {
+        this.nickname = nickname;
+    }
 }
