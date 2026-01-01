@@ -1,10 +1,6 @@
 package com.example.my_project_1.user.domain;
 
-import com.example.my_project_1.common.exception.CustomException;
-import com.example.my_project_1.common.exception.ErrorCode;
 import com.example.my_project_1.user.service.request.UserSignUpRequest;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -24,14 +20,11 @@ class UserTest {
         assertThat(user.getEmail()).isEqualTo(EMAIL);
         assertThat(user.getPassword()).isEqualTo(PASSWORD);
         assertThat(user.getNickname()).isEqualTo(NICKNAME);
-        assertThat(user.getStatus()).isEqualTo(UserStatus.PENDING);
         assertThat(user.getRole()).isEqualTo(Role.USER);
-    }
-
-    private static User getUser() {
-        UserSignUpRequest request = createUserSignUpRequest();
-        String encodedPassword = request.getPassword();
-        return User.signUp(request, encodedPassword);
+        assertThat(user.getUserStatus()).isEqualTo(UserStatus.PENDING);
+        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.NORMAL);
+        assertThat(user.isEmailVerified()).isFalse();
+        assertThat(user.isDeleted()).isFalse();
     }
 
     @Test
@@ -54,5 +47,34 @@ class UserTest {
         user.changePassword(changedPassword);
 
         assertThat(user.getPassword()).isEqualTo(changedPassword);
+    }
+
+    @Test
+    @DisplayName("유저 삭제 테스트")
+    void deleteTest() {
+        User user = getUser();
+        assertThat(user.isDeleted()).isFalse();
+
+        user.delete();
+        assertThat(user.isDeleted()).isTrue();
+        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.WITHDRAWN);
+    }
+
+    @Test
+    @DisplayName("유저 이메일 인증 테스트")
+    void emailVerifyingTest() {
+        User user = getUser();
+        assertThat(user.isEmailVerified()).isFalse();
+        assertThat(user.getUserStatus()).isEqualTo(UserStatus.PENDING);
+
+        user.emailVerifying();
+        assertThat(user.isEmailVerified()).isTrue();
+        assertThat(user.getUserStatus()).isEqualTo(UserStatus.ACTIVE);
+    }
+
+    private static User getUser() {
+        UserSignUpRequest request = createUserSignUpRequest();
+        String encodedPassword = request.getPassword();
+        return User.signUp(request, encodedPassword);
     }
 }
