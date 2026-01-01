@@ -12,11 +12,11 @@ public class UserSignUpRequest {
     private String email;
 
     @NotBlank(message = "비밀번호 입력은 필수입니다.")
-    @Size(min = 8, max = 100)
+    @Size(min = 8, max = 100, message = "비밀번호는 8자리 이상 100자리 이하로 설정하셔야 합니다.")
     private String password;
 
     @NotBlank(message = "닉네임은 필수입니다.")
-    @Size(min = 4, max = 20)
+    @Size(min = 4, max = 20, message = "닉네임은 4자리 이상 20자리 이하로 설정하여야 합니다.")
     private String nickname;
 
     public static UserSignUpRequest create(String email, String password, String nickname) {

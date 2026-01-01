@@ -2,6 +2,8 @@ package com.example.my_project_1.auth.service.request;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -13,5 +15,13 @@ public class LoginRequest {
     private String email;
 
     @NotBlank(message = "비밀번호 입력은 필수입니다.")
+    @Size(min = 8, max = 100, message = "비밀번호는 8자리 이상 100자리 이하로 설정하셔야 합니다.")
     private String password;
+
+    public static LoginRequest create(String email, String password) {
+        LoginRequest request = new LoginRequest();
+        request.email = email;
+        request.password = password;
+        return request;
+    }
 }

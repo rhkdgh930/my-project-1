@@ -29,45 +29,45 @@ class UserTest {
 
     @Test
     @DisplayName("닉네임 변경 성공 테스트")
-    void changeNicknameTest() {
+    void updateNicknameTest() {
         User user = getUser();
         assertThat(user.getNickname()).isEqualTo(NICKNAME);
         String changedNickname = "changedNickname";
-        user.changeNickname(changedNickname);
+        user.updateNickname(changedNickname);
 
         assertThat(user.getNickname()).isEqualTo(changedNickname);
     }
 
     @Test
     @DisplayName("비밀번호 변경 성공 테스트")
-    void changePasswordTest() {
+    void updatePasswordTest() {
         User user = getUser();
         assertThat(user.getPassword()).isEqualTo(PASSWORD);
         String changedPassword = "changedPassword";
-        user.changePassword(changedPassword);
+        user.updatePassword(changedPassword);
 
         assertThat(user.getPassword()).isEqualTo(changedPassword);
     }
 
     @Test
     @DisplayName("유저 삭제 테스트")
-    void deleteTest() {
+    void withdrawTest() {
         User user = getUser();
         assertThat(user.isDeleted()).isFalse();
 
-        user.delete();
+        user.withdraw();
         assertThat(user.isDeleted()).isTrue();
         assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.WITHDRAWN);
     }
 
     @Test
     @DisplayName("유저 이메일 인증 테스트")
-    void emailVerifyingTest() {
+    void verifyEmailTest() {
         User user = getUser();
         assertThat(user.isEmailVerified()).isFalse();
         assertThat(user.getUserStatus()).isEqualTo(UserStatus.PENDING);
 
-        user.emailVerifying();
+        user.verifyEmail();
         assertThat(user.isEmailVerified()).isTrue();
         assertThat(user.getUserStatus()).isEqualTo(UserStatus.ACTIVE);
     }
