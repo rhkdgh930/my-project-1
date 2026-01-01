@@ -1,7 +1,7 @@
 package com.example.my_project_1.auth.controller;
 
-import com.example.my_project_1.auth.service.response.TokenResponse;
 import com.example.my_project_1.auth.service.AuthService;
+import com.example.my_project_1.auth.service.response.TokenResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;

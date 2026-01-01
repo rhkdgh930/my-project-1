@@ -1,11 +1,9 @@
 package com.example.my_project_1.user.controller;
 
-import com.example.my_project_1.auth.userdetails.UserDetailsImpl;
-import com.example.my_project_1.common.utils.DataSerializer;
 import com.example.my_project_1.user.domain.User;
+import com.example.my_project_1.user.service.UserService;
 import com.example.my_project_1.user.service.request.UserSignUpRequest;
 import com.example.my_project_1.user.service.response.UserSignUpResponse;
-import com.example.my_project_1.user.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;

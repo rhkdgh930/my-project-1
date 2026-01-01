@@ -3,7 +3,9 @@ package com.example.my_project_1.user.domain;
 import com.example.my_project_1.common.entity.BaseEntity;
 import com.example.my_project_1.user.service.request.UserSignUpRequest;
 import jakarta.persistence.*;
-import lombok.*;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 

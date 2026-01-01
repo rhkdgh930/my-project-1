@@ -1,8 +1,6 @@
 package com.example.my_project_1.user.service.response;
 
 import com.example.my_project_1.user.domain.User;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
