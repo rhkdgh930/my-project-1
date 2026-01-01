@@ -17,7 +17,7 @@ import java.io.IOException;
 public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
     @Override
     public void commence(HttpServletRequest request, HttpServletResponse response, AuthenticationException authException) throws IOException, ServletException {
-        ErrorCode errorCode = ErrorCode.INVALID_TOKEN;
+        ErrorCode errorCode = ErrorCode.INVALID_ACCESS_TOKEN;
 
         if (authException instanceof JwtAuthenticationException jwtEx) {
             errorCode = jwtEx.getErrorCode();

@@ -37,16 +37,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         if (StringUtils.hasText(token)) {
             if (!jwtProvider.isValid(token)) {
-                throw new JwtAuthenticationException(ErrorCode.INVALID_TOKEN);
+                throw new JwtAuthenticationException(ErrorCode.INVALID_ACCESS_TOKEN);
             }
             if (jwtProvider.isExpired(token)) {
-                throw new JwtAuthenticationException(ErrorCode.EXPIRED_TOKEN);
+                throw new JwtAuthenticationException(ErrorCode.EXPIRED_ACCESS_TOKEN);
             }
             if (!jwtProvider.isAccessToken(token)) {
-                throw new JwtAuthenticationException(ErrorCode.INVALID_TOKEN);
+                throw new JwtAuthenticationException(ErrorCode.INVALID_ACCESS_TOKEN);
             }
             if (redisTokenService.isBlacklisted(token)) {
-                throw new JwtAuthenticationException(ErrorCode.REVOKED_TOKEN);
+                throw new JwtAuthenticationException(ErrorCode.LOGOUT_USER);
             }
 
             setAuthentication(token);

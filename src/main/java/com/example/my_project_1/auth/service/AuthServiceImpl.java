@@ -21,11 +21,11 @@ public class AuthServiceImpl implements AuthService {
     public TokenResponse reissue(String refreshToken) {
 
         if (jwtProvider.isExpired(refreshToken)) {
-            throw new JwtAuthenticationException(ErrorCode.EXPIRED_TOKEN);
+            throw new JwtAuthenticationException(ErrorCode.EXPIRED_REFRESH_TOKEN);
         }
 
         if (!jwtProvider.isRefreshToken(refreshToken)) {
-            throw new JwtAuthenticationException(ErrorCode.INVALID_TOKEN_TYPE);
+            throw new JwtAuthenticationException(ErrorCode.INVALID_REFRESH_TOKEN);
         }
 
         String email = jwtProvider.getEmail(refreshToken);
@@ -33,7 +33,7 @@ public class AuthServiceImpl implements AuthService {
 
         if (savedToken == null || !refreshToken.equals(savedToken)) {
             redisTokenService.deleteRefreshToken(email);
-            throw new JwtAuthenticationException(ErrorCode.INVALID_TOKEN);
+            throw new JwtAuthenticationException(ErrorCode.INVALID_REFRESH_TOKEN);
         }
 
         UserDetailsImpl userDetails = (UserDetailsImpl) userDetailsService.loadUserByUsername(email);
@@ -61,7 +61,7 @@ public class AuthServiceImpl implements AuthService {
     public void logout(String accessToken) {
 
         if (jwtProvider.isExpired(accessToken)) {
-            throw new JwtAuthenticationException(ErrorCode.EXPIRED_TOKEN);
+            throw new JwtAuthenticationException(ErrorCode.EXPIRED_ACCESS_TOKEN);
         }
 
         String email = jwtProvider.getEmail(accessToken);
