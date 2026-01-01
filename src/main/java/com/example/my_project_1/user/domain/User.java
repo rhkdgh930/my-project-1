@@ -31,13 +31,19 @@ public class User extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private UserStatus status;
+    private UserStatus userStatus;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private AccountStatus accountStatus;
+
+    @Column(nullable = false)
     private boolean emailVerified;
 
-    private LocalDateTime lastLoginAt;
-
+    @Column(nullable = false)
     private boolean deleted;
+
+    private LocalDateTime lastLoginAt;
 
     public static User signUp(UserSignUpRequest request, String encodedPassword) {
         User user = new User();
@@ -45,7 +51,23 @@ public class User extends BaseEntity {
         user.password = encodedPassword;
         user.nickname = request.getNickname();
         user.role = Role.USER;
-        user.status = UserStatus.PENDING;
+        user.userStatus = UserStatus.PENDING;
+        user.accountStatus = AccountStatus.NORMAL;
+        user.emailVerified = false;
+        user.deleted = false;
+        return user;
+    }
+
+    public static User createSuperUser(String encodedPassword) {
+        User user = new User();
+        user.email = "super@super.com";
+        user.password = encodedPassword;
+        user.nickname = "super";
+        user.role = Role.ADMIN;
+        user.userStatus = UserStatus.ACTIVE;
+        user.accountStatus = AccountStatus.NORMAL;
+        user.emailVerified = true;
+        user.deleted = false;
         return user;
     }
 
@@ -55,5 +77,15 @@ public class User extends BaseEntity {
 
     public void changeNickname(String nickname) {
         this.nickname = nickname;
+    }
+
+    public void delete() {
+        this.deleted = true;
+        this.accountStatus = AccountStatus.WITHDRAWN;
+    }
+
+    public void emailVerifying() {
+        this.emailVerified = true;
+        this.userStatus = UserStatus.ACTIVE;
     }
 }

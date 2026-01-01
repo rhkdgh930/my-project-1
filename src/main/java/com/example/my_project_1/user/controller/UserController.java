@@ -17,24 +17,24 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/user")
+@RequestMapping("/api")
 public class UserController {
     private final UserService userService;
 
-    @PostMapping("/signup")
+    @PostMapping("/user/signup")
     public ResponseEntity<UserSignUpResponse> signUp(@Valid @RequestBody UserSignUpRequest request) {
         User user = userService.signUp(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(UserSignUpResponse.from(user));
     }
 
     @PreAuthorize("hasRole('USER')")
-    @GetMapping("/test/user")
+    @GetMapping("/user/test")
     public ResponseEntity<UserDetails> getMyInfo(@AuthenticationPrincipal UserDetails userDetails) {
         return ResponseEntity.ok(userDetails);
     }
 
     @PreAuthorize("hasRole('ADMIN')")
-    @GetMapping("/test/admin")
+    @GetMapping("/admin/test")
     public ResponseEntity<UserDetails> getMyInfo2(@AuthenticationPrincipal UserDetails userDetails) {
         return ResponseEntity.ok(userDetails);
     }

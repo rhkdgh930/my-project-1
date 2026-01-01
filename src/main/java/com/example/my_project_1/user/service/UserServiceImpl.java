@@ -5,6 +5,7 @@ import com.example.my_project_1.common.exception.ErrorCode;
 import com.example.my_project_1.user.domain.User;
 import com.example.my_project_1.user.service.request.UserSignUpRequest;
 import com.example.my_project_1.user.repository.UserRepository;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -12,11 +13,18 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
+@Transactional(readOnly = true)
 @RequiredArgsConstructor
 @Service
 public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+
+    @PostConstruct
+    void init() {
+        User superUser = User.createSuperUser(passwordEncoder.encode("super"));
+        userRepository.save(superUser);
+    }
 
     @Transactional
     @Override
