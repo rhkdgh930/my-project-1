@@ -1,4 +1,4 @@
-package com.example.my_project_1.auth.filter;
+package com.example.my_project_1.auth.filter.authn;
 
 import com.example.my_project_1.auth.service.response.TokenResponse;
 import com.example.my_project_1.auth.service.RedisTokenService;
@@ -11,9 +11,10 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
+import org.springframework.stereotype.Component;
 
 import java.io.IOException;
-
+@Component
 @RequiredArgsConstructor
 public class JwtLoginSuccessHandler implements AuthenticationSuccessHandler {
     private final JwtProvider jwtProvider;
