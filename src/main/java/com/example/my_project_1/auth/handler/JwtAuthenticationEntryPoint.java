@@ -1,6 +1,6 @@
-package com.example.my_project_1.auth.filter.authz;
+package com.example.my_project_1.auth.handler;
 
-import com.example.my_project_1.auth.filter.JwtAuthenticationException;
+import com.example.my_project_1.auth.exception.JwtAuthenticationException;
 import com.example.my_project_1.common.exception.ErrorCode;
 import com.example.my_project_1.common.exception.ExceptionResponse;
 import com.example.my_project_1.common.utils.DataSerializer;

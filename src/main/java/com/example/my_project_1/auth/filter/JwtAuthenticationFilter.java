@@ -1,7 +1,7 @@
-package com.example.my_project_1.auth.filter.authz;
+package com.example.my_project_1.auth.filter;
 
 import com.example.my_project_1.auth.constant.SecurityConstants;
-import com.example.my_project_1.auth.filter.JwtAuthenticationException;
+import com.example.my_project_1.auth.exception.JwtAuthenticationException;
 import com.example.my_project_1.auth.service.RedisTokenService;
 import com.example.my_project_1.auth.userdetails.UserDetailsImpl;
 import com.example.my_project_1.auth.utils.JwtProvider;

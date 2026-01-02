@@ -1,12 +1,12 @@
 package com.example.my_project_1.auth.config;
 
 import com.example.my_project_1.auth.filter.ExceptionHandlerFilter;
-import com.example.my_project_1.auth.filter.authn.JwtLoginFailureHandler;
-import com.example.my_project_1.auth.filter.authn.JwtLoginFilter;
-import com.example.my_project_1.auth.filter.authn.JwtLoginSuccessHandler;
-import com.example.my_project_1.auth.filter.authz.JwtAccessDeniedHandler;
-import com.example.my_project_1.auth.filter.authz.JwtAuthenticationEntryPoint;
-import com.example.my_project_1.auth.filter.authz.JwtAuthenticationFilter;
+import com.example.my_project_1.auth.handler.JwtLoginFailureHandler;
+import com.example.my_project_1.auth.filter.JwtLoginFilter;
+import com.example.my_project_1.auth.handler.JwtLoginSuccessHandler;
+import com.example.my_project_1.auth.handler.JwtAccessDeniedHandler;
+import com.example.my_project_1.auth.handler.JwtAuthenticationEntryPoint;
+import com.example.my_project_1.auth.filter.JwtAuthenticationFilter;
 import com.example.my_project_1.auth.service.RedisTokenService;
 import com.example.my_project_1.auth.utils.JwtProvider;
 import com.example.my_project_1.auth.utils.UrlUtils;

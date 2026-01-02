@@ -1,6 +1,6 @@
 package com.example.my_project_1.auth.service;
 
-import com.example.my_project_1.auth.filter.JwtAuthenticationException;
+import com.example.my_project_1.auth.exception.JwtAuthenticationException;
 import com.example.my_project_1.auth.service.response.TokenResponse;
 import com.example.my_project_1.auth.userdetails.UserDetailsImpl;
 import com.example.my_project_1.auth.utils.JwtProvider;

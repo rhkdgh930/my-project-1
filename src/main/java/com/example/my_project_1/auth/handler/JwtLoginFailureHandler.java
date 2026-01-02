@@ -1,4 +1,4 @@
-package com.example.my_project_1.auth.filter.authn;
+package com.example.my_project_1.auth.handler;
 
 import com.example.my_project_1.common.exception.ErrorCode;
 import com.example.my_project_1.common.exception.ExceptionResponse;

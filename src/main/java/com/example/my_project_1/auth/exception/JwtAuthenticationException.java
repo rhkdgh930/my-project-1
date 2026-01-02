@@ -1,4 +1,4 @@
-package com.example.my_project_1.auth.filter;
+package com.example.my_project_1.auth.exception;
 
 import com.example.my_project_1.common.exception.ErrorCode;
 import org.springframework.security.core.AuthenticationException;

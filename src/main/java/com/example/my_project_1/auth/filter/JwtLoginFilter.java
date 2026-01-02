@@ -1,4 +1,4 @@
-package com.example.my_project_1.auth.filter.authn;
+package com.example.my_project_1.auth.filter;
 
 import com.example.my_project_1.auth.service.request.LoginRequest;
 import com.example.my_project_1.common.utils.DataSerializer;
