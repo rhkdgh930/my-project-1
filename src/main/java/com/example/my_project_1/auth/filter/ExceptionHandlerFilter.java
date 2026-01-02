@@ -22,14 +22,16 @@ public class ExceptionHandlerFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
         try {
             filterChain.doFilter(request, response);
-        } catch (JwtAuthenticationException ex) {
-            log.warn("Jwt 인증 실패: {}", ex.getErrorCode());
+
+        } catch (AccessDeniedException | AuthenticationException ex) {
             throw ex;
+
         } catch (Exception ex) {
-            if (ex instanceof AccessDeniedException || ex instanceof AuthenticationException) {
-                throw ex;
-            }
-            log.error("필터 체인 내 알 수 없는 오류 발생", ex);
+            log.error(
+                    "[ExceptionHandlerFilter.doFilterInternal] 500 Internal Server Error | uri={}",
+                    request.getRequestURI(),
+                    ex
+            );
             setErrorResponse(response, ErrorCode.INTERNAL_SERVER_ERROR);
         }
     }

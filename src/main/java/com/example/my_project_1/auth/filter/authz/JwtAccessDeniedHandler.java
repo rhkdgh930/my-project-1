@@ -21,10 +21,16 @@ public class JwtAccessDeniedHandler implements AccessDeniedHandler {
     public void handle(HttpServletRequest request, HttpServletResponse response, AccessDeniedException accessDeniedException) throws IOException, ServletException {
         ErrorCode errorCode = ErrorCode.ACCESS_DENIED;
 
+        log.warn(
+                "[JwtAccessDeniedHandler.handle] 403 Forbidden | uri={} | message={}",
+                request.getRequestURI(),
+                accessDeniedException.getMessage()
+        );
+
         response.setStatus(errorCode.getHttpStatus().value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding("UTF-8");
-        log.warn("URL 인가 실패 {}", accessDeniedException.getMessage());
+
         response.getWriter().write(
                 DataSerializer.serialize(new ExceptionResponse(errorCode))
         );
