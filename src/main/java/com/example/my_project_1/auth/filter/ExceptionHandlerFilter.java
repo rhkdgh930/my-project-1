@@ -1,6 +1,7 @@
 package com.example.my_project_1.auth.filter;
 
 import com.example.my_project_1.common.exception.ErrorCode;
+import com.example.my_project_1.common.exception.ExceptionResponse;
 import com.example.my_project_1.common.utils.DataSerializer;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -23,7 +24,7 @@ public class ExceptionHandlerFilter extends OncePerRequestFilter {
             filterChain.doFilter(request, response);
         } catch (JwtAuthenticationException ex) {
             log.warn("Jwt 인증 실패: {}", ex.getErrorCode());
-            setErrorResponse(response, ex.getErrorCode());
+            throw ex;
         } catch (Exception ex) {
             if (ex instanceof AccessDeniedException || ex instanceof AuthenticationException) {
                 throw ex;
@@ -37,6 +38,6 @@ public class ExceptionHandlerFilter extends OncePerRequestFilter {
         response.setStatus(errorCode.getHttpStatus().value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding("UTF-8");
-        response.getWriter().write(DataSerializer.serialize(errorCode));
+        response.getWriter().write(DataSerializer.serialize(new ExceptionResponse(errorCode)));
     }
 }
