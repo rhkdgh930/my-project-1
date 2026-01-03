@@ -24,9 +24,6 @@ public class ExceptionHandlerFilter extends OncePerRequestFilter {
         try {
             filterChain.doFilter(request, response);
 
-        } catch (AccessDeniedException | AuthenticationException ex) {
-            throw ex;
-
         } catch (Exception ex) {
             log.error(
                     "[ExceptionHandlerFilter.doFilterInternal] 500 Internal Server Error | uri={}",
