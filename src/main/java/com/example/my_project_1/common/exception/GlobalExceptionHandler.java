@@ -21,7 +21,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ExceptionResponse> handleAccessDeniedException(AccessDeniedException ex) {
-        log.warn("Method 인가 실패 {}", ex.getMessage());
+        log.warn("[GlobalExceptionHandler.handleAccessDeniedException] (Method area) | 403 Forbidden | message={}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body(new ExceptionResponse(ErrorCode.ACCESS_DENIED));
     }

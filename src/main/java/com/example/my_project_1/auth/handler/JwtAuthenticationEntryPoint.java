@@ -15,8 +15,8 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 
-@Slf4j
 @Component
+@Slf4j
 public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
     @Override
     public void commence(HttpServletRequest request, HttpServletResponse response, AuthenticationException authenticationException) throws IOException, ServletException {
@@ -32,12 +32,14 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
                 errorCode.getMessage()
         );
 
+        sendExceptionResponse(response, errorCode);
+    }
+
+    private void sendExceptionResponse(HttpServletResponse response, ErrorCode errorCode) throws IOException {
         response.setStatus(errorCode.getHttpStatus().value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding("UTF-8");
 
-        response.getWriter().write(
-                DataSerializer.serialize(new ExceptionResponse(errorCode))
-        );
+        response.getWriter().write(DataSerializer.serialize(new ExceptionResponse(errorCode)));
     }
 }

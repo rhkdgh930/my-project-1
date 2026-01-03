@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+
 @Component
 @Slf4j
 public class ExceptionHandlerFilter extends OncePerRequestFilter {
@@ -32,14 +33,14 @@ public class ExceptionHandlerFilter extends OncePerRequestFilter {
                     request.getRequestURI(),
                     ex
             );
-            setErrorResponse(response, ErrorCode.INTERNAL_SERVER_ERROR);
+            sendExceptionResponse(response);
         }
     }
 
-    private void setErrorResponse(HttpServletResponse response, ErrorCode errorCode) throws IOException {
-        response.setStatus(errorCode.getHttpStatus().value());
+    private void sendExceptionResponse(HttpServletResponse response) throws IOException {
+        response.setStatus(ErrorCode.INTERNAL_SERVER_ERROR.getHttpStatus().value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding("UTF-8");
-        response.getWriter().write(DataSerializer.serialize(new ExceptionResponse(errorCode)));
+        response.getWriter().write(DataSerializer.serialize(new ExceptionResponse(ErrorCode.INTERNAL_SERVER_ERROR)));
     }
 }

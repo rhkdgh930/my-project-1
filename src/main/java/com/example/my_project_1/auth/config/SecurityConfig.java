@@ -35,8 +35,6 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final JwtProvider jwtProvider;
-    private final RedisTokenService redisTokenService;
     private final AuthenticationConfiguration authenticationConfiguration;
 
     private final ExceptionHandlerFilter exceptionHandlerFilter;
@@ -44,14 +42,11 @@ public class SecurityConfig {
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
     private final JwtAccessDeniedHandler jwtAccessDeniedHandler;
 
+    private final JwtLoginSuccessHandler jwtLoginSuccessHandler;
+    private final JwtLoginFailureHandler jwtLoginFailureHandler;
+
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-
-        AuthenticationManager authenticationManager = authenticationConfiguration.getAuthenticationManager();
-
-        JwtLoginSuccessHandler successHandler = new JwtLoginSuccessHandler(jwtProvider, redisTokenService);
-        JwtLoginFailureHandler failureHandler = new JwtLoginFailureHandler();
-        JwtLoginFilter loginFilter = new JwtLoginFilter(authenticationManager, successHandler, failureHandler);
 
         http
                 .csrf(csrf -> csrf.disable())
@@ -72,9 +67,9 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
 
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(exceptionHandlerFilter, JwtAuthenticationFilter.class)
-                .addFilterAt(loginFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAt(jwtLoginFilter(), UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
@@ -91,6 +86,16 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
+    }
+
+    @Bean
+    public JwtLoginFilter jwtLoginFilter() throws Exception {
+        return new JwtLoginFilter(authenticationManager(), jwtLoginSuccessHandler, jwtLoginFailureHandler);
+    }
+
+    @Bean
+    public AuthenticationManager authenticationManager() throws Exception {
+        return authenticationConfiguration.getAuthenticationManager();
     }
 
     @Bean

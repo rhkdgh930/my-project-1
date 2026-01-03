@@ -19,20 +19,21 @@ import java.io.IOException;
 public class JwtAccessDeniedHandler implements AccessDeniedHandler {
     @Override
     public void handle(HttpServletRequest request, HttpServletResponse response, AccessDeniedException accessDeniedException) throws IOException, ServletException {
-        ErrorCode errorCode = ErrorCode.ACCESS_DENIED;
 
         log.warn(
-                "[JwtAccessDeniedHandler.handle] 403 Forbidden | uri={} | message={}",
+                "[JwtAccessDeniedHandler.handle] (Url area) | 403 Forbidden | uri={} | message={}",
                 request.getRequestURI(),
                 accessDeniedException.getMessage()
         );
 
-        response.setStatus(errorCode.getHttpStatus().value());
+        sendExceptionResponse(response);
+    }
+
+    private void sendExceptionResponse(HttpServletResponse response) throws IOException {
+        response.setStatus(ErrorCode.ACCESS_DENIED.getHttpStatus().value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding("UTF-8");
 
-        response.getWriter().write(
-                DataSerializer.serialize(new ExceptionResponse(errorCode))
-        );
+        response.getWriter().write(DataSerializer.serialize(new ExceptionResponse(ErrorCode.ACCESS_DENIED)));
     }
 }

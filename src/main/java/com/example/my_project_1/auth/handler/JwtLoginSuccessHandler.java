@@ -9,11 +9,13 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+
 @Component
 @RequiredArgsConstructor
 public class JwtLoginSuccessHandler implements AuthenticationSuccessHandler {
@@ -38,9 +40,11 @@ public class JwtLoginSuccessHandler implements AuthenticationSuccessHandler {
                 jwtProvider.getRemainingValidityMillis(refreshToken)
         );
 
-        response.setContentType("application/json");
-        response.getWriter().write(
-                DataSerializer.serialize(new TokenResponse(accessToken, refreshToken))
-        );
+        sendTokenResponse(response, accessToken, refreshToken);
+    }
+
+    private void sendTokenResponse(HttpServletResponse response, String accessToken, String refreshToken) throws IOException {
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.getWriter().write(DataSerializer.serialize(new TokenResponse(accessToken, refreshToken)));
     }
 }

@@ -14,7 +14,7 @@ import org.springframework.security.web.authentication.AuthenticationSuccessHand
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 import java.io.IOException;
-@Slf4j
+
 public class JwtLoginFilter extends UsernamePasswordAuthenticationFilter {
 
     public JwtLoginFilter(AuthenticationManager authenticationManager,
