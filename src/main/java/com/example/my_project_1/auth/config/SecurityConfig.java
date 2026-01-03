@@ -1,14 +1,11 @@
 package com.example.my_project_1.auth.config;
 
-import com.example.my_project_1.auth.filter.ExceptionHandlerFilter;
-import com.example.my_project_1.auth.handler.JwtLoginFailureHandler;
+import com.example.my_project_1.auth.filter.JwtAuthenticationFilter;
 import com.example.my_project_1.auth.filter.JwtLoginFilter;
-import com.example.my_project_1.auth.handler.JwtLoginSuccessHandler;
 import com.example.my_project_1.auth.handler.JwtAccessDeniedHandler;
 import com.example.my_project_1.auth.handler.JwtAuthenticationEntryPoint;
-import com.example.my_project_1.auth.filter.JwtAuthenticationFilter;
-import com.example.my_project_1.auth.service.RedisTokenService;
-import com.example.my_project_1.auth.utils.JwtProvider;
+import com.example.my_project_1.auth.handler.JwtLoginFailureHandler;
+import com.example.my_project_1.auth.handler.JwtLoginSuccessHandler;
 import com.example.my_project_1.auth.utils.UrlUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -37,7 +34,6 @@ public class SecurityConfig {
 
     private final AuthenticationConfiguration authenticationConfiguration;
 
-    private final ExceptionHandlerFilter exceptionHandlerFilter;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
     private final JwtAccessDeniedHandler jwtAccessDeniedHandler;
@@ -68,7 +64,6 @@ public class SecurityConfig {
                 )
 
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterBefore(exceptionHandlerFilter, JwtAuthenticationFilter.class)
                 .addFilterAt(jwtLoginFilter(), UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
