@@ -4,6 +4,7 @@ import com.example.my_project_1.auth.exception.JwtAuthenticationException;
 import com.example.my_project_1.auth.service.response.TokenResponse;
 import com.example.my_project_1.auth.userdetails.UserDetailsImpl;
 import com.example.my_project_1.auth.utils.JwtProvider;
+import com.example.my_project_1.common.exception.CustomException;
 import com.example.my_project_1.common.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -21,11 +22,11 @@ public class AuthServiceImpl implements AuthService {
     public TokenResponse reissue(String refreshToken) {
 
         if (jwtProvider.isExpired(refreshToken)) {
-            throw new JwtAuthenticationException(ErrorCode.EXPIRED_REFRESH_TOKEN);
+            throw new CustomException(ErrorCode.EXPIRED_REFRESH_TOKEN);
         }
 
         if (!jwtProvider.isRefreshToken(refreshToken)) {
-            throw new JwtAuthenticationException(ErrorCode.INVALID_REFRESH_TOKEN);
+            throw new CustomException(ErrorCode.INVALID_REFRESH_TOKEN);
         }
 
         String email = jwtProvider.getEmail(refreshToken);
@@ -33,7 +34,7 @@ public class AuthServiceImpl implements AuthService {
 
         if (savedToken == null || !refreshToken.equals(savedToken)) {
             redisTokenService.deleteRefreshToken(email);
-            throw new JwtAuthenticationException(ErrorCode.INVALID_REFRESH_TOKEN);
+            throw new CustomException(ErrorCode.INVALID_REFRESH_TOKEN);
         }
 
         UserDetailsImpl userDetails = (UserDetailsImpl) userDetailsService.loadUserByUsername(email);
