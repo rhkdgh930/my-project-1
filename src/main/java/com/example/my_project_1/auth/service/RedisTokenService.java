@@ -11,6 +11,9 @@ import java.time.Duration;
 public class RedisTokenService {
     private final StringRedisTemplate redisTemplate;
 
+    private static final String RT_FORMAT = "RT";
+    private static final String BL_FORMAT = "BL";
+
     public void saveRefreshToken(String email, String token, long ttl) {
         redisTemplate.opsForValue().set(rtKey(email), token, Duration.ofMillis(ttl));
     }
@@ -33,10 +36,10 @@ public class RedisTokenService {
     }
 
     private String rtKey(String email) {
-        return "RT:" + email;
+        return RT_FORMAT + email;
     }
 
     private String blKey(String token) {
-        return "BL:" + token;
+        return BL_FORMAT + token;
     }
 }
