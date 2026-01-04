@@ -1,15 +1,17 @@
 package com.example.my_project_1.auth.service;
 
-import com.example.my_project_1.auth.exception.JwtAuthenticationException;
 import com.example.my_project_1.auth.service.response.TokenResponse;
-import com.example.my_project_1.auth.userdetails.UserDetailsImpl;
+import com.example.my_project_1.auth.service.userdetails.UserDetailsImpl;
 import com.example.my_project_1.auth.utils.JwtProvider;
 import com.example.my_project_1.common.exception.CustomException;
 import com.example.my_project_1.common.exception.ErrorCode;
+import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Date;
 
 @Service
 @RequiredArgsConstructor
@@ -21,15 +23,10 @@ public class AuthServiceImpl implements AuthService {
 
     public TokenResponse reissue(String refreshToken) {
 
-        if (jwtProvider.isExpired(refreshToken)) {
-            throw new CustomException(ErrorCode.EXPIRED_REFRESH_TOKEN);
-        }
+        Claims claims = jwtProvider.parseClaimsSafely(refreshToken);
+        jwtProvider.validateRefreshToken(claims);
 
-        if (!jwtProvider.isRefreshToken(refreshToken)) {
-            throw new CustomException(ErrorCode.INVALID_REFRESH_TOKEN);
-        }
-
-        String email = jwtProvider.getEmail(refreshToken);
+        String email = claims.getSubject();
         String savedToken = redisTokenService.getRefreshToken(email);
 
         if (savedToken == null || !refreshToken.equals(savedToken)) {
@@ -61,11 +58,10 @@ public class AuthServiceImpl implements AuthService {
 
     public void logout(String accessToken) {
 
-        if (jwtProvider.isExpired(accessToken)) {
-            throw new JwtAuthenticationException(ErrorCode.EXPIRED_ACCESS_TOKEN);
-        }
+        Claims claims = jwtProvider.parseClaimsSafely(accessToken);
+        assertNotExpired(claims);
 
-        String email = jwtProvider.getEmail(accessToken);
+        String email = claims.getSubject();
 
         redisTokenService.deleteRefreshToken(email);
 
@@ -74,4 +70,12 @@ public class AuthServiceImpl implements AuthService {
                 jwtProvider.getRemainingValidityMillis(accessToken)
         );
     }
+
+    private static void assertNotExpired(Claims claims) {
+        Date exp = claims.getExpiration();
+        if (exp.before(new Date())) {
+            throw new CustomException(ErrorCode.EXPIRED_ACCESS_TOKEN);
+        }
+    }
 }
+

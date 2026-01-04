@@ -2,7 +2,7 @@ package com.example.my_project_1.auth.handler;
 
 import com.example.my_project_1.auth.service.RedisTokenService;
 import com.example.my_project_1.auth.service.response.TokenResponse;
-import com.example.my_project_1.auth.userdetails.UserDetailsImpl;
+import com.example.my_project_1.auth.service.userdetails.UserDetailsImpl;
 import com.example.my_project_1.auth.utils.JwtProvider;
 import com.example.my_project_1.common.utils.DataSerializer;
 import jakarta.servlet.ServletException;

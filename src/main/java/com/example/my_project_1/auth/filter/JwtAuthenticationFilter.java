@@ -1,11 +1,15 @@
 package com.example.my_project_1.auth.filter;
 
+import com.example.my_project_1.auth.cache.CachedUserContext;
 import com.example.my_project_1.auth.constant.SecurityConstants;
 import com.example.my_project_1.auth.exception.JwtAuthenticationException;
 import com.example.my_project_1.auth.service.RedisTokenService;
-import com.example.my_project_1.auth.userdetails.UserDetailsImpl;
+import com.example.my_project_1.auth.service.RedisUserContextService;
+import com.example.my_project_1.auth.service.userdetails.UserDetailsImpl;
 import com.example.my_project_1.auth.utils.JwtProvider;
 import com.example.my_project_1.common.exception.ErrorCode;
+import com.example.my_project_1.user.domain.AccountStatus;
+import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -14,8 +18,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -28,39 +30,51 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtProvider jwtProvider;
     private final RedisTokenService redisTokenService;
-    private final UserDetailsService userDetailsService;
+    private final RedisUserContextService userContextService;
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
-            throws ServletException, IOException {
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
 
         String token = resolveToken(request);
-
-        if (StringUtils.hasText(token)) {
-            if (!jwtProvider.isValid(token)) {
-                throw new JwtAuthenticationException(ErrorCode.INVALID_ACCESS_TOKEN);
-            }
-            if (jwtProvider.isExpired(token)) {
-                throw new JwtAuthenticationException(ErrorCode.EXPIRED_ACCESS_TOKEN);
-            }
-            if (!jwtProvider.isAccessToken(token)) {
-                throw new JwtAuthenticationException(ErrorCode.INVALID_ACCESS_TOKEN);
-            }
-            if (redisTokenService.isBlacklisted(token)) {
-                throw new JwtAuthenticationException(ErrorCode.LOGOUT_USER);
-            }
-
-            setAuthentication(token);
+        if (!StringUtils.hasText(token)) {
+            filterChain.doFilter(request, response);
+            return;
         }
+
+        Claims claims = jwtProvider.parseClaimsSafely(token);
+        jwtProvider.validateAccessToken(claims);
+
+        if (redisTokenService.isBlacklisted(token)) {
+            throw new JwtAuthenticationException(ErrorCode.LOGOUT_USER);
+        }
+
+        Long userId = claims.get("uid", Long.class);
+        CachedUserContext ctx = userContextService.getUserContext(userId);
+
+        validateUser(ctx);
+        setAuthentication(ctx);
+
         filterChain.doFilter(request, response);
     }
 
-    private void setAuthentication(String token) {
-        Long userId = jwtProvider.getUserId(token);
-        String email = jwtProvider.getEmail(token);
-        String role = jwtProvider.getRole(token);
+    private void validateUser(CachedUserContext ctx) {
+        if (ctx.isDeleted()) {
+            throw new JwtAuthenticationException(ErrorCode.USER_NOT_FOUND);
+        }
 
-        UserDetails userDetails = new UserDetailsImpl(userId, email, null, role);
+        if (ctx.getAccountStatus() == AccountStatus.SUSPENDED) {
+            throw new JwtAuthenticationException(ErrorCode.USER_SUSPENDED);
+        }
+    }
+
+    private void setAuthentication(CachedUserContext ctx) {
+        UserDetailsImpl userDetails =
+                new UserDetailsImpl(
+                        ctx.getUserId(),
+                        ctx.getEmail(),
+                        null,
+                        ctx.getRole().name()
+                );
 
         Authentication authentication =
                 new UsernamePasswordAuthenticationToken(
