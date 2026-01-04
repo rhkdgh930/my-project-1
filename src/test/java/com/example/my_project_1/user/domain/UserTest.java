@@ -55,9 +55,8 @@ class UserTest {
         User user = getUser();
         assertThat(user.isDeleted()).isFalse();
 
-        user.withdraw();
+        user.delete();
         assertThat(user.isDeleted()).isTrue();
-        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.WITHDRAWN);
     }
 
     @Test
