@@ -1,4 +1,4 @@
-package com.example.my_project_1.auth.userdetails;
+package com.example.my_project_1.auth.service.userdetails;
 
 
 import lombok.AllArgsConstructor;

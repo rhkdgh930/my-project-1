@@ -1,4 +1,4 @@
-package com.example.my_project_1.auth.userdetails;
+package com.example.my_project_1.auth.service.userdetails;
 
 import com.example.my_project_1.user.domain.User;
 import com.example.my_project_1.user.repository.UserRepository;
