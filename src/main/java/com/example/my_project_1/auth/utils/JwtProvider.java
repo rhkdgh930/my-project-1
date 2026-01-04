@@ -21,6 +21,9 @@ public class JwtProvider {
 
     @PostConstruct
     void init() {
+        if (properties.getSecret().length() < 32) {
+            throw new IllegalStateException("jwt secret must be at least 256bits");
+        }
         this.key = Keys.hmacShaKeyFor(properties.getSecret().getBytes());
     }
 
