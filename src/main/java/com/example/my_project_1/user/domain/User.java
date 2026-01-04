@@ -62,6 +62,35 @@ public class User extends BaseEntity {
         return user;
     }
 
+    public void suspend() {
+        if (isDeleted()) {
+            throw new CustomException(ErrorCode.USER_NOT_FOUND);
+        }
+        if (isSuspended()) {
+            throw new CustomException(ErrorCode.USER_SUSPENDED);
+        }
+        this.accountStatus = AccountStatus.SUSPENDED;
+    }
+
+    public void delete() {
+        if (isDeleted()) {
+            throw new CustomException(ErrorCode.USER_NOT_FOUND);
+        }
+        this.deleted = true;
+    }
+
+    public void verifyEmail() {
+        if (this.userStatus != UserStatus.PENDING) {
+            throw new CustomException(ErrorCode.ALREADY_VERIFIED_USER);
+        }
+        this.emailVerified = true;
+        this.userStatus = UserStatus.ACTIVE;
+    }
+
+    public boolean isActive() {
+        return !deleted && accountStatus == AccountStatus.NORMAL && userStatus == UserStatus.ACTIVE;
+    }
+
     public void updatePassword(String password) {
         this.password = password;
     }
@@ -74,20 +103,8 @@ public class User extends BaseEntity {
         this.lastLoginAt = LocalDateTime.now();
     }
 
-    public void withdraw() {
-        if (this.deleted || this.accountStatus == AccountStatus.WITHDRAWN) {
-            throw new CustomException(ErrorCode.ALREADY_WITHDRAWN_USER);
-        }
-        this.deleted = true;
-        this.accountStatus = AccountStatus.WITHDRAWN;
-    }
-
-    public void verifyEmail() {
-        if (this.userStatus != UserStatus.PENDING) {
-            throw new CustomException(ErrorCode.ALREADY_VERIFIED_USER);
-        }
-        this.emailVerified = true;
-        this.userStatus = UserStatus.ACTIVE;
+    public boolean isSuspended() {
+        return accountStatus == AccountStatus.SUSPENDED;
     }
 
     public static User createSuperUser(String encodedPassword) {

@@ -36,4 +36,11 @@ public class UserController {
     public ResponseEntity<UserDetails> getMyInfo2(@AuthenticationPrincipal UserDetails userDetails) {
         return ResponseEntity.ok(userDetails);
     }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/admin/suspend/{userId}")
+    public ResponseEntity<Void> suspendUser(@AuthenticationPrincipal UserDetails userDetails, @PathVariable(name = "userId") Long userId) {
+        userService.suspendUser(userId);
+        return ResponseEntity.noContent().build();
+    }
 }

@@ -1,5 +1,6 @@
 package com.example.my_project_1.user.service;
 
+import com.example.my_project_1.auth.service.RedisUserContextService;
 import com.example.my_project_1.common.exception.CustomException;
 import com.example.my_project_1.common.exception.ErrorCode;
 import com.example.my_project_1.user.domain.User;
@@ -19,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final RedisUserContextService redisUserContextService;
 
     @PostConstruct
     void init() {
@@ -41,5 +43,15 @@ public class UserServiceImpl implements UserService {
         if (userRepository.existsByEmail(email)) {
             throw new CustomException(ErrorCode.DUPLICATED_EMAIL);
         }
+    }
+
+    @Transactional
+    @Override
+    public void suspendUser(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        user.suspend();
+
+        redisUserContextService.evict(userId);
     }
 }
