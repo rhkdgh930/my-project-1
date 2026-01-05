@@ -1,18 +1,21 @@
 package com.example.my_project_1.auth.service;
 
 import com.example.my_project_1.auth.cache.CachedUserContext;
+import com.example.my_project_1.auth.exception.JwtAuthenticationException;
 import com.example.my_project_1.auth.service.response.TokenResponse;
 import com.example.my_project_1.auth.utils.JwtProvider;
 import com.example.my_project_1.common.exception.CustomException;
 import com.example.my_project_1.common.exception.ErrorCode;
 import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Date;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -68,24 +71,23 @@ public class AuthServiceImpl implements AuthService {
 
     @Transactional
     public void logout(String accessToken) {
-
-        Claims claims = jwtProvider.parseClaimsSafely(accessToken);
-        assertNotExpired(claims);
+        Claims claims;
+        try {
+            claims = jwtProvider.parseClaimsSafely(accessToken);
+        } catch (JwtAuthenticationException e) {
+            if (e.getErrorCode() == ErrorCode.EXPIRED_ACCESS_TOKEN) {
+                return;
+            }
+            throw e;
+        }
 
         Long userId = Long.valueOf(claims.getSubject());
 
         redisTokenService.deleteRefreshTokenHash(userId);
 
-        redisTokenService.blacklistAccessToken(
-                accessToken,
-                jwtProvider.getRemainingValidityMillis(accessToken)
-        );
-    }
-
-    private void assertNotExpired(Claims claims) {
-        Date exp = claims.getExpiration();
-        if (exp.before(new Date())) {
-            throw new CustomException(ErrorCode.EXPIRED_ACCESS_TOKEN);
+        long ttl = jwtProvider.getRemainingValidityMillis(accessToken);
+        if (ttl > 0) {
+            redisTokenService.blacklistAccessToken(accessToken, ttl);
         }
     }
 }
