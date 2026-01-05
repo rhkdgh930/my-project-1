@@ -35,11 +35,11 @@ public class User extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private UserStatus userStatus;
+    private UserStatus userStatus; //PENDING, ACTIVE
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private AccountStatus accountStatus;
+    private AccountStatus accountStatus; //NORMAL, SUSPENDED
 
     @Column(nullable = false)
     private boolean emailVerified;

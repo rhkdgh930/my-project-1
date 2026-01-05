@@ -17,7 +17,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() ->
-                        new UsernameNotFoundException("존재하지 않는 사용자입니다.")
+                        new UsernameNotFoundException("Invalid credentials")
                 );
 
         return new UserDetailsImpl(

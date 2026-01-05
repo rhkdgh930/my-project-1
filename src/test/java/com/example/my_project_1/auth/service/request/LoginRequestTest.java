@@ -43,7 +43,7 @@ class LoginRequestTest {
 
     @Test
     @DisplayName("이메일이 공백이면 검증에 실패한다.")
-    void loginRequestTest_create_fail_test_email_blank() {
+    void loginRequest_create_fail_test_email_blank() {
         // given
         LoginRequest request = LoginRequest.create(" ", "password");
 
@@ -59,7 +59,7 @@ class LoginRequestTest {
 
     @Test
     @DisplayName("비밀번호가 공백이면 검증에 실패한다.")
-    void loginRequestTest_create_fail_test_password_blank() {
+    void loginRequest_create_fail_test_password_blank() {
         // given
         LoginRequest request = LoginRequest.create("example@example.com", " ");
 
