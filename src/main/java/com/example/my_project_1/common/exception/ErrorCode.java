@@ -36,7 +36,7 @@ public enum ErrorCode {
 
     /* 403 FORBIDDEN: 권한 없음 */
     ACCESS_DENIED(HttpStatus.FORBIDDEN, "접근 권한이 없습니다."),
-    USER_SUSPENDED(HttpStatus.FORBIDDEN, "정지된 계정입니다."),
+    USER_SUSPENDED(HttpStatus.FORBIDDEN, "차단된 계정입니다."),
 
     /* 500 INTERNAL_SERVER_ERROR: 서버 내부 오류 */
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버에서 알 수 없는 오류가 발생했습니다.");
