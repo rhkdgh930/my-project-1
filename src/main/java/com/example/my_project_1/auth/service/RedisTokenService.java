@@ -46,9 +46,14 @@ public class RedisTokenService {
     }
 
     public boolean isBlacklisted(String accessToken) {
-        return Boolean.TRUE.equals(
-                redisTemplate.hasKey(BL_PREFIX + hash(accessToken))
-        );
+        try {
+            return Boolean.TRUE.equals(
+                    redisTemplate.hasKey(BL_PREFIX + hash(accessToken))
+            );
+        } catch (Exception e) {
+            log.error("Redis connection failed in isBlacklisted: {}", e.getMessage());
+            return false; // Fail-open: Redis 장애 시 로그인은 허용
+        }
     }
 
     public void saveReissueHistory(String oldRtHash, TokenResponse newTokenResponse) {
