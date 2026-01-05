@@ -60,8 +60,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         } catch (JwtAuthenticationException e) {
             SecurityContextHolder.clearContext();
-            authenticationEntryPoint.commence(request, response, e);
-            return;
+            throw e;
         }
     }
 
