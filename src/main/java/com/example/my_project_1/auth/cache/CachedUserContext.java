@@ -13,7 +13,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class CachedUserContext {
     private Long userId;
-    private String email;
     private Role role;
     private UserStatus userStatus;
     private AccountStatus accountStatus;
@@ -22,7 +21,6 @@ public class CachedUserContext {
     public static CachedUserContext from(User user) {
         return new CachedUserContext(
                 user.getId(),
-                user.getEmail(),
                 user.getRole(),
                 user.getUserStatus(),
                 user.getAccountStatus(),

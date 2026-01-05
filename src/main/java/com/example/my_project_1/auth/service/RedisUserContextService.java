@@ -4,6 +4,7 @@ import com.example.my_project_1.auth.cache.CachedUserContext;
 import com.example.my_project_1.auth.exception.JwtAuthenticationException;
 import com.example.my_project_1.common.exception.CustomException;
 import com.example.my_project_1.common.exception.ErrorCode;
+import com.example.my_project_1.user.domain.AccountStatus;
 import com.example.my_project_1.user.domain.User;
 import com.example.my_project_1.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -47,6 +48,16 @@ public class RedisUserContextService {
             log.error("[RedisUserContextService.getUserContext] cache put : {}", e.getMessage());
         }
         return ctx;
+    }
+
+    public void validate(CachedUserContext ctx) {
+        if (ctx.isDeleted()) {
+            throw new JwtAuthenticationException(ErrorCode.USER_NOT_FOUND);
+        }
+
+        if (ctx.getAccountStatus() == AccountStatus.SUSPENDED) {
+            throw new JwtAuthenticationException(ErrorCode.USER_SUSPENDED);
+        }
     }
 
     public void evict(Long userId) {

@@ -1,11 +1,12 @@
 package com.example.my_project_1.auth.handler;
 
+import com.example.my_project_1.auth.cache.CachedUserContext;
 import com.example.my_project_1.auth.service.RedisTokenService;
+import com.example.my_project_1.auth.service.RedisUserContextService;
 import com.example.my_project_1.auth.service.response.TokenResponse;
 import com.example.my_project_1.auth.service.userdetails.UserDetailsImpl;
 import com.example.my_project_1.auth.utils.JwtProvider;
 import com.example.my_project_1.common.utils.DataSerializer;
-import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -19,32 +20,38 @@ import java.io.IOException;
 @Component
 @RequiredArgsConstructor
 public class JwtLoginSuccessHandler implements AuthenticationSuccessHandler {
+
     private final JwtProvider jwtProvider;
     private final RedisTokenService redisTokenService;
+    private final RedisUserContextService redisUserContextService;
 
     @Override
-    public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException, ServletException {
+    public void onAuthenticationSuccess(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            Authentication authentication) throws IOException {
+
         UserDetailsImpl principal = (UserDetailsImpl) authentication.getPrincipal();
+        Long userId = principal.getUserId();
 
-        String accessToken = jwtProvider.createAccessToken(
-                principal.getUserId(),
-                principal.getUsername(),
-                principal.getRole()
-        );
+        CachedUserContext ctx = redisUserContextService.getUserContext(userId);
+        redisUserContextService.validate(ctx);
 
-        String refreshToken = jwtProvider.createRefreshToken(principal.getUsername());
+        String accessToken =
+                jwtProvider.createAccessToken(userId, principal.getRole());
 
-        redisTokenService.saveRefreshToken(
-                principal.getUsername(),
+        String refreshToken =
+                jwtProvider.createRefreshToken(userId);
+
+        redisTokenService.saveRefreshTokenHash(
+                userId,
                 refreshToken,
                 jwtProvider.getRemainingValidityMillis(refreshToken)
         );
 
-        sendTokenResponse(response, accessToken, refreshToken);
-    }
-
-    private void sendTokenResponse(HttpServletResponse response, String accessToken, String refreshToken) throws IOException {
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        response.getWriter().write(DataSerializer.serialize(new TokenResponse(accessToken, refreshToken)));
+        response.getWriter().write(
+                DataSerializer.serialize(new TokenResponse(accessToken, refreshToken))
+        );
     }
 }

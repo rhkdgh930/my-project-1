@@ -6,12 +6,14 @@ import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.security.Key;
 import java.util.Date;
 import java.util.Map;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class JwtProvider {
@@ -27,13 +29,12 @@ public class JwtProvider {
         this.key = Keys.hmacShaKeyFor(properties.getSecret().getBytes());
     }
 
-    public String createAccessToken(Long userId, String email, String role) {
+    public String createAccessToken(Long userId, String role) {
         long now = System.currentTimeMillis();
 
         return Jwts.builder()
-                .setSubject(email)
+                .setSubject(String.valueOf(userId))
                 .addClaims(Map.of(
-                        "uid", userId,
                         "role", role,
                         "typ", "access"
                 ))
@@ -43,11 +44,11 @@ public class JwtProvider {
                 .compact();
     }
 
-    public String createRefreshToken(String email) {
+    public String createRefreshToken(Long userId) {
         long now = System.currentTimeMillis();
 
         return Jwts.builder()
-                .setSubject(email)
+                .setSubject(String.valueOf(userId))
                 .claim("typ", "refresh")
                 .setIssuedAt(new Date(now))
                 .setExpiration(new Date(now + properties.getRefreshTokenExpiration()))
@@ -63,30 +64,33 @@ public class JwtProvider {
                     .build()
                     .parseClaimsJws(token)
                     .getBody();
-        } catch (JwtException | IllegalArgumentException e) {
+        } catch (ExpiredJwtException e) {
+            String type = e.getClaims().get("typ", String.class);
+            if ("refresh".equals(type)) {
+                throw new JwtAuthenticationException(ErrorCode.EXPIRED_REFRESH_TOKEN);
+            }
+            if ("access".equals(type)) {
+                throw new JwtAuthenticationException(ErrorCode.EXPIRED_ACCESS_TOKEN);
+            }
+            throw new JwtAuthenticationException(ErrorCode.INVALID_TOKEN);
+
+        } catch (MalformedJwtException | SignatureException | IllegalArgumentException e) {
+            throw new JwtAuthenticationException(ErrorCode.INVALID_TOKEN);
+        } catch (Exception e) {
+            log.error("[JwtProvider.parseClaimsSafely] Unknown error: {}", e.getMessage());
             throw new JwtAuthenticationException(ErrorCode.INVALID_TOKEN);
         }
     }
 
-    public void validateAccessToken(Claims claims) {
+    public void assertAccessToken(Claims claims) {
         if (!"access".equals(claims.get("typ"))) {
             throw new JwtAuthenticationException(ErrorCode.INVALID_ACCESS_TOKEN);
         }
-
-        Date exp = claims.getExpiration();
-        if (exp.before(new Date())) {
-            throw new JwtAuthenticationException(ErrorCode.EXPIRED_ACCESS_TOKEN);
-        }
     }
 
-    public void validateRefreshToken(Claims claims) {
+    public void assertRefreshToken(Claims claims) {
         if (!"refresh".equals(claims.get("typ"))) {
             throw new JwtAuthenticationException(ErrorCode.INVALID_REFRESH_TOKEN);
-        }
-
-        Date exp = claims.getExpiration();
-        if (exp.before(new Date())) {
-            throw new JwtAuthenticationException(ErrorCode.EXPIRED_REFRESH_TOKEN);
         }
     }
 

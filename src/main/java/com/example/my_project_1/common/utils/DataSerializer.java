@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Optional;
 
 @Slf4j
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
@@ -31,17 +32,22 @@ public class DataSerializer {
         }
     }
 
+    public static <T> Optional<T> tryDeserialize(String data, Class<T> clazz) {
+        try {
+            return Optional.of(objectMapper.readValue(data, clazz));
+        } catch (Exception e) {
+            log.warn("[DataSerializer.tryDeserialize] data={}, clazz={} failed", data, clazz, e);
+            return Optional.empty();
+        }
+    }
+
     public static <T> T deserialize(InputStream inputStream, Class<T> clazz) {
         try {
             return objectMapper.readValue(inputStream, clazz);
         } catch (IOException e) {
-            log.error("[DataSerializer.deserialize] inputStream={}, clazz={}",inputStream, clazz, e);
+            log.error("[DataSerializer.deserialize] inputStream={}, clazz={}", inputStream, clazz, e);
             throw new IllegalStateException("JSON deserialization failed", e);
         }
-    }
-
-    public static <T> T deserialize(Object data, Class<T> clazz) {
-        return objectMapper.convertValue(data, clazz);
     }
 
     public static String serialize(Object object) {

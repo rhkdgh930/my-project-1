@@ -1,13 +1,13 @@
 package com.example.my_project_1.auth.service;
 
+import com.example.my_project_1.auth.cache.CachedUserContext;
 import com.example.my_project_1.auth.service.response.TokenResponse;
-import com.example.my_project_1.auth.service.userdetails.UserDetailsImpl;
 import com.example.my_project_1.auth.utils.JwtProvider;
 import com.example.my_project_1.common.exception.CustomException;
 import com.example.my_project_1.common.exception.ErrorCode;
 import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.userdetails.UserDetailsService;
+import org.apache.commons.codec.digest.DigestUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,53 +17,64 @@ import java.util.Date;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class AuthServiceImpl implements AuthService {
+
     private final JwtProvider jwtProvider;
     private final RedisTokenService redisTokenService;
-    private final UserDetailsService userDetailsService;
+    private final RedisUserContextService userContextService;
 
+    @Transactional
     public TokenResponse reissue(String refreshToken) {
+        String requestHash = redisTokenService.getHash(refreshToken);
+
+        TokenResponse cachedResponse = redisTokenService.getReissueHistory(requestHash);
+        if (cachedResponse != null) {
+            return cachedResponse;
+        }
 
         Claims claims = jwtProvider.parseClaimsSafely(refreshToken);
-        jwtProvider.validateRefreshToken(claims);
+        jwtProvider.assertRefreshToken(claims);
 
-        String email = claims.getSubject();
-        String savedToken = redisTokenService.getRefreshToken(email);
+        Long userId = Long.valueOf(claims.getSubject());
 
-        if (savedToken == null || !refreshToken.equals(savedToken)) {
-            redisTokenService.deleteRefreshToken(email);
+        String savedRTHash = redisTokenService.getRefreshTokenHash(userId);
+
+        if (savedRTHash == null || !savedRTHash.equals(requestHash)) {
+            redisTokenService.deleteRefreshTokenHash(userId);
             throw new CustomException(ErrorCode.INVALID_REFRESH_TOKEN);
         }
 
-        UserDetailsImpl userDetails = (UserDetailsImpl) userDetailsService.loadUserByUsername(email);
+        CachedUserContext ctx = userContextService.getUserContext(userId);
 
-        // 새 토큰 발급
         String newAccessToken =
                 jwtProvider.createAccessToken(
-                        userDetails.getUserId(),
-                        userDetails.getUsername(),
-                        userDetails.getRole()
+                        userId,
+                        ctx.getRole().name()
                 );
 
         String newRefreshToken =
-                jwtProvider.createRefreshToken(email);
+                jwtProvider.createRefreshToken(userId);
 
-        redisTokenService.saveRefreshToken(
-                email,
+        redisTokenService.saveRefreshTokenHash(
+                userId,
                 newRefreshToken,
                 jwtProvider.getRemainingValidityMillis(newRefreshToken)
         );
 
+        TokenResponse response = new TokenResponse(newAccessToken, newRefreshToken);
+        redisTokenService.saveReissueHistory(requestHash, response);
+
         return new TokenResponse(newAccessToken, newRefreshToken);
     }
 
+    @Transactional
     public void logout(String accessToken) {
 
         Claims claims = jwtProvider.parseClaimsSafely(accessToken);
         assertNotExpired(claims);
 
-        String email = claims.getSubject();
+        Long userId = Long.valueOf(claims.getSubject());
 
-        redisTokenService.deleteRefreshToken(email);
+        redisTokenService.deleteRefreshTokenHash(userId);
 
         redisTokenService.blacklistAccessToken(
                 accessToken,
@@ -71,11 +82,10 @@ public class AuthServiceImpl implements AuthService {
         );
     }
 
-    private static void assertNotExpired(Claims claims) {
+    private void assertNotExpired(Claims claims) {
         Date exp = claims.getExpiration();
         if (exp.before(new Date())) {
             throw new CustomException(ErrorCode.EXPIRED_ACCESS_TOKEN);
         }
     }
 }
-

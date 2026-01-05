@@ -8,7 +8,6 @@ import com.example.my_project_1.auth.service.RedisUserContextService;
 import com.example.my_project_1.auth.service.userdetails.UserDetailsImpl;
 import com.example.my_project_1.auth.utils.JwtProvider;
 import com.example.my_project_1.common.exception.ErrorCode;
-import com.example.my_project_1.user.domain.AccountStatus;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -31,7 +30,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtProvider jwtProvider;
     private final RedisTokenService redisTokenService;
-    private final RedisUserContextService userContextService;
+    private final RedisUserContextService redisUserContextService;
     private final AuthenticationEntryPoint authenticationEntryPoint;
 
     @Override
@@ -45,16 +44,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
 
             Claims claims = jwtProvider.parseClaimsSafely(token);
-            jwtProvider.validateAccessToken(claims);
+            jwtProvider.assertAccessToken(claims);
 
             if (redisTokenService.isBlacklisted(token)) {
                 throw new JwtAuthenticationException(ErrorCode.LOGOUT_USER);
             }
 
-            Long userId = claims.get("uid", Long.class);
-            CachedUserContext ctx = userContextService.getUserContext(userId);
+            Long userId = Long.parseLong(claims.getSubject());
+            CachedUserContext ctx = redisUserContextService.getUserContext(userId);
+            redisUserContextService.validate(ctx);
 
-            validateUser(ctx);
             setAuthentication(ctx);
 
             filterChain.doFilter(request, response);
@@ -66,23 +65,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
     }
 
-    private void validateUser(CachedUserContext ctx) {
-        if (ctx.isDeleted()) {
-            throw new JwtAuthenticationException(ErrorCode.USER_NOT_FOUND);
-        }
-
-        if (ctx.getAccountStatus() == AccountStatus.SUSPENDED) {
-            throw new JwtAuthenticationException(ErrorCode.USER_SUSPENDED);
-        }
-    }
-
     private void setAuthentication(CachedUserContext ctx) {
         UserDetailsImpl userDetails =
                 new UserDetailsImpl(
                         ctx.getUserId(),
-                        ctx.getEmail(),
                         null,
-                        ctx.getRole().name()
+                        ctx.getRole().name(),
+                        ctx.getAccountStatus(),
+                        ctx.getUserStatus(),
+                        ctx.isDeleted()
                 );
 
         Authentication authentication =

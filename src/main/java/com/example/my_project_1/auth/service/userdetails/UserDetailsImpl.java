@@ -1,7 +1,10 @@
 package com.example.my_project_1.auth.service.userdetails;
 
 
+import com.example.my_project_1.user.domain.AccountStatus;
+import com.example.my_project_1.user.domain.UserStatus;
 import lombok.AllArgsConstructor;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -11,53 +14,48 @@ import java.util.Collection;
 import java.util.List;
 
 @RequiredArgsConstructor
-@AllArgsConstructor
+@Getter
 public class UserDetailsImpl implements UserDetails {
-    private Long userId;
-    private String email;
-    private String password;
-    private String role;
+    private final Long userId;
+    private final String password;
+    private final String role;
+    private final AccountStatus accountStatus;
+    private final UserStatus userStatus;
+    private final boolean deleted;
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of(new SimpleGrantedAuthority("ROLE_" + this.role));
+        return List.of(new SimpleGrantedAuthority("ROLE_" + role));
+    }
+
+    //jwt 토큰을 탈취당했을 시 유저 이메일은 개인정보여서 userId로 수정
+    @Override
+    public String getUsername() {
+        return String.valueOf(userId);
     }
 
     @Override
     public String getPassword() {
-        return this.password;
+        return password;
     }
 
     @Override
-    public String getUsername() {
-        return this.email;
-    }
-
-    public Long getUserId() {
-        return userId;
-    }
-
-    public String getRole() {
-        return role;
-    }
-
-        @Override
     public boolean isAccountNonExpired() {
-        return UserDetails.super.isAccountNonExpired();
+        return true;
     }
 
     @Override
     public boolean isAccountNonLocked() {
-        return UserDetails.super.isAccountNonLocked();
+        return accountStatus != AccountStatus.SUSPENDED;
     }
 
     @Override
     public boolean isCredentialsNonExpired() {
-        return UserDetails.super.isCredentialsNonExpired();
+        return true;
     }
 
     @Override
     public boolean isEnabled() {
-        return UserDetails.super.isEnabled();
+        return !deleted;
     }
 }
