@@ -3,11 +3,12 @@ package com.example.my_project_1.user.domain;
 import com.example.my_project_1.common.entity.BaseEntity;
 import com.example.my_project_1.common.exception.CustomException;
 import com.example.my_project_1.common.exception.ErrorCode;
-import com.example.my_project_1.user.service.request.UserSignUpRequest;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.springframework.util.Assert;
 
 import java.time.LocalDateTime;
 
@@ -20,8 +21,8 @@ public class User extends BaseEntity {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true)
-    private String email;
+    @Embedded
+    private Email email;
 
     @Column(nullable = false)
     private String password;
@@ -49,17 +50,16 @@ public class User extends BaseEntity {
 
     private LocalDateTime lastLoginAt;
 
-    public static User signUp(UserSignUpRequest request, String encodedPassword) {
-        User user = new User();
-        user.email = request.getEmail();
-        user.password = encodedPassword;
-        user.nickname = request.getNickname();
-        user.role = Role.USER;
-        user.userStatus = UserStatus.PENDING;
-        user.accountStatus = AccountStatus.NORMAL;
-        user.emailVerified = false;
-        user.deleted = false;
-        return user;
+    public static User signUp(String email, String encodedPassword, String nickname) {
+        return User.builder()
+                .email(new Email(email))
+                .password(encodedPassword)
+                .nickname(nickname)
+                .role(Role.USER)
+                .userStatus(UserStatus.PENDING)
+                .accountStatus(AccountStatus.NORMAL)
+                .emailVerified(false)
+                .build();
     }
 
     public void suspend() {
@@ -92,10 +92,14 @@ public class User extends BaseEntity {
     }
 
     public void updatePassword(String password) {
+        if (!isActive()) {
+
+        }
         this.password = password;
     }
 
     public void updateNickname(String nickname) {
+        if (!isActive())
         this.nickname = nickname;
     }
 
@@ -107,16 +111,34 @@ public class User extends BaseEntity {
         return accountStatus == AccountStatus.SUSPENDED;
     }
 
+    @Builder
+    private User(Email email, String password, String nickname, Role role,
+                 UserStatus userStatus, AccountStatus accountStatus,
+                 boolean emailVerified) {
+
+        Assert.notNull(email, "이메일은 필수입니다.");
+        Assert.hasText(password, "비밀번호는 필수입니다.");
+        Assert.hasText(nickname, "닉네임은 필수입니다.");
+
+        this.email = email;
+        this.password = password;
+        this.nickname = nickname;
+        this.role = (role != null) ? role : Role.USER;
+        this.userStatus = (userStatus != null) ? userStatus : UserStatus.PENDING;
+        this.accountStatus = (accountStatus != null) ? accountStatus : AccountStatus.NORMAL;
+        this.emailVerified = emailVerified;
+        this.deleted = false;
+    }
+
     public static User createSuperUser(String encodedPassword) {
-        User user = new User();
-        user.email = "super@super.com";
-        user.password = encodedPassword;
-        user.nickname = "super";
-        user.role = Role.ADMIN;
-        user.userStatus = UserStatus.ACTIVE;
-        user.accountStatus = AccountStatus.NORMAL;
-        user.emailVerified = true;
-        user.deleted = false;
-        return user;
+        return User.builder()
+                .email(new Email("super@super.com"))
+                .password(encodedPassword)
+                .nickname("super")
+                .role(Role.ADMIN)
+                .userStatus(UserStatus.ACTIVE)
+                .accountStatus(AccountStatus.NORMAL)
+                .emailVerified(true)
+                .build();
     }
 }

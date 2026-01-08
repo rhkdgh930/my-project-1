@@ -26,5 +26,4 @@ public class UserSignUpRequest {
         request.nickname = nickname;
         return request;
     }
-
 }

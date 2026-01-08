@@ -1,5 +1,6 @@
 package com.example.my_project_1.auth.service.userdetails;
 
+import com.example.my_project_1.user.domain.Email;
 import com.example.my_project_1.user.domain.User;
 import com.example.my_project_1.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -15,7 +16,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        User user = userRepository.findByEmail(email)
+        User user = userRepository.findByEmail(new Email(email))
                 .orElseThrow(() ->
                         new UsernameNotFoundException("Invalid credentials")
                 );

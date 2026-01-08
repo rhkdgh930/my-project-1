@@ -14,9 +14,8 @@ public class UserSignUpResponse {
     public static UserSignUpResponse from(User user) {
         UserSignUpResponse response = new UserSignUpResponse();
         response.id = user.getId();
-        response.email = user.getEmail();
+        response.email = user.getEmail().getValue();
         response.nickname = user.getNickname();
         return response;
     }
 }
-

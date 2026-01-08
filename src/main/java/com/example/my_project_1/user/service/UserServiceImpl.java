@@ -3,6 +3,7 @@ package com.example.my_project_1.user.service;
 import com.example.my_project_1.auth.service.RedisUserContextService;
 import com.example.my_project_1.common.exception.CustomException;
 import com.example.my_project_1.common.exception.ErrorCode;
+import com.example.my_project_1.user.domain.Email;
 import com.example.my_project_1.user.domain.User;
 import com.example.my_project_1.user.repository.UserRepository;
 import com.example.my_project_1.user.service.request.UserSignUpRequest;
@@ -28,19 +29,24 @@ public class UserServiceImpl implements UserService {
         userRepository.save(superUser);
     }
 
+
     @Transactional
     @Override
     public User signUp(UserSignUpRequest request) {
         validateDuplicateEmail(request.getEmail());
 
         String encodedPassword = passwordEncoder.encode(request.getPassword());
-        User user = User.signUp(request, encodedPassword);
+        User user = User.signUp(
+                request.getEmail(),
+                encodedPassword,
+                request.getNickname()
+        );
 
         return userRepository.save(user);
     }
 
     private void validateDuplicateEmail(String email) {
-        if (userRepository.existsByEmail(email)) {
+        if (userRepository.existsByEmail(new Email(email))) {
             throw new CustomException(ErrorCode.DUPLICATED_EMAIL);
         }
     }
