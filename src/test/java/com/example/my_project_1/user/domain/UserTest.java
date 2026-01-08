@@ -15,10 +15,10 @@ class UserTest {
 
     @Test
     @DisplayName("유저 회원가입 성공 테스트")
-    void signUpTest() {
+    void signUp_success_Test() {
         User user = getUser();
 
-        assertThat(user.getEmail()).isEqualTo(EMAIL);
+        assertThat(user.getEmail().getValue()).isEqualTo(EMAIL);
         assertThat(user.getPassword()).isEqualTo(PASSWORD);
         assertThat(user.getNickname()).isEqualTo(NICKNAME);
         assertThat(user.getRole()).isEqualTo(Role.USER);
@@ -26,6 +26,20 @@ class UserTest {
         assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.NORMAL);
         assertThat(user.isEmailVerified()).isFalse();
         assertThat(user.isDeleted()).isFalse();
+    }
+
+    @DisplayName("필드에 null값이 들어가면 회원가입을 실패합니다.")
+    @Test
+    void signUp_fail_test() {
+        signUp_fail_test(null, PASSWORD, NICKNAME, "이메일은 필수입니다.");
+        signUp_fail_test(EMAIL, null, NICKNAME, "비밀번호는 필수입니다.");
+        signUp_fail_test(EMAIL, PASSWORD, null, "닉네임은 필수입니다.");
+    }
+
+    void signUp_fail_test(String email, String password, String nickname, String message) {
+        assertThatThrownBy(() -> User.signUp(email, password, nickname))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage(message);
     }
 
     @Test
@@ -124,6 +138,9 @@ class UserTest {
     private static User getUser() {
         UserSignUpRequest request = createUserSignUpRequest();
         String encodedPassword = request.getPassword();
-        return User.signUp(request, encodedPassword);
+        return User.signUp(
+                request.getEmail(),
+                encodedPassword,
+                request.getNickname());
     }
 }
