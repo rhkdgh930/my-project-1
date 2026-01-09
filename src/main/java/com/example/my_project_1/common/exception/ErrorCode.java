@@ -22,6 +22,7 @@ public enum ErrorCode {
     // 추가: 이미 처리된 상태에 대한 요청
     ALREADY_VERIFIED_USER(HttpStatus.BAD_REQUEST, "이미 이메일 인증이 완료된 사용자입니다."),
     ALREADY_EXIST_BOARD_NAME(HttpStatus.BAD_REQUEST, "이미 존재하는 게시판 이름 입니다."),
+    ALREADY_DELETED_BOARD(HttpStatus.BAD_REQUEST, "이미 삭제된 게시판 입니다."),
 
     // 추가: 계정 상태 관련
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 사용자입니다."),
