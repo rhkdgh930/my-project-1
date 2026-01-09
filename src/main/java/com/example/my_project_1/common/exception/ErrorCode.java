@@ -17,6 +17,7 @@ public enum ErrorCode {
     INVALID_INPUT_VALUE(HttpStatus.BAD_REQUEST, "입력 값이 유효하지 않습니다."),
     DUPLICATED_EMAIL(HttpStatus.BAD_REQUEST, "이미 존재하는 이메일입니다."),
     DUPLICATED_BOARD_NAME(HttpStatus.BAD_REQUEST, "이미 존재하는 게시판명 입니다."),
+    USER_NOT_ACTIVE(HttpStatus.BAD_REQUEST, "활성화된 유저가 아닙니다."),
 
     // 추가: 이미 처리된 상태에 대한 요청
     ALREADY_VERIFIED_USER(HttpStatus.BAD_REQUEST, "이미 이메일 인증이 완료된 사용자입니다."),
