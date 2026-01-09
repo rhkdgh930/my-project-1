@@ -31,12 +31,6 @@ public class BoardCommandServiceImpl implements BoardCommandService {
         return BoardResponse.from(boardRepository.save(board));
     }
 
-    private void validateDuplicateName(String name) {
-        if (boardRepository.existsByName(name)) {
-            throw new CustomException(ErrorCode.ALREADY_EXIST_BOARD_NAME);
-        }
-    }
-
     @Override
     public BoardResponse update(Long boardId, BoardUpdateRequest request) {
         Board board = findBoard(boardId);
@@ -52,10 +46,16 @@ public class BoardCommandServiceImpl implements BoardCommandService {
         return BoardResponse.from(board);
     }
 
+    private void validateDuplicateName(String name) {
+        if (boardRepository.existsByName(name)) {
+            throw new CustomException(ErrorCode.ALREADY_EXIST_BOARD_NAME);
+        }
+    }
+
     @Override
     public void delete(Long boardId) {
         Board board = findBoard(boardId);
-        boardRepository.delete(board);
+        board.delete();
     }
 
     private Board findBoard(Long boardId) {
