@@ -15,32 +15,20 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api")
+@RequestMapping("/api/user")
 public class UserController {
     private final UserService userService;
 
-    @PostMapping("/user/signup")
+    @PostMapping("/signup")
     public ResponseEntity<UserSignUpResponse> signUp(@Valid @RequestBody UserSignUpRequest request) {
         User user = userService.signUp(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(UserSignUpResponse.from(user));
     }
 
     @PreAuthorize("hasRole('USER')")
-    @GetMapping("/user/test")
+    @GetMapping("/test")
     public ResponseEntity<UserDetails> getMyInfo(@AuthenticationPrincipal UserDetails userDetails) {
         return ResponseEntity.ok(userDetails);
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
-    @GetMapping("/admin/test")
-    public ResponseEntity<UserDetails> getMyInfo2(@AuthenticationPrincipal UserDetails userDetails) {
-        return ResponseEntity.ok(userDetails);
-    }
-
-    @PreAuthorize("hasRole('ADMIN')")
-    @PostMapping("/admin/suspend/{userId}")
-    public ResponseEntity<Void> suspendUser(@AuthenticationPrincipal UserDetails userDetails, @PathVariable(name = "userId") Long userId) {
-        userService.suspendUser(userId);
-        return ResponseEntity.noContent().build();
-    }
 }
