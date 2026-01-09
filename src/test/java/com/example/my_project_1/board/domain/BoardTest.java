@@ -1,6 +1,7 @@
 package com.example.my_project_1.board.domain;
 
 import com.example.my_project_1.board.service.request.BoardCreateRequest;
+import com.example.my_project_1.common.exception.CustomException;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -63,6 +64,29 @@ class BoardTest {
         assertThatThrownBy(() -> board.update(newName, newDescription))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("게시판명은 필수입니다.");
+    }
+
+    @DisplayName("게시판 soft delete를 성공합니다.")
+    @Test
+    void board_soft_delete_success_test() {
+        Board board = getBoard();
+        assertThat(board.getName()).isEqualTo(NAME);
+        assertThat(board.getDescription()).isEqualTo(DESCRIPTION);
+        assertThat(board.getBoardStatus()).isEqualTo(BoardStatus.ACTIVE);
+
+        board.delete();
+
+        assertThat(board.getBoardStatus()).isEqualTo(BoardStatus.INACTIVE);
+    }
+    @DisplayName("이미 삭제된 게시판은 삭제를 실패합니다.")
+    @Test
+    void board_soft_delete_fail_test_already_inactive() {
+        Board board = getBoard();
+        board.delete();
+
+        assertThatThrownBy(() -> board.delete())
+                .isInstanceOf(CustomException.class)
+                .hasMessage("이미 삭제된 게시판 입니다.");
     }
 
     private static Board getBoard() {
