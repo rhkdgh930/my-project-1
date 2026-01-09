@@ -1,6 +1,8 @@
 package com.example.my_project_1.auth.service;
 
+import com.example.my_project_1.auth.exception.JwtAuthenticationException;
 import com.example.my_project_1.auth.service.response.TokenResponse;
+import com.example.my_project_1.common.exception.ErrorCode;
 import com.example.my_project_1.common.utils.DataSerializer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -52,7 +54,7 @@ public class RedisTokenService {
             );
         } catch (Exception e) {
             log.error("Redis connection failed in isBlacklisted: {}", e.getMessage());
-            return false; // Fail-open: Redis 장애 시 로그인은 허용
+            throw new JwtAuthenticationException(ErrorCode.AUTHENTICATION_FAILED);
         }
     }
 
