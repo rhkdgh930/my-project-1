@@ -2,6 +2,7 @@ package com.example.my_project_1.user.service.request;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 
@@ -12,7 +13,8 @@ public class UserSignUpRequest {
     private String email;
 
     @NotBlank(message = "비밀번호 입력은 필수입니다.")
-    @Size(min = 8, max = 100, message = "비밀번호는 8자리 이상 100자리 이하로 설정하셔야 합니다.")
+    @Pattern(regexp = "^(?=.*[A-Za-z])(?=.*\\d)(?=.*[@$!%*#?&])[A-Za-z\\d@$!%*#?&]{8,20}$",
+            message = "비밀번호는 영문, 숫자, 특수문자를 포함하여 8자리 이상, 20자리 이하여야 합니다.")
     private String password;
 
     @NotBlank(message = "닉네임은 필수입니다.")
