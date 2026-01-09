@@ -1,5 +1,6 @@
 package com.example.my_project_1.user.service.request;
 
+import com.example.my_project_1.auth.service.request.LoginRequest;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
@@ -30,7 +31,7 @@ class UserSignUpRequestTest {
     @Test
     void userSignUpRequest_create__success_test() {
         //given
-        UserSignUpRequest request = UserSignUpRequest.create("email@email.com", "password", "nickname");
+        UserSignUpRequest request = UserSignUpRequest.create("email@email.com", "password123*", "nickname");
 
         //when
         Set<ConstraintViolation<UserSignUpRequest>> violations = validator.validate(request);
@@ -38,7 +39,7 @@ class UserSignUpRequestTest {
         //then
         assertThat(violations).isEmpty();
         assertThat(request.getEmail()).isEqualTo("email@email.com");
-        assertThat(request.getPassword()).isEqualTo("password");
+        assertThat(request.getPassword()).isEqualTo("password123*");
         assertThat(request.getNickname()).isEqualTo("nickname");
     }
 
@@ -116,6 +117,29 @@ class UserSignUpRequestTest {
     }
 
     @Test
+    @DisplayName("올바른 형식의 비밀번호가 아니면 검증에 실패한다.")
+    void userSignUpRequest_create_fail_test_password_wrong_type() {
+        password_wrong_type("password123");
+        password_wrong_type("password*");
+        password_wrong_type("112152152*");
+        password_wrong_type("         ");
+    }
+
+    private void password_wrong_type(String wrongPassword) {
+        // given
+        LoginRequest request = LoginRequest.create("email@email.com", wrongPassword);
+
+        // when
+        Set<ConstraintViolation<LoginRequest>> violations = validator.validate(request);
+
+        // then
+        assertThat(violations).isNotEmpty();
+        assertThat(violations)
+                .extracting(ConstraintViolation::getMessage)
+                .contains("비밀번호는 영문, 숫자, 특수문자를 포함하여 8자리 이상, 20자리 이하여야 합니다.");
+    }
+
+    @Test
     @DisplayName("비밀번호가 8자 미만이면 검증에 실패한다.")
     void userSignUpRequest_create_fail_test_password_short_size() {
         // given
@@ -128,12 +152,12 @@ class UserSignUpRequestTest {
         assertThat(violations).isNotEmpty();
         assertThat(violations)
                 .extracting(ConstraintViolation::getMessage)
-                .contains("비밀번호는 8자리 이상 100자리 이하로 설정하셔야 합니다.");
+                .contains("비밀번호는 영문, 숫자, 특수문자를 포함하여 8자리 이상, 20자리 이하여야 합니다.");
 
     }
 
     @Test
-    @DisplayName("비밀번호가 101자 이상이면 검증에 실패한다.")
+    @DisplayName("비밀번호가 21자 이상이면 검증에 실패한다.")
     void userSignUpRequest_create_fail_test_password_long_size() {
         // given
         String longPassword = getLongPassword();
@@ -146,13 +170,13 @@ class UserSignUpRequestTest {
         assertThat(violations).isNotEmpty();
         assertThat(violations)
                 .extracting(ConstraintViolation::getMessage)
-                .contains("비밀번호는 8자리 이상 100자리 이하로 설정하셔야 합니다.");
+                .contains("비밀번호는 영문, 숫자, 특수문자를 포함하여 8자리 이상, 20자리 이하여야 합니다.");
 
     }
 
     private static String getLongPassword() {
         StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < 101; i++) {
+        for (int i = 0; i < 21; i++) {
             sb.append(i);
         }
         return sb.toString();

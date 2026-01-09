@@ -1,6 +1,7 @@
 package com.example.my_project_1.user.domain;
 
 import com.example.my_project_1.common.exception.CustomException;
+import com.example.my_project_1.common.exception.ErrorCode;
 import com.example.my_project_1.user.service.request.UserSignUpRequest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -10,13 +11,13 @@ import static org.assertj.core.api.Assertions.*;
 
 class UserTest {
     private final static String EMAIL = "email@email.com";
-    private final static String PASSWORD = "password";
+    private final static String PASSWORD = "password123*";
     private final static String NICKNAME = "nickname";
 
     @Test
     @DisplayName("유저 회원가입 성공 테스트")
     void signUp_success_Test() {
-        User user = getUser();
+        User user = getUnverifiedUser();
 
         assertThat(user.getEmail().getValue()).isEqualTo(EMAIL);
         assertThat(user.getPassword()).isEqualTo(PASSWORD);
@@ -37,7 +38,7 @@ class UserTest {
     }
 
     void signUp_fail_test(String email, String password, String nickname, String message) {
-        assertThatThrownBy(() -> User.signUp(email, password, nickname))
+        assertThatThrownBy(() -> User.signUp(new Email(email), password, nickname))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage(message);
     }
@@ -45,7 +46,9 @@ class UserTest {
     @Test
     @DisplayName("닉네임 변경을 성공한다.")
     void updateNickname_success_test() {
-        User user = getUser();
+        User user = getUnverifiedUser();
+        user.verifyEmail();
+
         assertThat(user.getNickname()).isEqualTo(NICKNAME);
         String changedNickname = "changedNickname";
         user.updateNickname(changedNickname);
@@ -53,10 +56,38 @@ class UserTest {
         assertThat(user.getNickname()).isEqualTo(changedNickname);
     }
 
+    @DisplayName("active 상태가 아닌 유저는 닉네임 변경을 실패합니다.")
+    @Test
+    void updateNickname_fail_test_user_not_active() {
+        User unverifiedUser = getUnverifiedUser();
+        assertThatThrownBy(() -> unverifiedUser.updateNickname("newNickname"))
+                .isInstanceOf(CustomException.class)
+                .hasMessage("활성화된 유저가 아닙니다.");
+    }
+
+    @DisplayName("닉네임이 빈칸이나 널값일 경우 닉네임 변경을 실패합니다.")
+    @Test
+    void updateNickname_fail_test_text() {
+
+        User unverifiedUser = getUnverifiedUser();
+        unverifiedUser.verifyEmail();
+
+        updateNickname_fail_test_text(unverifiedUser, " ");
+        updateNickname_fail_test_text(unverifiedUser, "");
+    }
+
+    private static void updateNickname_fail_test_text(User unverifiedUser, String newNickname) {
+        assertThatThrownBy(() -> unverifiedUser.updateNickname(newNickname))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("닉네임은 필수입니다.");
+    }
+
     @Test
     @DisplayName("비밀번호 변경을 성공한다.")
     void updatePassword_success_test() {
-        User user = getUser();
+        User user = getUnverifiedUser();
+        user.verifyEmail();
+
         assertThat(user.getPassword()).isEqualTo(PASSWORD);
         String changedPassword = "changedPassword";
         user.updatePassword(changedPassword);
@@ -64,10 +95,35 @@ class UserTest {
         assertThat(user.getPassword()).isEqualTo(changedPassword);
     }
 
+    @DisplayName("active 상태가 아닌 유저는 비밀번호 변경을 실패합니다.")
+    @Test
+    void updatePassword_fail_test_user_not_active() {
+        User unverifiedUser = getUnverifiedUser();
+        assertThatThrownBy(() -> unverifiedUser.updatePassword("newPassword"))
+                .isInstanceOf(CustomException.class)
+                .hasMessage("활성화된 유저가 아닙니다.");
+    }
+
+    @DisplayName("비밀번호가 빈칸이나 널값일 경우 비밀번호 변경을 실패합니다.")
+    @Test
+    void updatePassword_fail_test_text() {
+        User unverifiedUser = getUnverifiedUser();
+        unverifiedUser.verifyEmail();
+
+        updatePassword_fail_test_text(unverifiedUser, " ");
+        updatePassword_fail_test_text(unverifiedUser, "");
+    }
+
+    private static void updatePassword_fail_test_text(User unverifiedUser, String newPassword) {
+        assertThatThrownBy(() -> unverifiedUser.updatePassword(newPassword))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("비밀번호는 필수입니다.");
+    }
+
     @Test
     @DisplayName("유저 삭제를 성공한다.")
     void delete_success_test() {
-        User user = getUser();
+        User user = getUnverifiedUser();
         assertThat(user.isDeleted()).isFalse();
 
         user.delete();
@@ -77,7 +133,7 @@ class UserTest {
     @Test
     @DisplayName("유저 이메일 인증을 성공한다.")
     void verifyEmail_success_test() {
-        User user = getUser();
+        User user = getUnverifiedUser();
         assertThat(user.isEmailVerified()).isFalse();
         assertThat(user.getUserStatus()).isEqualTo(UserStatus.PENDING);
 
@@ -89,7 +145,7 @@ class UserTest {
     @DisplayName("유저 차단을 성공한다. ")
     @Test
     void suspend_success_test() {
-        User user = getUser();
+        User user = getUnverifiedUser();
         assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.NORMAL);
         assertThat(user.isDeleted()).isFalse();
 
@@ -102,11 +158,11 @@ class UserTest {
     @DisplayName("삭제된 유저는 차단에 실패한다.")
     @Test
     void suspend_fail_test_already_deleted() {
-        User user = getUser();
+        User user = getUnverifiedUser();
         user.delete();
 
         assertThat(user.isDeleted()).isTrue();
-        assertThatThrownBy(() -> user.suspend())
+        assertThatThrownBy(user::suspend)
                 .isInstanceOf(CustomException.class)
                 .hasMessage("존재하지 않는 사용자입니다.");
     }
@@ -114,10 +170,10 @@ class UserTest {
     @DisplayName("이미 차단된 유저는 차단에 실패한다.")
     @Test
     void suspend_fail_test_already_suspended() {
-        User user = getUser();
+        User user = getUnverifiedUser();
         user.suspend();
 
-        assertThatThrownBy(() -> user.suspend())
+        assertThatThrownBy(user::suspend)
                 .isInstanceOf(CustomException.class)
                 .hasMessage("차단된 계정입니다.");
     }
@@ -125,7 +181,7 @@ class UserTest {
     @DisplayName("삭제되지 않고 이메일 인증을 완료한 유저는 활성화 상태입니다.")
     @Test
     void isActive_success_test() {
-        User user = getUser();
+        User user = getUnverifiedUser();
         assertThat(user.getUserStatus()).isEqualTo(UserStatus.PENDING);
         assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.NORMAL);
 
@@ -135,11 +191,11 @@ class UserTest {
         assertThat(user.isActive()).isTrue();
     }
 
-    private static User getUser() {
+    private static User getUnverifiedUser() {
         UserSignUpRequest request = createUserSignUpRequest();
         String encodedPassword = request.getPassword();
         return User.signUp(
-                request.getEmail(),
+                new Email(request.getEmail()),
                 encodedPassword,
                 request.getNickname());
     }
