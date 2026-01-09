@@ -31,6 +31,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtProvider jwtProvider;
     private final RedisTokenService redisTokenService;
     private final RedisUserContextService redisUserContextService;
+    private final AuthenticationEntryPoint authenticationEntryPoint;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
@@ -59,7 +60,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         } catch (JwtAuthenticationException e) {
             SecurityContextHolder.clearContext();
-            throw e;
+            authenticationEntryPoint.commence(request, response, e);
+            return;
         }
     }
 
