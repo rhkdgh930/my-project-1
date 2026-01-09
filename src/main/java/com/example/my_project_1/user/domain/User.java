@@ -50,9 +50,9 @@ public class User extends BaseEntity {
 
     private LocalDateTime lastLoginAt;
 
-    public static User signUp(String email, String encodedPassword, String nickname) {
+    public static User signUp(Email email, String encodedPassword, String nickname) {
         return User.builder()
-                .email(new Email(email))
+                .email(email)
                 .password(encodedPassword)
                 .nickname(nickname)
                 .role(Role.USER)
@@ -91,15 +91,19 @@ public class User extends BaseEntity {
         return !deleted && accountStatus == AccountStatus.NORMAL && userStatus == UserStatus.ACTIVE;
     }
 
-    public void updatePassword(String password) {
+    public void updatePassword(String encodedPassword) {
         if (!isActive()) {
-
+            throw new CustomException(ErrorCode.USER_NOT_ACTIVE);
         }
-        this.password = password;
+        Assert.hasText(encodedPassword, "비밀번호는 필수입니다.");
+        this.password = encodedPassword;
     }
 
     public void updateNickname(String nickname) {
-        if (!isActive())
+        if (!isActive()) {
+            throw new CustomException(ErrorCode.USER_NOT_ACTIVE);
+        }
+        Assert.hasText(nickname, "닉네임은 필수입니다.");
         this.nickname = nickname;
     }
 

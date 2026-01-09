@@ -18,7 +18,7 @@ public class Email {
     private static final String EMAIL_REGEX = "^[\\w-\\.]+@([\\w-]+\\.)+[\\w-]{2,4}$";
     private static final Pattern PATTERN = Pattern.compile(EMAIL_REGEX);
 
-    @Column(name = "email", nullable = false, unique = true) // 실제 DB 컬럼 매핑
+    @Column(name = "email", nullable = false, unique = true)
     private String value;
 
     public Email(String value) {

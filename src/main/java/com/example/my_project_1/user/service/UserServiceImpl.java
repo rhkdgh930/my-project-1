@@ -33,11 +33,13 @@ public class UserServiceImpl implements UserService {
     @Transactional
     @Override
     public User signUp(UserSignUpRequest request) {
-        validateDuplicateEmail(request.getEmail());
+        Email email = new Email(request.getEmail());
+
+        validateDuplicateEmail(email);
 
         String encodedPassword = passwordEncoder.encode(request.getPassword());
         User user = User.signUp(
-                request.getEmail(),
+                email,
                 encodedPassword,
                 request.getNickname()
         );
@@ -45,8 +47,8 @@ public class UserServiceImpl implements UserService {
         return userRepository.save(user);
     }
 
-    private void validateDuplicateEmail(String email) {
-        if (userRepository.existsByEmail(new Email(email))) {
+    private void validateDuplicateEmail(Email email) {
+        if (userRepository.existsByEmailAndDeletedFalse(email)) {
             throw new CustomException(ErrorCode.DUPLICATED_EMAIL);
         }
     }
