@@ -20,12 +20,21 @@ public class BoardQueryServiceImpl implements BoardQueryService {
     private final BoardRepository boardRepository;
 
     @Override
-    public List<BoardResponse> findAllBoards() {
+    public List<BoardResponse> findAllActiveBoards() {
         List<Board> boards = boardRepository.findAllByBoardStatus(BoardStatus.ACTIVE);
         return boards.stream()
                 .map(BoardResponse::from)
                 .toList();
     }
+
+    @Override
+    public List<BoardResponse> findAllBoards() {
+        List<Board> boards = boardRepository.findAll();
+        return boards.stream()
+                .map(BoardResponse::from)
+                .toList();
+    }
+
 
     @Override
     public BoardResponse findBoardById(Long boardId) {
