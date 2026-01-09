@@ -52,14 +52,4 @@ public class UserServiceImpl implements UserService {
             throw new CustomException(ErrorCode.DUPLICATED_EMAIL);
         }
     }
-
-    @Transactional
-    @Override
-    public void suspendUser(Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-        user.suspend();
-
-        redisUserContextService.evict(userId);
-    }
 }

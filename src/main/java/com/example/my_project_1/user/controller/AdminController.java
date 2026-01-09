@@ -1,6 +1,6 @@
 package com.example.my_project_1.user.controller;
 
-import com.example.my_project_1.user.service.UserService;
+import com.example.my_project_1.user.service.AdminService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 @RequestMapping("/api/admin")
 public class AdminController {
-    private final UserService userService;
+    private final AdminService adminService;
 
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/test")
@@ -23,7 +23,7 @@ public class AdminController {
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/suspend/{userId}")
     public ResponseEntity<Void> suspendUser(@AuthenticationPrincipal UserDetails userDetails, @PathVariable(name = "userId") Long userId) {
-        userService.suspendUser(userId);
+        adminService.suspendUser(userId);
         return ResponseEntity.noContent().build();
     }
 }
