@@ -15,18 +15,20 @@ public enum ErrorCode {
 
     /* 400 BAD_REQUEST: 잘못된 요청 (비즈니스 로직 위반) */
     INVALID_INPUT_VALUE(HttpStatus.BAD_REQUEST, "입력 값이 유효하지 않습니다."),
+    INVALID_BOARD_POST_RELATION(HttpStatus.BAD_REQUEST, "해당 게시판에 속하지 않은 게시글입니다."),
     DUPLICATED_EMAIL(HttpStatus.BAD_REQUEST, "이미 존재하는 이메일입니다."),
-    DUPLICATED_BOARD_NAME(HttpStatus.BAD_REQUEST, "이미 존재하는 게시판명 입니다."),
     USER_NOT_ACTIVE(HttpStatus.BAD_REQUEST, "활성화된 유저가 아닙니다."),
 
     // 추가: 이미 처리된 상태에 대한 요청
     ALREADY_VERIFIED_USER(HttpStatus.BAD_REQUEST, "이미 이메일 인증이 완료된 사용자입니다."),
     ALREADY_EXIST_BOARD_NAME(HttpStatus.BAD_REQUEST, "이미 존재하는 게시판 이름 입니다."),
     ALREADY_DELETED_BOARD(HttpStatus.BAD_REQUEST, "이미 삭제된 게시판 입니다."),
+    ALREADY_DELETED_POST(HttpStatus.BAD_REQUEST, "이미 삭제된 게시글 입니다."),
 
     // 추가: 계정 상태 관련
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 사용자입니다."),
     BOARD_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 게시판 입니다."),
+    POST_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 게시물 입니다."),
 
     /* 401 UNAUTHORIZED: 인증 실패 */
     LOGOUT_USER(HttpStatus.UNAUTHORIZED, "다시 로그인해주세요."),
