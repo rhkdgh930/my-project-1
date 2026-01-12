@@ -5,8 +5,22 @@ public class UrlUtils {
             //auth
             "/api/auth/login",
             "/api/auth/reissue",
+            "/api/auth/logout",
 
             //user
-            "/api/user/signup"
+            "/api/user/signup",
+
+            //board
+            "/api/boards/**",
+
+            //post
+            "/api/boards/*/posts",
+
+            //comment
+            "/api/posts/*/comments/**",
+
+            //image
+            "/favicon.ico",
+            "/images/**"
     };
 }
