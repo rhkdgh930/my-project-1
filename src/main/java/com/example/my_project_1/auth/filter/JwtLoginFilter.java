@@ -31,9 +31,9 @@ public class JwtLoginFilter extends UsernamePasswordAuthenticationFilter {
         try {
             LoginRequest loginRequest = DataSerializer.deserialize(request.getInputStream(), LoginRequest.class);
             UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                            loginRequest.getEmail(),
-                            loginRequest.getPassword()
-                    );
+                    loginRequest.getEmail(),
+                    loginRequest.getPassword()
+            );
             return getAuthenticationManager().authenticate(authToken);
         } catch (IOException e) {
             throw new AuthenticationServiceException("로그인 요청 파싱 실패", e);

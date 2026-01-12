@@ -16,13 +16,15 @@ public class AuthController {
     private final AuthService authService;
 
     @PostMapping("/reissue")
-    public ResponseEntity<TokenResponse> reissue(@RequestHeader("Refresh-Token") String refreshToken) {
+    public ResponseEntity<TokenResponse> reissue(
+            @RequestHeader("Refresh-Token") String refreshToken) {
         TokenResponse tokenResponse = authService.reissue(refreshToken);
         return ResponseEntity.ok(tokenResponse);
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<Void> logout(@RequestHeader("Authorization") String accessToken) {
+    public ResponseEntity<Void> logout(
+            @RequestHeader("Authorization") String accessToken) {
         authService.logout(accessToken.replace("Bearer ", ""));
         return ResponseEntity.ok().build();
     }

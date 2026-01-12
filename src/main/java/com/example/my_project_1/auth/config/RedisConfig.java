@@ -12,7 +12,7 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 public class RedisConfig {
 
     @Bean
-    public RedisTemplate<String, CachedUserContext> userContextRedisTemplate(
+    public RedisTemplate<String, CachedUserContext> userContextRedisTemplate (
             RedisConnectionFactory connectionFactory
     ) {
         RedisTemplate<String, CachedUserContext> template = new RedisTemplate<>();
