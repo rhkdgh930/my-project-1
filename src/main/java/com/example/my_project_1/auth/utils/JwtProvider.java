@@ -96,10 +96,12 @@ public class JwtProvider {
 
     public long getRemainingValidityMillis(String token) {
         try {
-            Claims claims = parseClaimsSafely(token);
-            return Math.max(0, claims.getExpiration().getTime() - System.currentTimeMillis());
-        } catch (Exception e) {
+            Claims claims = Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token).getBody();
+            return claims.getExpiration().getTime() - System.currentTimeMillis();
+        } catch (ExpiredJwtException e) {
             return 0;
+        } catch (Exception e) {
+            throw new JwtAuthenticationException(ErrorCode.INVALID_TOKEN); // 그 외는 예외 처리
         }
     }
 }
