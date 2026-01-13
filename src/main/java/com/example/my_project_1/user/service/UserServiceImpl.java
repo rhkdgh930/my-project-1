@@ -23,13 +23,6 @@ public class UserServiceImpl implements UserService {
     private final PasswordEncoder passwordEncoder;
     private final RedisUserContextService redisUserContextService;
 
-    @PostConstruct
-    void init() {
-        User superUser = User.createSuperUser(passwordEncoder.encode("super"));
-        userRepository.save(superUser);
-    }
-
-
     @Transactional
     @Override
     public User signUp(UserSignUpRequest request) {

@@ -134,16 +134,4 @@ public class User extends BaseEntity {
         this.emailVerified = emailVerified;
         this.deleted = false;
     }
-
-    public static User createSuperUser(String encodedPassword) {
-        return User.builder()
-                .email(new Email("super@super.com"))
-                .password(encodedPassword)
-                .nickname("super")
-                .role(Role.ADMIN)
-                .userStatus(UserStatus.ACTIVE)
-                .accountStatus(AccountStatus.NORMAL)
-                .emailVerified(true)
-                .build();
-    }
 }
