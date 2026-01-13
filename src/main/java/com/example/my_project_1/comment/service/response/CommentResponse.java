@@ -3,9 +3,7 @@ package com.example.my_project_1.comment.service.response;
 import com.example.my_project_1.comment.domain.Comment;
 import lombok.Getter;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 @Getter
@@ -17,7 +15,7 @@ public class CommentResponse {
 
     private CommentResponse(Comment comment) {
         this.id = comment.getId();
-        this.authorId = comment.getAuthorId();
+        this.authorId = comment.getUserId();
         this.content = comment.getContent();
     }
 

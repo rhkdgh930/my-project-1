@@ -1,16 +1,11 @@
 package com.example.my_project_1.comment.domain;
 
 import com.example.my_project_1.common.entity.BaseEntity;
-import com.example.my_project_1.post.domain.Post;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.springframework.util.Assert;
-
-import java.util.ArrayList;
-import java.util.List;
 
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -25,8 +20,8 @@ public class Comment extends BaseEntity {
     @Column(name = "post_id", nullable = false)
     private Long postId;
 
-    @Column(name = "author_id", nullable = false)
-    private Long authorId;
+    @Column(name = "user_id", nullable = false)
+    private Long userId;
 
     @Column(nullable = false, length = 1000)
     private String content;
@@ -38,27 +33,27 @@ public class Comment extends BaseEntity {
     private int depth; // 0 = 댓글, 1 = 대댓글
 
     @Column(nullable = false)
-    private boolean deleted = false;
+    private boolean deleted;
 
     /* ===== 생성 메서드 ===== */
 
-    public static Comment createRoot(Long postId, Long authorId, String content) {
+    public static Comment createRoot(Long postId, Long userId, String content) {
         return Comment.builder()
                 .postId(postId)
-                .authorId(authorId)
+                .userId(userId)
                 .content(content)
                 .parentId(null)
                 .depth(0)
                 .build();
     }
 
-    public static Comment createReply(Comment parent, Long authorId, String content) {
+    public static Comment createReply(Comment parent, Long userId, String content) {
         if (parent.depth >= 1) {
             throw new IllegalStateException("대댓글에는 답글을 달 수 없습니다.");
         }
         return Comment.builder()
                 .postId(parent.getPostId())
-                .authorId(authorId)
+                .userId(userId)
                 .content(content)
                 .parentId(parent.getId())
                 .depth(parent.getDepth() + 1)
@@ -66,12 +61,13 @@ public class Comment extends BaseEntity {
     }
 
     @Builder
-    private Comment(Long postId, Long authorId, String content, Long parentId, int depth) {
+    private Comment(Long postId, Long userId, String content, Long parentId, int depth) {
         this.postId = postId;
-        this.authorId = authorId;
+        this.userId = userId;
         this.content = content;
         this.parentId = parentId;
         this.depth = depth;
+        this.deleted = false;
     }
 
     /* ===== 도메인 로직 ===== */
@@ -88,7 +84,7 @@ public class Comment extends BaseEntity {
     }
 
     private void validateAuthor(Long userId) {
-        if (!this.authorId.equals(userId)) {
+        if (!this.userId.equals(userId)) {
             throw new IllegalStateException("작성자만 수정/삭제할 수 있습니다.");
         }
     }

@@ -14,17 +14,17 @@ public class CommentCommandServiceImpl implements CommentCommandService {
     private final CommentRepository commentRepository;
     private final PostRepository postRepository;
 
-    public Long writeComment(Long postId, Long authorId, String content) {
+    public Long writeComment(Long postId, Long userId, String content) {
         validatePost(postId);
-        Comment comment = Comment.createRoot(postId, authorId, content);
+        Comment comment = Comment.createRoot(postId, userId, content);
         return commentRepository.save(comment).getId();
     }
 
-    public Long writeReply(Long parentId, Long authorId, String content) {
+    public Long writeReply(Long parentId, Long userId, String content) {
         Comment parent = commentRepository.findByIdAndDeletedFalse(parentId)
                 .orElseThrow(() -> new IllegalArgumentException("부모 댓글이 없습니다."));
 
-        Comment reply = Comment.createReply(parent, authorId, content);
+        Comment reply = Comment.createReply(parent, userId, content);
         return commentRepository.save(reply).getId();
     }
 
