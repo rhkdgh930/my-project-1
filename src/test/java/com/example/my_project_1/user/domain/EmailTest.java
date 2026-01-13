@@ -14,7 +14,7 @@ class EmailTest {
     @Test
     void email_create_success_test() {
         String value = "email@email.com";
-        Email email = new Email(value);
+        Email email = Email.from(value);
         assertThat(email.getValue()).isEqualTo(value);
     }
 
@@ -29,7 +29,7 @@ class EmailTest {
     }
 
     void email_create_fail_test_wrong_format(String value) {
-        assertThatThrownBy(() -> new Email(value))
+        assertThatThrownBy(() -> Email.from(value))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("올바르지 않은 이메일 형식입니다.");
     }
@@ -42,7 +42,7 @@ class EmailTest {
     }
 
     private static void email_create_fail_test_email_is_null_or_empty(String value) {
-        assertThatThrownBy(() -> new Email(value))
+        assertThatThrownBy(() -> Email.from(value))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("이메일은 필수입니다.");
     }

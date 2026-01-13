@@ -3,6 +3,7 @@ package com.example.my_project_1.user.domain;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
 import lombok.AccessLevel;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.springframework.util.Assert;
@@ -21,7 +22,14 @@ public class Email {
     @Column(name = "email", nullable = false, unique = true)
     private String value;
 
-    public Email(String value) {
+    public static Email from(String value) {
+        return Email.builder()
+                .value(value)
+                .build();
+    }
+
+    @Builder
+    private Email(String value) {
         Assert.hasText(value, "이메일은 필수입니다.");
         if (!PATTERN.matcher(value).matches()) {
             throw new IllegalArgumentException("올바르지 않은 이메일 형식입니다.");
