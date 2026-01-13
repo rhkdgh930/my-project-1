@@ -25,6 +25,9 @@ public class User extends BaseEntity {
     @Embedded
     private Email email;
 
+    @Embedded
+    private ProfileDetail profileDetail;
+
     @Column(nullable = false)
     private String password;
 
@@ -51,9 +54,10 @@ public class User extends BaseEntity {
 
     private LocalDateTime lastLoginAt;
 
-    public static User signUp(Email email, String encodedPassword, String nickname) {
+    public static User signUp(Email email, ProfileDetail profileDetail, String encodedPassword, String nickname) {
         return User.builder()
                 .email(email)
+                .profileDetail(profileDetail)
                 .password(encodedPassword)
                 .nickname(nickname)
                 .role(Role.USER)
@@ -93,19 +97,26 @@ public class User extends BaseEntity {
     }
 
     public void updatePassword(String encodedPassword) {
-        if (!isActive()) {
-            throw new CustomException(ErrorCode.USER_NOT_ACTIVE);
-        }
+        checkActiveUser();
         Assert.hasText(encodedPassword, "비밀번호는 필수입니다.");
         this.password = encodedPassword;
     }
 
     public void updateNickname(String nickname) {
+        checkActiveUser();
+        Assert.hasText(nickname, "닉네임은 필수입니다.");
+        this.nickname = nickname;
+    }
+
+    public void updateProfile(String introduce, String profileImageUrl) {
+        checkActiveUser();
+        this.profileDetail = ProfileDetail.update(introduce, profileImageUrl);
+    }
+
+    private void checkActiveUser() {
         if (!isActive()) {
             throw new CustomException(ErrorCode.USER_NOT_ACTIVE);
         }
-        Assert.hasText(nickname, "닉네임은 필수입니다.");
-        this.nickname = nickname;
     }
 
     public void updateLastLogin() {
@@ -117,7 +128,7 @@ public class User extends BaseEntity {
     }
 
     @Builder
-    private User(Email email, String password, String nickname, Role role,
+    private User(Email email, ProfileDetail profileDetail, String password, String nickname, Role role,
                  UserStatus userStatus, AccountStatus accountStatus,
                  boolean emailVerified) {
 
@@ -126,6 +137,7 @@ public class User extends BaseEntity {
         Assert.hasText(nickname, "닉네임은 필수입니다.");
 
         this.email = email;
+        this.profileDetail = profileDetail;
         this.password = password;
         this.nickname = nickname;
         this.role = (role != null) ? role : Role.USER;
