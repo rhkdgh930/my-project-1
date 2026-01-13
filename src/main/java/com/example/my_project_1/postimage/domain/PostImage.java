@@ -25,7 +25,7 @@ public class PostImage extends BaseEntity {
     @JoinColumn(name = "post_id")
     private Post post;
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false)
     private String imageUrl;
 
     @Column(nullable = false)
