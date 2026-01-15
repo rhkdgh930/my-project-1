@@ -1,8 +1,8 @@
-INSERT INTO users (email, password, nickname, role, user_status, account_status, email_verified, deleted, created_at, updated_at)
-VALUES ('super@super.com', '{bcrypt}$2a$10$2Jk..KA5IiOebrrUgexVAOnY42jqryCRbMKT6FIWTXYJean7w2hUS', 'super', 'ADMIN', 'ACTIVE', 'NORMAL', true, false, NOW(), NOW());
+INSERT INTO users (email, password, nickname, role, user_status, account_status, email_verified, deleted, created_at, updated_at, introduce, profile_image_url)
+VALUES ('super@super.com', '{bcrypt}$2a$10$2Jk..KA5IiOebrrUgexVAOnY42jqryCRbMKT6FIWTXYJean7w2hUS', 'super', 'ADMIN', 'ACTIVE', 'NORMAL', true, false, NOW(), NOW(), '자기소개를 입력해주세요.', 'uploads/default.png');
 
-INSERT INTO users (email, password, nickname, role, user_status, account_status, email_verified, deleted, created_at, updated_at)
-VALUES ('rhkdgh930@naver.com', '{bcrypt}$2a$10$fVn4lhyxvKSwaHQja3L4D.fTshkPTdWSEN8q9yEZ6OrmzwfoKwwB6', 'rhkdgh930', 'USER', 'PENDING', 'NORMAL', true, false, NOW(), NOW());
+INSERT INTO users (email, password, nickname, role, user_status, account_status, email_verified, deleted, created_at, updated_at, introduce, profile_image_url)
+VALUES ('rhkdgh930@naver.com', '{bcrypt}$2a$10$fVn4lhyxvKSwaHQja3L4D.fTshkPTdWSEN8q9yEZ6OrmzwfoKwwB6', 'rhkdgh930', 'USER', 'PENDING', 'NORMAL', true, false, NOW(), NOW(), '자기소개를 입력해주세요.', 'uploads/default.png');
 
 INSERT INTO board (name, description, board_status, created_at, updated_at)
 VALUES ('공지사항', '공지사항입니다.', 'ACTIVE', NOW(), NOW());
