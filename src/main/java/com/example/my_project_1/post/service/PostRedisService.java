@@ -12,56 +12,56 @@ public class PostRedisService {
 
     private final RedisTemplate<String, String> redisTemplate;
 
+    // 키 컨벤션: post::[기능]::[식별자]
+    private static final String VIEW_KEY = "post::view::%s";
+    private static final String LIKE_CNT_KEY = "post::like::%s";
+    private static final String LIKE_USER_SET_KEY = "post::like::user::%s";
+    private static final String DIRTY_SET_KEY = "post::dirty";
+
     public void increaseView(Long postId) {
-        redisTemplate.opsForValue().increment(viewKey(postId));
-        redisTemplate.opsForSet().add("post:dirty", postId.toString());
+        redisTemplate.opsForValue().increment(VIEW_KEY.formatted(postId));
+        markAsDirty(postId);
     }
 
     public boolean toggleLike(Long postId, Long userId) {
-        String key = likeUserKey(postId);
-        boolean liked = Boolean.TRUE.equals(
-                redisTemplate.opsForSet().isMember(key, userId.toString())
+        String userSetKey = LIKE_USER_SET_KEY.formatted(postId);
+        String likeCntKey = LIKE_CNT_KEY.formatted(postId);
+
+        boolean isMember = Boolean.TRUE.equals(
+                redisTemplate.opsForSet().isMember(userSetKey, userId.toString())
         );
 
-        if (liked) {
-            redisTemplate.opsForSet().remove(key, userId.toString());
-            redisTemplate.opsForValue().decrement(likeKey(postId));
+        if (isMember) {
+            redisTemplate.opsForSet().remove(userSetKey, userId.toString());
+            redisTemplate.opsForValue().decrement(likeCntKey);
         } else {
-            redisTemplate.opsForSet().add(key, userId.toString());
-            redisTemplate.opsForValue().increment(likeKey(postId));
+            redisTemplate.opsForSet().add(userSetKey, userId.toString());
+            redisTemplate.opsForValue().increment(likeCntKey);
         }
 
-        redisTemplate.opsForSet().add("post:dirty", postId.toString());
-        return !liked;
+        markAsDirty(postId);
+        return !isMember;
     }
 
     public long getView(Long postId) {
-        String value = redisTemplate.opsForValue().get(viewKey(postId));
+        String value = redisTemplate.opsForValue().get(VIEW_KEY.formatted(postId));
         return value == null ? 0 : Long.parseLong(value);
     }
 
     public long getLike(Long postId) {
-        String value = redisTemplate.opsForValue().get(likeKey(postId));
+        String value = redisTemplate.opsForValue().get(LIKE_CNT_KEY.formatted(postId));
         return value == null ? 0 : Long.parseLong(value);
     }
 
     public Set<String> getDirtyPostIds() {
-        return redisTemplate.opsForSet().members("post:dirty");
+        return redisTemplate.opsForSet().members(DIRTY_SET_KEY);
     }
 
     public void clearDirtySet() {
-        redisTemplate.delete("post:dirty");
+        redisTemplate.delete(DIRTY_SET_KEY);
     }
 
-    private String viewKey(Long postId) {
-        return "post:view:" + postId;
-    }
-
-    private String likeKey(Long postId) {
-        return "post:like:" + postId;
-    }
-
-    private String likeUserKey(Long postId) {
-        return "post:like:user:" + postId;
+    private void markAsDirty(Long postId) {
+        redisTemplate.opsForSet().add(DIRTY_SET_KEY, postId.toString());
     }
 }

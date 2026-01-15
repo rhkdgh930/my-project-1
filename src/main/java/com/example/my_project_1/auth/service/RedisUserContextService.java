@@ -23,7 +23,7 @@ public class RedisUserContextService {
     private final UserRepository userRepository;
 
     private static final Duration TTL = Duration.ofMinutes(5);
-    private static final String KEY_FORMAT = "USER_CTX:";
+    private static final String USER_CTX_KEY = "auth::user::ctx::%s";
 
     public CachedUserContext getUserContext(Long userId) {
         String key = key(userId);
@@ -65,6 +65,6 @@ public class RedisUserContextService {
     }
 
     private String key(Long userId) {
-        return KEY_FORMAT + userId;
+        return USER_CTX_KEY.formatted(userId);
     }
 }
