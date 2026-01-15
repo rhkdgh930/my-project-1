@@ -1,4 +1,4 @@
-package com.example.my_project_1.auth.service.userdetails;
+package com.example.my_project_1.auth.userdetails;
 
 import com.example.my_project_1.user.domain.Email;
 import com.example.my_project_1.user.domain.User;

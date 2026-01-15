@@ -11,6 +11,7 @@ import lombok.NoArgsConstructor;
 import org.springframework.util.Assert;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 
 @Getter
@@ -46,6 +47,11 @@ public class User extends BaseEntity {
     @Column(nullable = false)
     private AccountStatus accountStatus; //NORMAL, SUSPENDED
 
+    @Enumerated(EnumType.STRING)
+    private SocialType socialType; //NONE, GOOGLE
+
+    private String socialId;
+
     @Column(nullable = false)
     private boolean emailVerified;
 
@@ -54,16 +60,33 @@ public class User extends BaseEntity {
 
     private LocalDateTime lastLoginAt;
 
-    public static User signUp(Email email, ProfileDetail profileDetail, String encodedPassword, String nickname) {
+    public static User signUp(Email email, String encodedPassword, String nickname) {
         return User.builder()
                 .email(email)
-                .profileDetail(profileDetail)
+                .profileDetail(ProfileDetail.defaultProfile())
                 .password(encodedPassword)
                 .nickname(nickname)
                 .role(Role.USER)
                 .userStatus(UserStatus.PENDING)
                 .accountStatus(AccountStatus.NORMAL)
                 .emailVerified(false)
+                .socialType(SocialType.NONE)
+                .build();
+    }
+
+    public static User socialSignUp(Email email, String nickname, SocialType socialType, String socialId) {
+        String randomPassword = UUID.randomUUID().toString();
+        return User.builder()
+                .email(email)
+                .profileDetail(ProfileDetail.defaultProfile())
+                .password(randomPassword)
+                .nickname(nickname)
+                .role(Role.USER)
+                .userStatus(UserStatus.ACTIVE)
+                .accountStatus(AccountStatus.NORMAL)
+                .emailVerified(true)
+                .socialType(socialType)
+                .socialId(socialId)
                 .build();
     }
 
@@ -136,7 +159,7 @@ public class User extends BaseEntity {
 
     @Builder
     private User(Email email, ProfileDetail profileDetail, String password, String nickname, Role role,
-                 UserStatus userStatus, AccountStatus accountStatus,
+                 UserStatus userStatus, AccountStatus accountStatus, SocialType socialType, String socialId,
                  boolean emailVerified) {
 
         Assert.notNull(email, "이메일은 필수입니다.");
@@ -150,6 +173,8 @@ public class User extends BaseEntity {
         this.role = (role != null) ? role : Role.USER;
         this.userStatus = (userStatus != null) ? userStatus : UserStatus.PENDING;
         this.accountStatus = (accountStatus != null) ? accountStatus : AccountStatus.NORMAL;
+        this.socialType = (socialType != null) ? socialType : SocialType.NONE;
+        this.socialId = socialId;
         this.emailVerified = emailVerified;
         this.deleted = false;
     }

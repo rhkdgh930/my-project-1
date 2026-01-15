@@ -1,4 +1,4 @@
-package com.example.my_project_1.auth.service.userdetails;
+package com.example.my_project_1.auth.userdetails;
 
 
 import com.example.my_project_1.user.domain.AccountStatus;
@@ -9,19 +9,43 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.oauth2.core.user.OAuth2User;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
-@RequiredArgsConstructor
 @Getter
-public class UserDetailsImpl implements UserDetails {
+public class UserDetailsImpl implements UserDetails, OAuth2User {
     private final Long userId;
     private final String password;
     private final String role;
     private final AccountStatus accountStatus;
     private final UserStatus userStatus;
     private final boolean deleted;
+
+    private Map<String, Object> attributes;
+
+    public UserDetailsImpl(Long userId, String password, String role, AccountStatus accountStatus, UserStatus userStatus, boolean deleted) {
+        this.userId = userId;
+        this.password = password;
+        this.role = role;
+        this.accountStatus = accountStatus;
+        this.userStatus = userStatus;
+        this.deleted = deleted;
+    }
+
+    public UserDetailsImpl(Long userId, String password, String role, AccountStatus accountStatus, UserStatus userStatus, boolean deleted, Map<String, Object> attributes) {
+        this.userId = userId;
+        this.password = password;
+        this.role = role;
+        this.accountStatus = accountStatus;
+        this.userStatus = userStatus;
+        this.deleted = deleted;
+        this.attributes = attributes;
+    }
+
+    // --- UserDetails ---
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
@@ -57,5 +81,17 @@ public class UserDetailsImpl implements UserDetails {
     @Override
     public boolean isEnabled() {
         return !deleted;
+    }
+
+    // --- OAuth2User ---
+
+    @Override
+    public Map<String, Object> getAttributes() {
+        return attributes;
+    }
+
+    @Override
+    public String getName() {
+        return String.valueOf(userId);
     }
 }

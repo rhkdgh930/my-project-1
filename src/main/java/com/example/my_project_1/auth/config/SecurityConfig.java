@@ -2,10 +2,8 @@ package com.example.my_project_1.auth.config;
 
 import com.example.my_project_1.auth.filter.JwtAuthenticationFilter;
 import com.example.my_project_1.auth.filter.JwtLoginFilter;
-import com.example.my_project_1.auth.handler.JwtAccessDeniedHandler;
-import com.example.my_project_1.auth.handler.JwtAuthenticationEntryPoint;
-import com.example.my_project_1.auth.handler.JwtLoginFailureHandler;
-import com.example.my_project_1.auth.handler.JwtLoginSuccessHandler;
+import com.example.my_project_1.auth.handler.*;
+import com.example.my_project_1.auth.oauth.CustomOAuth2UserService;
 import com.example.my_project_1.auth.utils.UrlUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -41,6 +39,9 @@ public class SecurityConfig {
     private final JwtLoginSuccessHandler jwtLoginSuccessHandler;
     private final JwtLoginFailureHandler jwtLoginFailureHandler;
 
+    private final OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler;
+    private final CustomOAuth2UserService customOAuth2UserService;
+
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 
@@ -61,6 +62,10 @@ public class SecurityConfig {
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/user/**").authenticated()
                         .anyRequest().authenticated()
+                )
+                .oauth2Login(oauth2 -> oauth2
+                        .userInfoEndpoint(userInfo -> userInfo.userService(customOAuth2UserService))
+                        .successHandler(oAuth2LoginSuccessHandler)
                 )
 
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
