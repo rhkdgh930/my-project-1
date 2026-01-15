@@ -34,6 +34,7 @@ class EmailTest {
                 .hasMessage("올바르지 않은 이메일 형식입니다.");
     }
 
+    @DisplayName("이메일이 널이거나 빈칸이면 이메일 생성에 실패합니다.")
     @Test
     void email_create_fail_test_email_is_null() {
         email_create_fail_test_email_is_null_or_empty(" ");
