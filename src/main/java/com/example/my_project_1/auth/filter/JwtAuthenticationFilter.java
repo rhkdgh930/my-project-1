@@ -5,7 +5,7 @@ import com.example.my_project_1.auth.constant.SecurityConstants;
 import com.example.my_project_1.auth.exception.JwtAuthenticationException;
 import com.example.my_project_1.auth.service.RedisTokenService;
 import com.example.my_project_1.auth.service.RedisUserContextService;
-import com.example.my_project_1.auth.service.userdetails.UserDetailsImpl;
+import com.example.my_project_1.auth.userdetails.UserDetailsImpl;
 import com.example.my_project_1.auth.utils.JwtProvider;
 import com.example.my_project_1.common.exception.ErrorCode;
 import io.jsonwebtoken.Claims;
