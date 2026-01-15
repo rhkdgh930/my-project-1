@@ -9,6 +9,8 @@ import com.example.my_project_1.user.service.response.UserWithdrawResponse;
 public interface UserService {
     UserSignUpResponse signUp(UserSignUpRequest request);
 
+    void verifyEmail(String email, String code);
+
     UserProfileResponse updateProfile(Long userId, UserProfileUpdateRequest request);
 
     UserWithdrawResponse withdraw(Long userId);

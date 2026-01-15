@@ -1,5 +1,6 @@
 package com.example.my_project_1.user.service;
 
+import com.example.my_project_1.auth.service.RedisEmailVerificationService;
 import com.example.my_project_1.auth.service.RedisTokenService;
 import com.example.my_project_1.auth.service.RedisUserContextService;
 import com.example.my_project_1.common.exception.CustomException;
@@ -28,6 +29,7 @@ public class UserServiceImpl implements UserService {
     private final PasswordEncoder passwordEncoder;
     private final RedisUserContextService redisUserContextService;
     private final RedisTokenService redisTokenService;
+    private final RedisEmailVerificationService emailVerificationService;
 
     @Override
     public UserSignUpResponse signUp(UserSignUpRequest request) {
@@ -37,12 +39,23 @@ public class UserServiceImpl implements UserService {
         String encodedPassword = passwordEncoder.encode(request.getPassword());
         User user = User.signUp(
                 email,
-                ProfileDetail.defaultProfile(),
                 encodedPassword,
                 request.getNickname()
         );
 
+        emailVerificationService.sendCode(request.getEmail());
+
         return UserSignUpResponse.from(userRepository.save(user));
+    }
+
+    @Override
+    public void verifyEmail(String email, String code) {
+        emailVerificationService.verifyCode(email, code);
+
+        User user = userRepository.findByEmailAndDeletedFalse(Email.from(email))
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        user.verifyEmail();
     }
 
     private void validateDuplicateEmail(Email email) {

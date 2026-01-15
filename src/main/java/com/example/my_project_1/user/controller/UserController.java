@@ -27,6 +27,15 @@ public class UserController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
+    @PostMapping("/verify")
+    public ResponseEntity<String> verifyEmail(
+            @RequestParam("email") String email,
+            @RequestParam("code") String code
+    ) {
+        userService.verifyEmail(email, code);
+        return ResponseEntity.ok("이메일 인증이 완료되었습니다.");
+    }
+
     @PreAuthorize("hasRole('USER')")
     @GetMapping("/test")
     public ResponseEntity<UserDetails> getMyInfo(@AuthenticationPrincipal UserDetails userDetails) {

@@ -7,8 +7,14 @@ public class UrlUtils {
             "/api/auth/reissue",
             "/api/auth/logout",
 
+            //OAuth
+            "/api/auth/test",
+            "/login/oauth2/code/google",
+            "oauth2/authorization/google",
+
             //user
             "/api/user/signup",
+            "/api/user/verify",
 
             //board
             "/api/boards/**",
