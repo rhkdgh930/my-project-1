@@ -43,7 +43,7 @@ class UserTest {
     }
 
     void signUp_fail_test(String email, String password, String nickname, String message) {
-        assertThatThrownBy(() -> User.signUp(Email.from(email), ProfileDetail.defaultProfile(), password, nickname))
+        assertThatThrownBy(() -> User.signUp(Email.from(email), password, nickname))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage(message);
     }
@@ -201,7 +201,6 @@ class UserTest {
         String encodedPassword = request.getPassword();
         return User.signUp(
                 Email.from(request.getEmail()),
-                ProfileDetail.defaultProfile(),
                 encodedPassword,
                 request.getNickname());
     }
