@@ -84,6 +84,13 @@ public class User extends BaseEntity {
         this.deleted = true;
     }
 
+    public void withdraw() {
+        if (isDeleted()) {
+            throw new CustomException(ErrorCode.USER_NOT_FOUND);
+        }
+        this.deleted = true;
+    }
+
     public void verifyEmail() {
         if (this.userStatus != UserStatus.PENDING) {
             throw new CustomException(ErrorCode.ALREADY_VERIFIED_USER);

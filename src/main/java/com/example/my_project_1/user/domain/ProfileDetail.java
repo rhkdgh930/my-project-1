@@ -1,6 +1,5 @@
 package com.example.my_project_1.user.domain;
 
-import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
 import lombok.AccessLevel;
 import lombok.Builder;

@@ -1,11 +1,11 @@
 package com.example.my_project_1.user.controller;
 
-import com.example.my_project_1.user.domain.User;
 import com.example.my_project_1.user.service.UserService;
 import com.example.my_project_1.user.service.request.UserProfileUpdateRequest;
 import com.example.my_project_1.user.service.request.UserSignUpRequest;
-import com.example.my_project_1.user.service.response.UserDetailResponse;
+import com.example.my_project_1.user.service.response.UserProfileResponse;
 import com.example.my_project_1.user.service.response.UserSignUpResponse;
+import com.example.my_project_1.user.service.response.UserWithdrawResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -33,12 +33,21 @@ public class UserController {
         return ResponseEntity.ok(userDetails);
     }
 
+    @PreAuthorize("hasRole('USER')")
     @PatchMapping("/update-profile")
-    public ResponseEntity<UserDetailResponse> updateProfile(
+    public ResponseEntity<UserProfileResponse> updateProfile(
             @AuthenticationPrincipal UserDetails userDetails,
             @Valid @RequestBody UserProfileUpdateRequest request) {
         Long userId = Long.valueOf(userDetails.getUsername());
-        UserDetailResponse response = userService.updateProfile(userId, request);
+        UserProfileResponse response = userService.updateProfile(userId, request);
+        return ResponseEntity.ok(response);
+    }
+
+    @PreAuthorize("hasRole('USER')")
+    @PostMapping("/withdraw")
+    public ResponseEntity<UserWithdrawResponse> withdraw(@AuthenticationPrincipal UserDetails userDetails) {
+        Long userId = Long.valueOf(userDetails.getUsername());
+        UserWithdrawResponse response = userService.withdraw(userId);
         return ResponseEntity.ok(response);
     }
 
