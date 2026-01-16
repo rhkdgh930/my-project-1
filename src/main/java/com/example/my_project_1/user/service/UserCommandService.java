@@ -6,7 +6,7 @@ import com.example.my_project_1.user.service.response.UserProfileResponse;
 import com.example.my_project_1.user.service.response.UserSignUpResponse;
 import com.example.my_project_1.user.service.response.UserWithdrawResponse;
 
-public interface UserService {
+public interface UserCommandService {
     UserSignUpResponse signUp(UserSignUpRequest request);
 
     void verifyEmail(String email, String code);

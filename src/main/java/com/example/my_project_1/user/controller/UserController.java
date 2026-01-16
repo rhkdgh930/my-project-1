@@ -1,6 +1,6 @@
 package com.example.my_project_1.user.controller;
 
-import com.example.my_project_1.user.service.UserService;
+import com.example.my_project_1.user.service.UserCommandService;
 import com.example.my_project_1.user.service.request.UserProfileUpdateRequest;
 import com.example.my_project_1.user.service.request.UserSignUpRequest;
 import com.example.my_project_1.user.service.response.UserProfileResponse;
@@ -19,11 +19,11 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 @RequestMapping("/api/user")
 public class UserController {
-    private final UserService userService;
+    private final UserCommandService userCommandService;
 
     @PostMapping("/signup")
     public ResponseEntity<UserSignUpResponse> signUp(@Valid @RequestBody UserSignUpRequest request) {
-        UserSignUpResponse response = userService.signUp(request);
+        UserSignUpResponse response = userCommandService.signUp(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -32,7 +32,7 @@ public class UserController {
             @RequestParam("email") String email,
             @RequestParam("code") String code
     ) {
-        userService.verifyEmail(email, code);
+        userCommandService.verifyEmail(email, code);
         return ResponseEntity.ok("이메일 인증이 완료되었습니다.");
     }
 
@@ -48,7 +48,7 @@ public class UserController {
             @AuthenticationPrincipal UserDetails userDetails,
             @Valid @RequestBody UserProfileUpdateRequest request) {
         Long userId = Long.valueOf(userDetails.getUsername());
-        UserProfileResponse response = userService.updateProfile(userId, request);
+        UserProfileResponse response = userCommandService.updateProfile(userId, request);
         return ResponseEntity.ok(response);
     }
 
@@ -56,7 +56,7 @@ public class UserController {
     @PostMapping("/withdraw")
     public ResponseEntity<UserWithdrawResponse> withdraw(@AuthenticationPrincipal UserDetails userDetails) {
         Long userId = Long.valueOf(userDetails.getUsername());
-        UserWithdrawResponse response = userService.withdraw(userId);
+        UserWithdrawResponse response = userCommandService.withdraw(userId);
         return ResponseEntity.ok(response);
     }
 
