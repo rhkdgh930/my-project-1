@@ -20,8 +20,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
-@RequiredArgsConstructor
 @Service
+@RequiredArgsConstructor
 public class UserCommandServiceImpl implements UserCommandService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
