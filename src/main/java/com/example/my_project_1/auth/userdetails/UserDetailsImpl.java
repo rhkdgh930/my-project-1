@@ -18,6 +18,7 @@ import java.util.Map;
 @Getter
 public class UserDetailsImpl implements UserDetails, OAuth2User {
     private final Long userId;
+    private final String email;
     private final String password;
     private final String role;
     private final AccountStatus accountStatus;
@@ -26,8 +27,9 @@ public class UserDetailsImpl implements UserDetails, OAuth2User {
 
     private Map<String, Object> attributes;
 
-    public UserDetailsImpl(Long userId, String password, String role, AccountStatus accountStatus, UserStatus userStatus, boolean deleted) {
+    public UserDetailsImpl(Long userId, String email, String password, String role, AccountStatus accountStatus, UserStatus userStatus, boolean deleted) {
         this.userId = userId;
+        this.email = email;
         this.password = password;
         this.role = role;
         this.accountStatus = accountStatus;
@@ -35,8 +37,9 @@ public class UserDetailsImpl implements UserDetails, OAuth2User {
         this.deleted = deleted;
     }
 
-    public UserDetailsImpl(Long userId, String password, String role, AccountStatus accountStatus, UserStatus userStatus, boolean deleted, Map<String, Object> attributes) {
+    public UserDetailsImpl(Long userId, String email, String password, String role, AccountStatus accountStatus, UserStatus userStatus, boolean deleted, Map<String, Object> attributes) {
         this.userId = userId;
+        this.email = email;
         this.password = password;
         this.role = role;
         this.accountStatus = accountStatus;

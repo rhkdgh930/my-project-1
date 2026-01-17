@@ -37,6 +37,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         User user = saveOrUpdate(userInfo, socialType);
         return new UserDetailsImpl(
                 user.getId(),
+                user.getEmail().getValue(),
                 user.getPassword(),
                 user.getRole().name(),
                 user.getAccountStatus(),

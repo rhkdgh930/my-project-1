@@ -69,6 +69,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         UserDetailsImpl userDetails =
                 new UserDetailsImpl(
                         ctx.getUserId(),
+                        ctx.getEmail(),
                         null,
                         ctx.getRole().name(),
                         ctx.getAccountStatus(),
