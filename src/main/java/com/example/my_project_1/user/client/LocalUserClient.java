@@ -20,10 +20,12 @@ public class LocalUserClient implements UserClient {
         return userRepository.findAllById(ids).stream()
                 .collect(Collectors.toMap(
                         User::getId,
-                        user -> new UserSummary(
-                                user.getId(),
-                                user.getNickname()
-                        )
+                        user -> {
+                            if (user.isDeleted()) {
+                                return new UserSummary(user.getId(), "(알 수 없음)");
+                            }
+                            return new UserSummary(user.getId(), user.getNickname());
+                        }
                 ));
     }
 }
