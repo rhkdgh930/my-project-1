@@ -1,5 +1,7 @@
 package com.example.my_project_1.auth.filter;
 
+import com.example.my_project_1.auth.exception.LoginFailAuthenticationServiceException;
+import com.example.my_project_1.auth.service.RedisLoginAttemptService;
 import com.example.my_project_1.auth.service.request.LoginRequest;
 import com.example.my_project_1.common.utils.DataSerializer;
 import jakarta.servlet.http.HttpServletRequest;
@@ -16,12 +18,16 @@ import java.io.IOException;
 
 public class JwtLoginFilter extends UsernamePasswordAuthenticationFilter {
 
+    private final RedisLoginAttemptService loginAttemptService;
+
     public JwtLoginFilter(AuthenticationManager authenticationManager,
                           AuthenticationSuccessHandler successHandler,
-                          AuthenticationFailureHandler failureHandler) {
+                          AuthenticationFailureHandler failureHandler,
+                          RedisLoginAttemptService loginAttemptService) {
         setAuthenticationManager(authenticationManager);
         setAuthenticationSuccessHandler(successHandler);
         setAuthenticationFailureHandler(failureHandler);
+        this.loginAttemptService= loginAttemptService;
         setFilterProcessesUrl("/api/auth/login");
     }
 
@@ -30,6 +36,14 @@ public class JwtLoginFilter extends UsernamePasswordAuthenticationFilter {
                                                 HttpServletResponse response) {
         try {
             LoginRequest loginRequest = DataSerializer.deserialize(request.getInputStream(), LoginRequest.class);
+            String email = loginRequest.getEmail();
+            request.setAttribute("email", email);
+
+            if (loginAttemptService.isBlocked(email)) {
+                throw new LoginFailAuthenticationServiceException(
+                        "너무 많은 로그인 시도 실패로 인해 계정이 일시 차단되었습니다, 10분뒤에 다시 시도해주세요." );
+            }
+
             UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                     loginRequest.getEmail(),
                     loginRequest.getPassword()

@@ -1,12 +1,14 @@
 package com.example.my_project_1.auth.handler;
 
 import com.example.my_project_1.auth.cache.CachedUserContext;
+import com.example.my_project_1.auth.service.RedisLoginAttemptService;
 import com.example.my_project_1.auth.service.RedisTokenService;
 import com.example.my_project_1.auth.service.RedisUserContextService;
 import com.example.my_project_1.auth.service.response.TokenResponse;
 import com.example.my_project_1.auth.userdetails.UserDetailsImpl;
 import com.example.my_project_1.auth.utils.JwtProvider;
 import com.example.my_project_1.common.utils.DataSerializer;
+import com.example.my_project_1.user.service.UserLoginService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +26,8 @@ public class JwtLoginSuccessHandler implements AuthenticationSuccessHandler {
     private final JwtProvider jwtProvider;
     private final RedisTokenService redisTokenService;
     private final RedisUserContextService redisUserContextService;
+    private final RedisLoginAttemptService loginAttemptService;
+    private final UserLoginService userLoginService;
 
     @Override
     public void onAuthenticationSuccess(
@@ -33,6 +37,10 @@ public class JwtLoginSuccessHandler implements AuthenticationSuccessHandler {
 
         UserDetailsImpl principal = (UserDetailsImpl) authentication.getPrincipal();
         Long userId = principal.getUserId();
+        String email = principal.getEmail();
+
+        loginSuccess(email);
+        userLoginService.updateLastLogin(userId);
 
         CachedUserContext ctx = redisUserContextService.getUserContext(userId);
         redisUserContextService.validate(ctx);
@@ -53,5 +61,11 @@ public class JwtLoginSuccessHandler implements AuthenticationSuccessHandler {
         response.getWriter().write(
                 DataSerializer.serialize(new TokenResponse(accessToken, refreshToken))
         );
+    }
+
+    private void loginSuccess(String email) {
+        if (email != null) {
+            loginAttemptService.loginSucceeded(email);
+        }
     }
 }

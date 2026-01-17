@@ -4,6 +4,7 @@ import com.example.my_project_1.auth.filter.JwtAuthenticationFilter;
 import com.example.my_project_1.auth.filter.JwtLoginFilter;
 import com.example.my_project_1.auth.handler.*;
 import com.example.my_project_1.auth.oauth.CustomOAuth2UserService;
+import com.example.my_project_1.auth.service.RedisLoginAttemptService;
 import com.example.my_project_1.auth.utils.UrlUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -38,6 +39,7 @@ public class SecurityConfig {
 
     private final JwtLoginSuccessHandler jwtLoginSuccessHandler;
     private final JwtLoginFailureHandler jwtLoginFailureHandler;
+    private final RedisLoginAttemptService redisLoginAttemptService;
 
     private final OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler;
     private final CustomOAuth2UserService customOAuth2UserService;
@@ -90,7 +92,7 @@ public class SecurityConfig {
 
     @Bean
     public JwtLoginFilter jwtLoginFilter() throws Exception {
-        return new JwtLoginFilter(authenticationManager(), jwtLoginSuccessHandler, jwtLoginFailureHandler);
+        return new JwtLoginFilter(authenticationManager(), jwtLoginSuccessHandler, jwtLoginFailureHandler, redisLoginAttemptService);
     }
 
     @Bean
