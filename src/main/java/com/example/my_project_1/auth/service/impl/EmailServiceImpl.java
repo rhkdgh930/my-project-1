@@ -34,6 +34,24 @@ public class EmailServiceImpl implements EmailService {
         sendMail(toEmail, title, content);
     }
 
+    @Override
+    public void sendPasswordResetLink(String toEmail, String code) {
+        String title = "[My Project] 비밀번호 변경 링크입니다.";
+        String content = String.format(
+                """
+                <div style="background-color: #f6f7f8; padding: 20px;">
+                    <div style="background-color: #ffffff; padding: 20px; border-radius: 5px; box-shadow: 0 0 10px rgba(0,0,0,0.1);">
+                        <h2>비밀번호 변경 링크</h2>
+                        <p>비밀번호 변경을 원하시면 아래 링크를 클릭해주세요.</p>
+                        <h1 style="color: #333; letter-spacing: 1px;">%s</h1>
+                        <p>이 코드는 5분간 유효합니다.</p>
+                    </div>
+                </div>
+                """, code);
+
+        sendMail(toEmail, title, content);
+    }
+
     private void sendMail(String to, String title, String content) {
         MimeMessage message = javaMailSender.createMimeMessage();
         try {

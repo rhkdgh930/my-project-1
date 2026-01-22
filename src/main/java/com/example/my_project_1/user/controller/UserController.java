@@ -1,12 +1,15 @@
 package com.example.my_project_1.user.controller;
 
 import com.example.my_project_1.user.service.UserCommandService;
+import com.example.my_project_1.user.service.request.PasswordResetRequest;
+import com.example.my_project_1.user.service.request.PasswordUpdateRequest;
 import com.example.my_project_1.user.service.request.UserProfileUpdateRequest;
 import com.example.my_project_1.user.service.request.UserSignUpRequest;
 import com.example.my_project_1.user.service.response.UserProfileResponse;
 import com.example.my_project_1.user.service.response.UserSignUpResponse;
 import com.example.my_project_1.user.service.response.UserWithdrawResponse;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Email;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -58,6 +61,30 @@ public class UserController {
         Long userId = Long.valueOf(userDetails.getUsername());
         UserWithdrawResponse response = userCommandService.withdraw(userId);
         return ResponseEntity.ok(response);
+    }
+
+    @PreAuthorize("hasRole('USER')") // 로그인 필수
+    @PatchMapping("/password")
+    public ResponseEntity<Void> updatePassword(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @Valid @RequestBody PasswordUpdateRequest request) {
+        Long userId = Long.valueOf(userDetails.getUsername());
+        userCommandService.updatePassword(userId, request);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/password-reset/request")
+    public ResponseEntity<Void> requestPasswordReset(@RequestParam @Email String email) {
+        userCommandService.requestPasswordReset(email);
+        return ResponseEntity.ok().build(); // 이메일이 없어도 항상 200 OK
+    }
+
+    @PostMapping("/password-reset/confirm")
+    public ResponseEntity<Void> confirmPasswordReset(
+            @Valid @RequestBody PasswordResetRequest request) {
+
+        userCommandService.resetPassword(request);
+        return ResponseEntity.ok().build();
     }
 
 }
