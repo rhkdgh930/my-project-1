@@ -20,20 +20,17 @@ public class AdminController {
     private final AdminQueryService adminQueryService;
     private final AdminCommandService adminCommandService;
 
-    //@PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/test")
     public ResponseEntity<UserDetails> getMyInfo2(@AuthenticationPrincipal UserDetails userDetails) {
         return ResponseEntity.ok(userDetails);
     }
 
-    //@PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/suspend/{userId}")
     public ResponseEntity<Void> suspendUser(@AuthenticationPrincipal UserDetails userDetails, @PathVariable(name = "userId") Long userId) {
         adminCommandService.suspendUser(userId);
         return ResponseEntity.noContent().build();
     }
 
-    //@PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/readAllUsers")
     public ResponseEntity<List<UserDetailResponse>> readAll() {
         List<UserDetailResponse> responses = adminQueryService.findAll();

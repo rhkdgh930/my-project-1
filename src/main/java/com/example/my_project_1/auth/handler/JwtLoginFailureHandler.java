@@ -30,6 +30,7 @@ public class JwtLoginFailureHandler implements AuthenticationFailureHandler {
         String email = (String) request.getAttribute("email");
 
         loginFail(email);
+
         if (exception instanceof LoginFailAuthenticationServiceException) {
             errorCode = ErrorCode.TOO_MANY_LOGIN_FAIL;
         } else if (exception instanceof LockedException) {
