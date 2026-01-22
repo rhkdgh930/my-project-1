@@ -16,7 +16,7 @@ public class RedisEmailVerificationService {
     private final StringRedisTemplate redisTemplate;
     private final EmailService emailService;
 
-    private static final String VERIFICATION_KEY = "auth::email::v::%s";
+    private static final String VERIFICATION_KEY = "auth::email::verify::%s";
     private static final long LIMIT_TIME = 5 * 60; // 5분
 
     public void sendCode(String email) {
@@ -29,11 +29,11 @@ public class RedisEmailVerificationService {
         String savedCode = redisTemplate.opsForValue().get(key(email));
 
         if (savedCode == null) {
-            throw new CustomException(ErrorCode.EXPIRED_ACCESS_TOKEN); // 혹은 EXPIRED_VERIFICATION_CODE 등
+            throw new CustomException(ErrorCode.EXPIRED_VERIFICATION_CODE);
         }
 
         if (!savedCode.equals(code)) {
-            throw new CustomException(ErrorCode.INVALID_INPUT_VALUE); // 인증 코드 불일치
+            throw new CustomException(ErrorCode.INVALID_INPUT_VALUE);
         }
 
         redisTemplate.delete(key(email));
