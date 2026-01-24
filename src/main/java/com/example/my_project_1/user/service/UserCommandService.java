@@ -9,9 +9,11 @@ import com.example.my_project_1.user.service.response.UserSignUpResponse;
 import com.example.my_project_1.user.service.response.UserWithdrawResponse;
 
 public interface UserCommandService {
-    UserSignUpResponse signUp(UserSignUpRequest request);
+    void sendVerificationCode(String emailValue);
 
     void verifyEmail(String email, String code);
+
+    UserSignUpResponse signUp(UserSignUpRequest request);
 
     UserProfileResponse updateProfile(Long userId, UserProfileUpdateRequest request);
 

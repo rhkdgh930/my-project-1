@@ -15,6 +15,7 @@ public class UrlUtils {
             //user
             "/api/user/signup",
             "/api/user/verify",
+            "/api/user/verification-code",
             "/api/user/password-reset/**",
 
             //board

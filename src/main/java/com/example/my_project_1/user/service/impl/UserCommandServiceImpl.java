@@ -5,6 +5,8 @@ import com.example.my_project_1.common.exception.CustomException;
 import com.example.my_project_1.common.exception.ErrorCode;
 import com.example.my_project_1.user.domain.Email;
 import com.example.my_project_1.user.domain.User;
+import com.example.my_project_1.user.event.EmailVerificationEvent;
+import com.example.my_project_1.user.event.PasswordResetEvent;
 import com.example.my_project_1.user.repository.UserRepository;
 import com.example.my_project_1.user.service.UserCommandService;
 import com.example.my_project_1.user.service.request.PasswordResetRequest;
@@ -16,6 +18,7 @@ import com.example.my_project_1.user.service.response.UserSignUpResponse;
 import com.example.my_project_1.user.service.response.UserWithdrawResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,32 +35,46 @@ public class UserCommandServiceImpl implements UserCommandService {
     private final EmailService emailService;
     private final RedisEmailVerificationService redisEmailVerificationService;
     private final RedisPasswordResetTokenService redisPasswordResetTokenService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
+    public void sendVerificationCode(String emailValue) {
+        Email email = Email.from(emailValue);
+        validateDuplicateEmail(email); // 이미 가입된 이메일인지 체크
+
+        // 이메일 발송 (비동기 이벤트 적용하신 경우 eventPublisher 사용)
+        eventPublisher.publishEvent(new EmailVerificationEvent(email.getValue()));
+    }
+
+    // 2. 인증 코드 검증 (가입 X, Redis 상태 변경)
+    @Override
+    public void verifyEmail(String email, String code) {
+        redisEmailVerificationService.verifyCode(email, code);
+    }
+
+    // 3. 최종 회원가입 (여기서 Redis 증표 확인)
+    @Override
     public UserSignUpResponse signUp(UserSignUpRequest request) {
+        // 1) Redis에 인증된 이메일인지 확인 (증표 검사)
+        redisEmailVerificationService.checkIsVerified(request.getEmail());
+
+        // 2) 이메일 객체 생성 및 중복 재확인 (안전장치)
         Email email = Email.from(request.getEmail());
         validateDuplicateEmail(email);
 
+        // 3) 유저 저장 (즉시 ACTIVE 상태)
         String encodedPassword = passwordEncoder.encode(request.getPassword());
         User user = User.signUp(
                 email,
                 encodedPassword,
                 request.getNickname()
         );
+        User savedUser = userRepository.save(user);
 
-        redisEmailVerificationService.sendCode(request.getEmail());
+        // 4) Redis 인증 증표 삭제 (재사용 방지)
+        redisEmailVerificationService.deleteVerifiedStatus(request.getEmail());
 
-        return UserSignUpResponse.from(userRepository.save(user));
-    }
-
-    @Override
-    public void verifyEmail(String email, String code) {
-        redisEmailVerificationService.verifyCode(email, code);
-
-        User user = userRepository.findByEmailAndDeletedFalse(Email.from(email))
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-
-        user.verifyEmail();
+        return UserSignUpResponse.from(savedUser);
     }
 
     private void validateDuplicateEmail(Email email) {
@@ -116,11 +133,11 @@ public class UserCommandServiceImpl implements UserCommandService {
         Email email = Email.from(emailValue);
 
         userRepository.findByEmailAndDeletedFalse(email).ifPresent(user -> {
-            String rawToken = redisPasswordResetTokenService.createAndSaveToken(emailValue);
+            String rawToken = redisPasswordResetTokenService. createAndSaveToken(emailValue);
             String link = "http://localhost:8080/api/user/password-reset/confirm?token=" + rawToken;
 
             log.info("link = {}", link);
-            emailService.sendPasswordResetLink(emailValue, link);
+            eventPublisher.publishEvent(new PasswordResetEvent(emailValue, link));
         });
     }
 

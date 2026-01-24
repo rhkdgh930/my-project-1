@@ -41,7 +41,7 @@ public class User extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private UserStatus userStatus; //PENDING, ACTIVE
+    private UserStatus userStatus; //ACTIVE
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -67,9 +67,9 @@ public class User extends BaseEntity {
                 .password(encodedPassword)
                 .nickname(nickname)
                 .role(Role.USER)
-                .userStatus(UserStatus.PENDING)
+                .userStatus(UserStatus.ACTIVE)
                 .accountStatus(AccountStatus.NORMAL)
-                .emailVerified(false)
+                .emailVerified(true)
                 .socialType(SocialType.NONE)
                 .build();
     }
@@ -114,18 +114,6 @@ public class User extends BaseEntity {
         this.deleted = true;
     }
 
-    public void verifyEmail() {
-        if (this.userStatus != UserStatus.PENDING) {
-            throw new CustomException(ErrorCode.ALREADY_VERIFIED_USER);
-        }
-        this.emailVerified = true;
-        this.userStatus = UserStatus.ACTIVE;
-    }
-
-    public boolean isActive() {
-        return !deleted && accountStatus == AccountStatus.NORMAL && userStatus == UserStatus.ACTIVE;
-    }
-
     public void updatePassword(String encodedPassword) {
         checkActiveUser();
         Assert.hasText(encodedPassword, "비밀번호는 필수입니다.");
@@ -147,6 +135,10 @@ public class User extends BaseEntity {
         if (!isActive()) {
             throw new CustomException(ErrorCode.USER_NOT_ACTIVE);
         }
+    }
+
+    public boolean isActive() {
+        return !deleted && accountStatus == AccountStatus.NORMAL && userStatus == UserStatus.ACTIVE;
     }
 
     public void updateLastLogin() {
@@ -171,7 +163,7 @@ public class User extends BaseEntity {
         this.password = password;
         this.nickname = nickname;
         this.role = (role != null) ? role : Role.USER;
-        this.userStatus = (userStatus != null) ? userStatus : UserStatus.PENDING;
+        this.userStatus = (userStatus != null) ? userStatus : UserStatus.ACTIVE;
         this.accountStatus = (accountStatus != null) ? accountStatus : AccountStatus.NORMAL;
         this.socialType = (socialType != null) ? socialType : SocialType.NONE;
         this.socialId = socialId;

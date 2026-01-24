@@ -24,10 +24,10 @@ import org.springframework.web.bind.annotation.*;
 public class UserController {
     private final UserCommandService userCommandService;
 
-    @PostMapping("/signup")
-    public ResponseEntity<UserSignUpResponse> signUp(@Valid @RequestBody UserSignUpRequest request) {
-        UserSignUpResponse response = userCommandService.signUp(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    @PostMapping("/verification-code")
+    public ResponseEntity<Void> sendVerificationCode(@RequestParam @Email String email) {
+        userCommandService.sendVerificationCode(email);
+        return ResponseEntity.ok().build();
     }
 
     @PostMapping("/verify")
@@ -36,7 +36,13 @@ public class UserController {
             @RequestParam("code") String code
     ) {
         userCommandService.verifyEmail(email, code);
-        return ResponseEntity.ok("이메일 인증이 완료되었습니다.");
+        return ResponseEntity.ok("이메일 인증이 완료되었습니다. 회원가입을 진행해주세요.");
+    }
+
+    @PostMapping("/signup")
+    public ResponseEntity<UserSignUpResponse> signUp(@Valid @RequestBody UserSignUpRequest request) {
+        UserSignUpResponse response = userCommandService.signUp(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @PreAuthorize("hasRole('USER')")
