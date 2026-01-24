@@ -5,6 +5,7 @@ import com.example.my_project_1.auth.service.RedisTokenService;
 import com.example.my_project_1.auth.service.RedisUserContextService;
 import com.example.my_project_1.auth.userdetails.UserDetailsImpl;
 import com.example.my_project_1.auth.utils.JwtProvider;
+import com.example.my_project_1.common.utils.CookieUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -37,6 +38,12 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
 
         // 2. Redis 저장 (Refresh Token & User Context)
         redisTokenService.saveRefreshTokenHash(userId, refreshToken, jwtProvider.getRemainingValidityMillis(refreshToken));
+
+        int refreshTokenMaxAge = (int) (jwtProvider.getRemainingValidityMillis(refreshToken) / 1000);
+        int accessTokenMaxAge = 60 * 60; // 1시간 (혹은 토큰 만료시간에 맞춤)
+
+        CookieUtils.addCookie(response, "accessToken", accessToken, accessTokenMaxAge);
+        CookieUtils.addCookie(response, "refreshToken", refreshToken, refreshTokenMaxAge);
 
         // 3. 프론트엔드로 리다이렉트 (Query Param으로 토큰 전달)
         // 주의: 실무에서는 RefreshToken을 HttpOnly Cookie에 담는 것을 권장합니다.
