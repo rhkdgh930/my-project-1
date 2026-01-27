@@ -1,5 +1,6 @@
 package com.example.my_project_1.user.controller;
 
+import com.example.my_project_1.user.domain.SuspensionReason;
 import com.example.my_project_1.user.service.AdminCommandService;
 import com.example.my_project_1.user.service.AdminQueryService;
 import com.example.my_project_1.user.service.response.UserDetailResponse;
@@ -26,8 +27,11 @@ public class AdminController {
     }
 
     @PostMapping("/suspend/{userId}")
-    public ResponseEntity<Void> suspendUser(@AuthenticationPrincipal UserDetails userDetails, @PathVariable(name = "userId") Long userId) {
-        adminCommandService.suspendUser(userId);
+    public ResponseEntity<Void> suspendUser(
+            @PathVariable(name = "userId") Long userId,
+            @RequestParam SuspensionReason reason
+    ) {
+        adminCommandService.suspendUser(userId, reason);
         return ResponseEntity.noContent().build();
     }
 

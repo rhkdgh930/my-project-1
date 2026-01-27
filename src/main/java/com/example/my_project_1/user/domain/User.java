@@ -24,6 +24,7 @@ public class User extends BaseEntity {
     private Long id;
 
     @Embedded
+    @Column(nullable = false)
     private Email email;
 
     @Embedded
@@ -60,6 +61,9 @@ public class User extends BaseEntity {
 
     private LocalDateTime lastLoginAt;
 
+    @Enumerated(EnumType.STRING)
+    private SuspensionReason suspensionReason;
+
     public static User signUp(Email email, String encodedPassword, String nickname) {
         return User.builder()
                 .email(email)
@@ -90,7 +94,7 @@ public class User extends BaseEntity {
                 .build();
     }
 
-    public void suspend() {
+    public void suspend(SuspensionReason suspensionReason) {
         if (isDeleted()) {
             throw new CustomException(ErrorCode.USER_NOT_FOUND);
         }
@@ -98,6 +102,7 @@ public class User extends BaseEntity {
             throw new CustomException(ErrorCode.USER_SUSPENDED);
         }
         this.accountStatus = AccountStatus.SUSPENDED;
+        this.suspensionReason = suspensionReason;
     }
 
     public void delete() {
@@ -112,6 +117,9 @@ public class User extends BaseEntity {
             throw new CustomException(ErrorCode.USER_NOT_FOUND);
         }
         this.deleted = true;
+        this.email = Email.from("withdrawn_" + id + "@known.com");
+        this.nickname = "탈퇴한 유저";
+        this.password = "";
     }
 
     public void updatePassword(String encodedPassword) {
