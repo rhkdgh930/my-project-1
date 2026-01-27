@@ -119,7 +119,7 @@ class UserTest {
         assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.NORMAL);
         assertThat(user.isDeleted()).isFalse();
 
-        user.suspend();
+        user.suspend(SuspensionReason.OTHER);
 
         assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.SUSPENDED);
         assertThat(user.isDeleted()).isFalse();
@@ -132,7 +132,7 @@ class UserTest {
         user.delete();
 
         assertThat(user.isDeleted()).isTrue();
-        assertThatThrownBy(user::suspend)
+        assertThatThrownBy(() -> user.suspend(SuspensionReason.OTHER))
                 .isInstanceOf(CustomException.class)
                 .hasMessage("존재하지 않는 사용자입니다.");
     }
@@ -141,9 +141,9 @@ class UserTest {
     @Test
     void suspend_fail_test_already_suspended() {
         User user = getVerifiedUser();
-        user.suspend();
+        user.suspend(SuspensionReason.OTHER);
 
-        assertThatThrownBy(user::suspend)
+        assertThatThrownBy(() -> user.suspend(SuspensionReason.OTHER))
                 .isInstanceOf(CustomException.class)
                 .hasMessage("차단된 계정입니다.");
     }
