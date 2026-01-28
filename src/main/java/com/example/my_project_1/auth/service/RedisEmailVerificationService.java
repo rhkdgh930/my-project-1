@@ -36,7 +36,7 @@ public class RedisEmailVerificationService {
         }
 
         if (!savedCode.equals(code)) {
-            throw new CustomException(ErrorCode.INVALID_INPUT_VALUE);
+            throw new CustomException(ErrorCode.WRONG_VERIFICATION_CODE);
         }
 
         // 인증 성공! -> Redis에 "이 이메일은 인증됨" 증표 저장
@@ -50,7 +50,7 @@ public class RedisEmailVerificationService {
     public void checkIsVerified(String email) {
         String isVerified = redisTemplate.opsForValue().get(verifiedKey(email));
         if (isVerified == null) {
-            throw new CustomException(ErrorCode.UNVERIFIED_EMAIL); // ErrorCode 추가 필요
+            throw new CustomException(ErrorCode.UNVERIFIED_EMAIL);
         }
     }
 
