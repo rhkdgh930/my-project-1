@@ -55,14 +55,12 @@ public class UserCommandServiceImpl implements UserCommandService {
     // 3. 최종 회원가입 (여기서 Redis 증표 확인)
     @Override
     public UserSignUpResponse signUp(UserSignUpRequest request) {
-        // 1) Redis에 인증된 이메일인지 확인 (증표 검사)
+
         redisEmailVerificationService.checkIsVerified(request.getEmail());
 
-        // 2) 이메일 객체 생성 및 중복 재확인 (안전장치)
         Email email = Email.from(request.getEmail());
         validateDuplicateEmail(email);
 
-        // 3) 유저 저장 (즉시 ACTIVE 상태)
         String encodedPassword = passwordEncoder.encode(request.getPassword());
         User user = User.signUp(
                 email,
@@ -71,7 +69,6 @@ public class UserCommandServiceImpl implements UserCommandService {
         );
         User savedUser = userRepository.save(user);
 
-        // 4) Redis 인증 증표 삭제 (재사용 방지)
         redisEmailVerificationService.deleteVerifiedStatus(request.getEmail());
 
         return UserSignUpResponse.from(savedUser);
