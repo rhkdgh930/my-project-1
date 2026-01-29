@@ -6,9 +6,11 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.SQLDelete;
 
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
+@SQLDelete(sql = "UPDATE comment SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?")
 @Entity
 @Table(name = "comment")
 public class Comment extends BaseEntity {
@@ -31,9 +33,6 @@ public class Comment extends BaseEntity {
 
     @Column(nullable = false)
     private int depth; // 0 = 댓글, 1 = 대댓글
-
-    @Column(nullable = false)
-    private boolean deleted;
 
     /* ===== 생성 메서드 ===== */
 
@@ -67,7 +66,6 @@ public class Comment extends BaseEntity {
         this.content = content;
         this.parentId = parentId;
         this.depth = depth;
-        this.deleted = false;
     }
 
     /* ===== 도메인 로직 ===== */
@@ -79,8 +77,8 @@ public class Comment extends BaseEntity {
 
     public void delete(Long requesterId) {
         validateAuthor(requesterId);
-        this.deleted = true;
         this.content = "삭제된 댓글입니다.";
+        this.softDelete();
     }
 
     private void validateAuthor(Long userId) {

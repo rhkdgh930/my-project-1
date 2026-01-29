@@ -8,12 +8,14 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.SQLDelete;
 import org.springframework.util.Assert;
 
 import java.time.LocalDateTime;
 
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
+@SQLDelete(sql = "UPDATE board SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?")
 @Entity
 @Table(name = "board")
 public class Board extends BaseEntity {
@@ -57,5 +59,6 @@ public class Board extends BaseEntity {
             throw new CustomException(ErrorCode.ALREADY_DELETED_BOARD);
         }
         boardStatus = BoardStatus.INACTIVE;
+        super.softDelete();
     }
 }

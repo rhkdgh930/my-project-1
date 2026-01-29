@@ -32,7 +32,6 @@ public class UserCommandServiceImpl implements UserCommandService {
     private final PasswordEncoder passwordEncoder;
     private final RedisUserContextService redisUserContextService;
     private final RedisTokenService redisTokenService;
-    private final EmailService emailService;
     private final RedisEmailVerificationService redisEmailVerificationService;
     private final RedisPasswordResetTokenService redisPasswordResetTokenService;
     private final ApplicationEventPublisher eventPublisher;
@@ -40,19 +39,16 @@ public class UserCommandServiceImpl implements UserCommandService {
     @Override
     public void sendVerificationCode(String emailValue) {
         Email email = Email.from(emailValue);
-        validateDuplicateEmail(email); // 이미 가입된 이메일인지 체크
+        validateDuplicateEmail(email);
 
-        // 이메일 발송 (비동기 이벤트 적용하신 경우 eventPublisher 사용)
         eventPublisher.publishEvent(new EmailVerificationEvent(email.getValue()));
     }
 
-    // 2. 인증 코드 검증 (가입 X, Redis 상태 변경)
     @Override
     public void verifyEmail(String email, String code) {
         redisEmailVerificationService.verifyCode(email, code);
     }
 
-    // 3. 최종 회원가입 (여기서 Redis 증표 확인)
     @Override
     public UserSignUpResponse signUp(UserSignUpRequest request) {
 
@@ -75,7 +71,7 @@ public class UserCommandServiceImpl implements UserCommandService {
     }
 
     private void validateDuplicateEmail(Email email) {
-        if (userRepository.existsByEmailAndDeletedFalse(email)) {
+        if (userRepository.existsByEmailAndDeletedAtIsNull(email)) {
             throw new CustomException(ErrorCode.DUPLICATED_EMAIL);
         }
     }
@@ -129,7 +125,7 @@ public class UserCommandServiceImpl implements UserCommandService {
     public void requestPasswordReset(String emailValue) {
         Email email = Email.from(emailValue);
 
-        userRepository.findByEmailAndDeletedFalse(email).ifPresent(user -> {
+        userRepository.findByEmailAndDeletedAtIsNull(email).ifPresent(user -> {
             String rawToken = redisPasswordResetTokenService. createAndSaveToken(emailValue);
             String link = "http://localhost:8080/api/user/password-reset/confirm?token=" + rawToken;
 
@@ -142,7 +138,7 @@ public class UserCommandServiceImpl implements UserCommandService {
     public void resetPassword(PasswordResetRequest request) {
         String emailValue = redisPasswordResetTokenService.validateAndGetEmail(request.getToken());
 
-        User user = userRepository.findByEmailAndDeletedFalse(Email.from(emailValue))
+        User user = userRepository.findByEmailAndDeletedAtIsNull(Email.from(emailValue))
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         user.updatePassword(passwordEncoder.encode(request.getNewPassword()));
@@ -152,6 +148,4 @@ public class UserCommandServiceImpl implements UserCommandService {
 
         redisPasswordResetTokenService.deleteToken(request.getToken());
     }
-
-
 }

@@ -32,7 +32,7 @@ public class PostQueryServiceImpl implements PostQueryService {
     @Override
     public PageResponse<PostListResponse> getPosts(Long boardId, Pageable pageable) {
         // 1. DB에서 해당 게시판의 게시글만 페이징 조회 (Deleted=False)
-        Page<Post> page = postRepository.findAllByBoardIdAndDeletedFalse(boardId, pageable);
+        Page<Post> page = postRepository.findAllByBoardIdAndDeletedAtIsNull(boardId, pageable);
 
         if (page.isEmpty()) {
             return PageResponse.of(Page.empty(pageable));

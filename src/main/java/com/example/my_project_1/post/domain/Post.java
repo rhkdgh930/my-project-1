@@ -10,6 +10,7 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.SQLDelete;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -19,6 +20,7 @@ import static org.springframework.util.Assert.notNull;
 
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
+@SQLDelete(sql = "UPDATE post SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?")
 @Entity
 @Table(name = "post")
 public class Post extends BaseEntity {
@@ -49,9 +51,6 @@ public class Post extends BaseEntity {
     private long viewCount;
     private long likeCount;
 
-    @Column(nullable = false)
-    private boolean deleted;
-
     public static Post create(Board board, Long userId, String title, String content) {
         return Post.builder()
                 .board(board)
@@ -74,7 +73,6 @@ public class Post extends BaseEntity {
         this.content = content;
         this.viewCount = 0L;
         this.likeCount = 0L;
-        this.deleted = false;
     }
 
     public void update(String title, String content) {
@@ -85,10 +83,12 @@ public class Post extends BaseEntity {
     }
 
     public void delete() {
-        if (this.deleted) {
+        if (super.isDeleted()) {
             throw new CustomException(ErrorCode.ALREADY_DELETED_POST);
         }
-        this.deleted = true;
+        this.title = "삭제된 게시글입니다.";
+        this.content = "삭제된 게시글입니다.";
+        super.softDelete();
     }
 
     public void addImage(PostImage image) {

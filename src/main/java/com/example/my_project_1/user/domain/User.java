@@ -8,6 +8,7 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.SQLDelete;
 import org.springframework.util.Assert;
 
 import java.time.LocalDateTime;
@@ -16,6 +17,7 @@ import java.util.UUID;
 
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
+@SQLDelete(sql = "UPDATE users SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?")
 @Entity
 @Table(name = "users")
 public class User extends BaseEntity {
@@ -42,7 +44,7 @@ public class User extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private UserStatus userStatus; //ACTIVE
+    private UserStatus userStatus; //ACTIVE, WITHDRAWN(탈퇴), DORMANT(휴면)
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -56,13 +58,12 @@ public class User extends BaseEntity {
     @Column(nullable = false)
     private boolean emailVerified;
 
-    @Column(nullable = false)
-    private boolean deleted;
-
     private LocalDateTime lastLoginAt;
 
     @Enumerated(EnumType.STRING)
     private SuspensionReason suspensionReason;
+
+    private LocalDateTime suspendedUntil;
 
     public static User signUp(Email email, String encodedPassword, String nickname) {
         return User.builder()
@@ -94,32 +95,38 @@ public class User extends BaseEntity {
                 .build();
     }
 
-    public void suspend(SuspensionReason suspensionReason) {
-        if (isDeleted()) {
+    public void suspend(SuspensionReason reason) {
+        if (super.isDeleted()) {
             throw new CustomException(ErrorCode.USER_NOT_FOUND);
         }
         if (isSuspended()) {
             throw new CustomException(ErrorCode.USER_SUSPENDED);
         }
         this.accountStatus = AccountStatus.SUSPENDED;
-        this.suspensionReason = suspensionReason;
-    }
+        this.suspensionReason = reason;
 
+        if (reason.getDays() != null) {
+            this.suspendedUntil = LocalDateTime.now().plusDays(reason.getDays());
+        } else {
+            this.suspendedUntil = null; // null은 영구 차단
+        }
+    }
     public void delete() {
-        if (isDeleted()) {
+        if (super.isDeleted()) {
             throw new CustomException(ErrorCode.USER_NOT_FOUND);
         }
-        this.deleted = true;
+        super.softDelete();
     }
 
     public void withdraw() {
-        if (isDeleted()) {
+        if (super.isDeleted()) {
             throw new CustomException(ErrorCode.USER_NOT_FOUND);
         }
-        this.deleted = true;
         this.email = Email.from("withdrawn_" + id + "@known.com");
         this.nickname = "탈퇴한 유저";
-        this.password = "";
+        this.password = UUID.randomUUID().toString();
+        this.userStatus = UserStatus.WITHDRAWN;
+        super.softDelete();
     }
 
     public void updatePassword(String encodedPassword) {
@@ -146,7 +153,7 @@ public class User extends BaseEntity {
     }
 
     public boolean isActive() {
-        return !deleted && accountStatus == AccountStatus.NORMAL && userStatus == UserStatus.ACTIVE;
+        return !isDeleted() && accountStatus == AccountStatus.NORMAL && userStatus == UserStatus.ACTIVE;
     }
 
     public void updateLastLogin() {
@@ -176,6 +183,5 @@ public class User extends BaseEntity {
         this.socialType = (socialType != null) ? socialType : SocialType.NONE;
         this.socialId = socialId;
         this.emailVerified = emailVerified;
-        this.deleted = false;
     }
 }

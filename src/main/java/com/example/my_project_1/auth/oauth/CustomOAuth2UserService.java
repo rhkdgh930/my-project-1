@@ -48,7 +48,11 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
     }
 
     private User saveOrUpdate(OAuth2UserInfo userInfo, SocialType socialType) {
-        return userRepository.findByEmail(Email.from(userInfo.getEmail()))
+        return userRepository.findByEmailAndDeletedAtIsNull(Email.from(userInfo.getEmail()))
+                .map(user -> {
+                    user.updateLastLogin();
+                    return user;
+                })
                 .orElseGet(() -> userRepository.save(User.socialSignUp(
                         Email.from(userInfo.getEmail()),
                         userInfo.getNickname(),
