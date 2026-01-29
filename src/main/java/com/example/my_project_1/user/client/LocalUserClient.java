@@ -15,6 +15,9 @@ public class LocalUserClient implements UserClient {
 
     private final UserRepository userRepository;
 
+    private static final String UNKNOWN_USER = "(탈퇴한 사용자)";
+    private static final String SUSPENDED_USER = "(차단된 사용자)";
+
     @Override
     public Map<Long, UserSummary> findUsersByIds(List<Long> ids) {
         return userRepository.findAllById(ids).stream()
@@ -22,8 +25,13 @@ public class LocalUserClient implements UserClient {
                         User::getId,
                         user -> {
                             if (user.isDeleted()) {
-                                return new UserSummary(user.getId(), "(알 수 없음)");
+                                return new UserSummary(user.getId(), UNKNOWN_USER);
                             }
+
+                            if (user.isSuspended()) {
+                                return new UserSummary(user.getId(), SUSPENDED_USER);
+                            }
+
                             return new UserSummary(user.getId(), user.getNickname());
                         }
                 ));
