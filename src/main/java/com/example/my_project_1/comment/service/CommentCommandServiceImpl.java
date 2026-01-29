@@ -21,7 +21,7 @@ public class CommentCommandServiceImpl implements CommentCommandService {
     }
 
     public Long writeReply(Long parentId, Long userId, String content) {
-        Comment parent = commentRepository.findByIdAndDeletedFalse(parentId)
+        Comment parent = commentRepository.findByIdAndDeletedAtIsNull(parentId)
                 .orElseThrow(() -> new IllegalArgumentException("부모 댓글이 없습니다."));
 
         Comment reply = Comment.createReply(parent, userId, content);
@@ -39,7 +39,7 @@ public class CommentCommandServiceImpl implements CommentCommandService {
     }
 
     private Comment getComment(Long id) {
-        return commentRepository.findByIdAndDeletedFalse(id)
+        return commentRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new IllegalArgumentException("댓글이 없습니다."));
     }
 

@@ -9,11 +9,8 @@ import java.util.Optional;
 
 @Repository
 public interface CommentRepository extends JpaRepository<Comment, Long> {
-    List<Comment> findAllByPostIdAndDeletedFalseOrderByIdAsc(Long postId);
+    List<Comment> findAllByPostIdAndDeletedAtIsNullOrderByIdAsc(Long postId);
 
-    List<Comment> findAllByParentIdAndDeletedFalseOrderByIdAsc(Long parentId);
+    Optional<Comment> findByIdAndDeletedAtIsNull(Long id);
 
-    Optional<Comment> findByIdAndDeletedFalse(Long id);
-
-    boolean existsByParentId(Long parentId);
 }

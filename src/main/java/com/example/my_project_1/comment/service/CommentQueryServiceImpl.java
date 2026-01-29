@@ -20,7 +20,7 @@ public class CommentQueryServiceImpl implements CommentQueryService {
 
     public List<CommentResponse> getComments(Long postId) {
         List<Comment> comments =
-                commentRepository.findAllByPostIdAndDeletedFalseOrderByIdAsc(postId);
+                commentRepository.findAllByPostIdAndDeletedAtIsNullOrderByIdAsc(postId);
 
         Map<Long, CommentResponse> map = new HashMap<>();
         List<CommentResponse> roots = new ArrayList<>();
