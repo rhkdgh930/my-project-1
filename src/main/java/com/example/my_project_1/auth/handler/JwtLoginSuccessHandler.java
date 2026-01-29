@@ -7,7 +7,7 @@ import com.example.my_project_1.auth.service.RedisUserContextService;
 import com.example.my_project_1.auth.service.response.TokenResponse;
 import com.example.my_project_1.auth.userdetails.UserDetailsImpl;
 import com.example.my_project_1.auth.utils.JwtProvider;
-import com.example.my_project_1.common.utils.CookieUtils;
+import com.example.my_project_1.auth.utils.CookieUtils;
 import com.example.my_project_1.common.utils.DataSerializer;
 import com.example.my_project_1.user.service.UserLoginService;
 import jakarta.servlet.http.HttpServletRequest;

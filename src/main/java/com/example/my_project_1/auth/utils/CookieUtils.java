@@ -1,4 +1,4 @@
-package com.example.my_project_1.common.utils;
+package com.example.my_project_1.auth.utils;
 
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.ResponseCookie;
