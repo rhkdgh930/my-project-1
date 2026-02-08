@@ -18,6 +18,7 @@ public enum ErrorCode {
     INVALID_BOARD_POST_RELATION(HttpStatus.BAD_REQUEST, "해당 게시판에 속하지 않은 게시글입니다."),
     DUPLICATED_EMAIL(HttpStatus.BAD_REQUEST, "이미 존재하는 이메일입니다."),
     USER_NOT_ACTIVE(HttpStatus.BAD_REQUEST, "활성화된 유저가 아닙니다."),
+    INVALID_USER_STATUS(HttpStatus.BAD_REQUEST, "유효하지 않은 유저 상태입니다."),
     SAME_PASSWORD(HttpStatus.BAD_REQUEST, "기존 비밀번호와 동일합니다."),
     INVALID_EMAIL_TOKEN(HttpStatus.BAD_REQUEST, "유효하지 않은 이메일 인증 토큰입니다."),
     EXPIRED_VERIFICATION_CODE(HttpStatus.BAD_REQUEST, "만료된 이메일 인증 토큰입니다."),
@@ -25,7 +26,6 @@ public enum ErrorCode {
     UNVERIFIED_EMAIL(HttpStatus.BAD_REQUEST, "인증되지 않은 이메일 입니다."),
 
     // 추가: 이미 처리된 상태에 대한 요청
-    ALREADY_VERIFIED_USER(HttpStatus.BAD_REQUEST, "이미 이메일 인증이 완료된 사용자입니다."),
     ALREADY_EXIST_BOARD_NAME(HttpStatus.BAD_REQUEST, "이미 존재하는 게시판 이름 입니다."),
     ALREADY_DELETED_BOARD(HttpStatus.BAD_REQUEST, "이미 삭제된 게시판 입니다."),
     ALREADY_DELETED_POST(HttpStatus.BAD_REQUEST, "이미 삭제된 게시글 입니다."),
@@ -50,6 +50,7 @@ public enum ErrorCode {
     /* 403 FORBIDDEN: 권한 없음 */
     ACCESS_DENIED(HttpStatus.FORBIDDEN, "접근 권한이 없습니다."),
     USER_SUSPENDED(HttpStatus.FORBIDDEN, "차단된 계정입니다."),
+    WITHDRAWAL_PENDING(HttpStatus.FORBIDDEN, "탈퇴 대기 중인 계정입니다."),
 
     TOO_MANY_LOGIN_FAIL(HttpStatus.TOO_MANY_REQUESTS, "너무 많은 로그인 시도 실패로 인해 계정이 일시 차단되었습니다, 10분뒤에 다시 시도해주세요."),
 
