@@ -11,6 +11,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -18,9 +19,16 @@ import java.util.List;
 import static org.springframework.util.Assert.hasText;
 import static org.springframework.util.Assert.notNull;
 
+/**
+ * [Policy] 이 엔티티는 Soft Delete 정책을 따릅니다.
+ * 삭제 시 실제 DELETE 대신 @SQLDelete에 정의된 UPDATE가 실행되며,
+ * @SQLRestriction에 의해 삭제되지 않은 데이터만 기본 조회됩니다.
+ */
+
+@SQLDelete(sql = "UPDATE post SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?")
+@SQLRestriction("deleted_at IS NULL")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@SQLDelete(sql = "UPDATE post SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?")
 @Entity
 @Table(name = "post")
 public class Post extends BaseEntity {
@@ -88,7 +96,6 @@ public class Post extends BaseEntity {
         }
         this.title = "삭제된 게시글입니다.";
         this.content = "삭제된 게시글입니다.";
-        super.softDelete();
     }
 
     public void addImage(PostImage image) {
