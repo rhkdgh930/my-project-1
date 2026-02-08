@@ -17,23 +17,24 @@ public class RedisLoginAttemptService {
 
     public void loginFailed(String email) {
         String key = key(email);
-        String attempts = redisTemplate.opsForValue().get(key);
 
-        int count = (attempts == null) ? 0 : Integer.parseInt(attempts);
-        count++;
+        Long attempts = redisTemplate.opsForValue().increment(key);
 
-        redisTemplate.opsForValue().set(key, String.valueOf(count), LOCK_TIME);
+        // 최초 실패 시에만 TTL 설정
+        if (attempts != null && attempts == 1L) {
+            redisTemplate.expire(key, LOCK_TIME);
+        }
     }
 
     public boolean isBlocked(String email) {
         String key = key(email);
         String attempts = redisTemplate.opsForValue().get(key);
+
         return attempts != null && Integer.parseInt(attempts) >= MAX_ATTEMPTS;
     }
 
     public void loginSucceeded(String email) {
-        String key = key(email);
-        redisTemplate.delete(key);
+        redisTemplate.delete(key(email));
     }
 
     private String key(String email) {
