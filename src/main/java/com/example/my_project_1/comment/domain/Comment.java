@@ -8,9 +8,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.SQLDelete;
 
+@SQLDelete(sql = "UPDATE comment SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@SQLDelete(sql = "UPDATE comment SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?")
 @Entity
 @Table(name = "comment")
 public class Comment extends BaseEntity {
@@ -78,7 +78,6 @@ public class Comment extends BaseEntity {
     public void delete(Long requesterId) {
         validateAuthor(requesterId);
         this.content = "삭제된 댓글입니다.";
-        this.softDelete();
     }
 
     private void validateAuthor(Long userId) {
