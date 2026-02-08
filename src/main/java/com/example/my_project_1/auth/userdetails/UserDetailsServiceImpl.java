@@ -1,9 +1,11 @@
 package com.example.my_project_1.auth.userdetails;
 
-import com.example.my_project_1.user.domain.Email;
-import com.example.my_project_1.user.domain.User;
+import com.example.my_project_1.auth.exception.UserSuspendedException;
+import com.example.my_project_1.auth.exception.WithdrawalPendingException;
+import com.example.my_project_1.user.domain.*;
 import com.example.my_project_1.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.authentication.LockedException;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -16,10 +18,12 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        User user = userRepository.findByEmailAndDeletedAtIsNull(Email.from(email))
+        User user = userRepository.findByEmail(Email.from(email))
                 .orElseThrow(() ->
-                        new UsernameNotFoundException("Invalid credentials")
+                        new UsernameNotFoundException("User not found")
                 );
+
+        UserSuspension suspension = user.getSuspension();
 
         return new UserDetailsImpl(
                 user.getId(),
@@ -28,6 +32,8 @@ public class UserDetailsServiceImpl implements UserDetailsService {
                 user.getRole().name(),
                 user.getAccountStatus(),
                 user.getUserStatus(),
+                suspension != null ? suspension.getReason() : null,
+                suspension != null ? suspension.getSuspendedUntil() : null,
                 user.isDeleted()
         );
     }

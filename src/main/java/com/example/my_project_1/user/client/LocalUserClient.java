@@ -5,6 +5,7 @@ import com.example.my_project_1.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -28,7 +29,7 @@ public class LocalUserClient implements UserClient {
                                 return new UserSummary(user.getId(), UNKNOWN_USER);
                             }
 
-                            if (user.isSuspended()) {
+                            if (user.getSuspension().isActive(LocalDateTime.now())) {
                                 return new UserSummary(user.getId(), SUSPENDED_USER);
                             }
 

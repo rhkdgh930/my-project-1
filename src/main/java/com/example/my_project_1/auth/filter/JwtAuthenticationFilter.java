@@ -74,6 +74,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         ctx.getRole().name(),
                         ctx.getAccountStatus(),
                         ctx.getUserStatus(),
+                        ctx.getReason(),
+                        ctx.getSuspendedUntil(),
                         ctx.isDeleted()
                 );
 

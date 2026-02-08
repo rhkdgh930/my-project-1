@@ -2,6 +2,7 @@ package com.example.my_project_1.auth.userdetails;
 
 
 import com.example.my_project_1.user.domain.AccountStatus;
+import com.example.my_project_1.user.domain.SuspensionReason;
 import com.example.my_project_1.user.domain.UserStatus;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -11,6 +12,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -23,27 +25,33 @@ public class UserDetailsImpl implements UserDetails, OAuth2User {
     private final String role;
     private final AccountStatus accountStatus;
     private final UserStatus userStatus;
+    private final SuspensionReason reason;
+    private final LocalDateTime suspendedUntil;
     private final boolean deleted;
 
     private Map<String, Object> attributes;
 
-    public UserDetailsImpl(Long userId, String email, String password, String role, AccountStatus accountStatus, UserStatus userStatus, boolean deleted) {
+    public UserDetailsImpl(Long userId, String email, String password, String role, AccountStatus accountStatus, UserStatus userStatus, SuspensionReason reason, LocalDateTime suspendedUntil, boolean deleted) {
         this.userId = userId;
         this.email = email;
         this.password = password;
         this.role = role;
         this.accountStatus = accountStatus;
         this.userStatus = userStatus;
+        this.reason = reason;
+        this.suspendedUntil = suspendedUntil;
         this.deleted = deleted;
     }
 
-    public UserDetailsImpl(Long userId, String email, String password, String role, AccountStatus accountStatus, UserStatus userStatus, boolean deleted, Map<String, Object> attributes) {
+    public UserDetailsImpl(Long userId, String email, String password, String role, AccountStatus accountStatus, UserStatus userStatus, SuspensionReason reason, LocalDateTime suspendedUntil, boolean deleted, Map<String, Object> attributes) {
         this.userId = userId;
         this.email = email;
         this.password = password;
         this.role = role;
         this.accountStatus = accountStatus;
         this.userStatus = userStatus;
+        this.reason = reason;
+        this.suspendedUntil = suspendedUntil;
         this.deleted = deleted;
         this.attributes = attributes;
     }
@@ -73,7 +81,7 @@ public class UserDetailsImpl implements UserDetails, OAuth2User {
 
     @Override
     public boolean isAccountNonLocked() {
-        return accountStatus != AccountStatus.SUSPENDED;
+        return true;
     }
 
     @Override
@@ -83,7 +91,7 @@ public class UserDetailsImpl implements UserDetails, OAuth2User {
 
     @Override
     public boolean isEnabled() {
-        return !deleted;
+        return true;
     }
 
     // --- OAuth2User ---

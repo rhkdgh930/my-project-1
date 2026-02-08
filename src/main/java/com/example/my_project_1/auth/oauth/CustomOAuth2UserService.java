@@ -6,6 +6,7 @@ import com.example.my_project_1.auth.userdetails.UserDetailsImpl;
 import com.example.my_project_1.user.domain.Email;
 import com.example.my_project_1.user.domain.SocialType;
 import com.example.my_project_1.user.domain.User;
+import com.example.my_project_1.user.domain.UserSuspension;
 import com.example.my_project_1.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,6 +36,8 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         OAuth2UserInfo userInfo = getOAuth2UserInfo(socialType, oAuth2User.getAttributes());
 
         User user = saveOrUpdate(userInfo, socialType);
+
+        UserSuspension suspension = user.getSuspension();
         return new UserDetailsImpl(
                 user.getId(),
                 user.getEmail().getValue(),
@@ -42,13 +45,15 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                 user.getRole().name(),
                 user.getAccountStatus(),
                 user.getUserStatus(),
+                suspension != null ? suspension.getReason() : null,
+                suspension != null ? suspension.getSuspendedUntil() : null,
                 user.isDeleted(),
                 oAuth2User.getAttributes()
         );
     }
 
     private User saveOrUpdate(OAuth2UserInfo userInfo, SocialType socialType) {
-        return userRepository.findByEmailAndDeletedAtIsNull(Email.from(userInfo.getEmail()))
+        return userRepository.findByEmail(Email.from(userInfo.getEmail()))
                 .map(user -> {
                     user.updateLastLogin();
                     return user;

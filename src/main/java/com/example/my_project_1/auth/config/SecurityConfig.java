@@ -4,6 +4,7 @@ import com.example.my_project_1.auth.filter.JwtAuthenticationFilter;
 import com.example.my_project_1.auth.filter.JwtLoginFilter;
 import com.example.my_project_1.auth.handler.*;
 import com.example.my_project_1.auth.oauth.CustomOAuth2UserService;
+import com.example.my_project_1.auth.provider.CustomAuthenticationProvider;
 import com.example.my_project_1.auth.service.RedisLoginAttemptService;
 import com.example.my_project_1.auth.utils.UrlUtils;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +16,7 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -93,6 +95,14 @@ public class SecurityConfig {
     @Bean
     public JwtLoginFilter jwtLoginFilter() throws Exception {
         return new JwtLoginFilter(authenticationManager(), jwtLoginSuccessHandler, jwtLoginFailureHandler, redisLoginAttemptService);
+    }
+
+    @Bean
+    public CustomAuthenticationProvider customAuthenticationProvider(
+            UserDetailsService userDetailsService,
+            PasswordEncoder passwordEncoder
+    ) {
+        return new CustomAuthenticationProvider(userDetailsService, passwordEncoder);
     }
 
     @Bean

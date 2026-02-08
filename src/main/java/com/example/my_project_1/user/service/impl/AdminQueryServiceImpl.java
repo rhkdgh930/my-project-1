@@ -18,7 +18,7 @@ public class AdminQueryServiceImpl implements AdminQueryService {
 
     @Override
     public List<UserDetailResponse> findAll() {
-        List<User> users = userRepository.findAll();
+        List<User> users = userRepository.findAllRaw();
         return users.stream().map(UserDetailResponse::from).toList();
     }
 }

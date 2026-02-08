@@ -1,6 +1,6 @@
 package com.example.my_project_1.auth.filter;
 
-import com.example.my_project_1.auth.exception.LoginFailAuthenticationServiceException;
+import com.example.my_project_1.auth.exception.LoginFailException;
 import com.example.my_project_1.auth.service.RedisLoginAttemptService;
 import com.example.my_project_1.auth.service.request.LoginRequest;
 import com.example.my_project_1.common.utils.DataSerializer;
@@ -40,7 +40,7 @@ public class JwtLoginFilter extends UsernamePasswordAuthenticationFilter {
             request.setAttribute("email", email);
 
             if (loginAttemptService.isBlocked(email)) {
-                throw new LoginFailAuthenticationServiceException(
+                throw new LoginFailException(
                         "너무 많은 로그인 시도 실패로 인해 계정이 일시 차단되었습니다, 10분뒤에 다시 시도해주세요." );
             }
 

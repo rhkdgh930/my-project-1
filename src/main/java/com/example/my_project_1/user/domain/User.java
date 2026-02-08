@@ -9,15 +9,23 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
 import org.springframework.util.Assert;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+/**
+ * [Policy] 이 엔티티는 Soft Delete 정책을 따릅니다.
+ * 삭제 시 실제 DELETE 대신 @SQLDelete에 정의된 UPDATE가 실행되며,
+ * @SQLRestriction에 의해 삭제되지 않은 데이터만 기본 조회됩니다.
+ */
 
+@SQLDelete(sql = "UPDATE users SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?")
+@SQLRestriction("deleted_at IS NULL")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@SQLDelete(sql = "UPDATE users SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?")
 @Entity
 @Table(name = "users")
 public class User extends BaseEntity {
@@ -31,6 +39,9 @@ public class User extends BaseEntity {
 
     @Embedded
     private ProfileDetail profileDetail;
+
+    @Embedded
+    private UserSuspension suspension;
 
     @Column(nullable = false)
     private String password;
@@ -46,6 +57,8 @@ public class User extends BaseEntity {
     @Column(nullable = false)
     private UserStatus userStatus; //ACTIVE, WITHDRAWN(탈퇴), DORMANT(휴면)
 
+    private LocalDateTime withdrawalRequestedAt;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private AccountStatus accountStatus; //NORMAL, SUSPENDED
@@ -56,14 +69,9 @@ public class User extends BaseEntity {
     private String socialId;
 
     @Column(nullable = false)
-    private boolean emailVerified;
+    private boolean isEmailVerified;
 
     private LocalDateTime lastLoginAt;
-
-    @Enumerated(EnumType.STRING)
-    private SuspensionReason suspensionReason;
-
-    private LocalDateTime suspendedUntil;
 
     public static User signUp(Email email, String encodedPassword, String nickname) {
         return User.builder()
@@ -74,7 +82,7 @@ public class User extends BaseEntity {
                 .role(Role.USER)
                 .userStatus(UserStatus.ACTIVE)
                 .accountStatus(AccountStatus.NORMAL)
-                .emailVerified(true)
+                .isEmailVerified(true)
                 .socialType(SocialType.NONE)
                 .build();
     }
@@ -89,85 +97,90 @@ public class User extends BaseEntity {
                 .role(Role.USER)
                 .userStatus(UserStatus.ACTIVE)
                 .accountStatus(AccountStatus.NORMAL)
-                .emailVerified(true)
+                .isEmailVerified(true)
                 .socialType(socialType)
                 .socialId(socialId)
                 .build();
     }
 
-    public void suspend(SuspensionReason reason) {
-        if (super.isDeleted()) {
-            throw new CustomException(ErrorCode.USER_NOT_FOUND);
-        }
-        if (isSuspended()) {
-            throw new CustomException(ErrorCode.USER_SUSPENDED);
-        }
-        this.accountStatus = AccountStatus.SUSPENDED;
-        this.suspensionReason = reason;
+    public void suspend(SuspensionType type, SuspensionReason reason, Duration duration, LocalDateTime now) {
+        validateSuspendable();
 
-        if (reason.getDays() != null) {
-            this.suspendedUntil = LocalDateTime.now().plusDays(reason.getDays());
+        if (this.accountStatus != AccountStatus.SUSPENDED || this.suspension == null) {
+            this.accountStatus = AccountStatus.SUSPENDED;
+            this.suspension = UserSuspension.create(type, reason, now, duration);
         } else {
-            this.suspendedUntil = null; // null은 영구 차단
+            this.suspension = this.suspension.mergeWith(type, reason, now, duration);
         }
-    }
-    public void delete() {
-        if (super.isDeleted()) {
-            throw new CustomException(ErrorCode.USER_NOT_FOUND);
-        }
-        super.softDelete();
     }
 
-    public void withdraw() {
-        if (super.isDeleted()) {
+    private void validateSuspendable() {
+        if (super.isDeleted() || userStatus == UserStatus.WITHDRAWN) {
             throw new CustomException(ErrorCode.USER_NOT_FOUND);
         }
+    }
+
+    public void completeWithdrawal() {
+        validateWithdrawalPending();
         this.email = Email.from("withdrawn_" + id + "@known.com");
         this.nickname = "탈퇴한 유저";
         this.password = UUID.randomUUID().toString();
         this.userStatus = UserStatus.WITHDRAWN;
-        super.softDelete();
+    }
+
+    public void cancelWithdrawal() {
+        validateWithdrawalPending();
+        this.userStatus = UserStatus.ACTIVE;
+        this.withdrawalRequestedAt = null;
+    }
+
+    private void validateWithdrawalPending() {
+        if (this.userStatus != UserStatus.WITHDRAWN_REQUESTED) {
+            throw new CustomException(ErrorCode.INVALID_USER_STATUS);
+        }
+    }
+
+    public void requestWithdrawal() {
+        validateActive();
+        this.userStatus = UserStatus.WITHDRAWN_REQUESTED;
+        this.withdrawalRequestedAt = LocalDateTime.now();
     }
 
     public void updatePassword(String encodedPassword) {
-        checkActiveUser();
+        validateActive();
         Assert.hasText(encodedPassword, "비밀번호는 필수입니다.");
         this.password = encodedPassword;
     }
 
     public void updateNickname(String nickname) {
-        checkActiveUser();
+        validateActive();
         Assert.hasText(nickname, "닉네임은 필수입니다.");
         this.nickname = nickname;
     }
 
     public void updateProfile(String introduce, String profileImageUrl) {
-        checkActiveUser();
+        validateActive();
         this.profileDetail = ProfileDetail.update(introduce, profileImageUrl);
     }
 
-    private void checkActiveUser() {
+    private void validateActive() {
         if (!isActive()) {
             throw new CustomException(ErrorCode.USER_NOT_ACTIVE);
         }
     }
 
     public boolean isActive() {
-        return !isDeleted() && accountStatus == AccountStatus.NORMAL && userStatus == UserStatus.ACTIVE;
+        return !super.isDeleted() && accountStatus == AccountStatus.NORMAL && userStatus == UserStatus.ACTIVE;
     }
 
     public void updateLastLogin() {
         this.lastLoginAt = LocalDateTime.now();
     }
 
-    public boolean isSuspended() {
-        return accountStatus == AccountStatus.SUSPENDED;
-    }
-
     @Builder
     private User(Email email, ProfileDetail profileDetail, String password, String nickname, Role role,
                  UserStatus userStatus, AccountStatus accountStatus, SocialType socialType, String socialId,
-                 boolean emailVerified) {
+                 boolean isEmailVerified) {
 
         Assert.notNull(email, "이메일은 필수입니다.");
         Assert.hasText(password, "비밀번호는 필수입니다.");
@@ -182,6 +195,6 @@ public class User extends BaseEntity {
         this.accountStatus = (accountStatus != null) ? accountStatus : AccountStatus.NORMAL;
         this.socialType = (socialType != null) ? socialType : SocialType.NONE;
         this.socialId = socialId;
-        this.emailVerified = emailVerified;
+        this.isEmailVerified = isEmailVerified;
     }
 }

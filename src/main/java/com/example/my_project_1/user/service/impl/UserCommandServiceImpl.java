@@ -18,6 +18,7 @@ import com.example.my_project_1.user.service.response.UserSignUpResponse;
 import com.example.my_project_1.user.service.response.UserWithdrawResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -35,6 +36,9 @@ public class UserCommandServiceImpl implements UserCommandService {
     private final RedisEmailVerificationService redisEmailVerificationService;
     private final RedisPasswordResetTokenService redisPasswordResetTokenService;
     private final ApplicationEventPublisher eventPublisher;
+
+    @Value("${app.frontend-url}")
+    private String frontendUrl;
 
     @Override
     public void sendVerificationCode(String emailValue) {
@@ -71,7 +75,7 @@ public class UserCommandServiceImpl implements UserCommandService {
     }
 
     private void validateDuplicateEmail(Email email) {
-        if (userRepository.existsByEmailAndDeletedAtIsNull(email)) {
+        if (userRepository.existsByEmail(email)) {
             throw new CustomException(ErrorCode.DUPLICATED_EMAIL);
         }
     }
@@ -85,6 +89,9 @@ public class UserCommandServiceImpl implements UserCommandService {
                 request.getIntroduce(),
                 request.getProfileImageUrl()
         );
+
+        redisUserContextService.evict(userId);
+
         return UserProfileResponse.from(user);
     }
 
@@ -93,7 +100,7 @@ public class UserCommandServiceImpl implements UserCommandService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        user.withdraw();
+        user.requestWithdrawal();
 
         redisUserContextService.evict(userId);
         redisTokenService.deleteRefreshTokenHash(userId);
@@ -115,6 +122,8 @@ public class UserCommandServiceImpl implements UserCommandService {
         }
 
         user.updatePassword(passwordEncoder.encode(request.getNewPassword()));
+
+        redisUserContextService.evict(userId);
         redisTokenService.deleteRefreshTokenHash(userId);
     }
 
@@ -125,9 +134,9 @@ public class UserCommandServiceImpl implements UserCommandService {
     public void requestPasswordReset(String emailValue) {
         Email email = Email.from(emailValue);
 
-        userRepository.findByEmailAndDeletedAtIsNull(email).ifPresent(user -> {
-            String rawToken = redisPasswordResetTokenService. createAndSaveToken(emailValue);
-            String link = "http://localhost:8080/api/user/password-reset/confirm?token=" + rawToken;
+        userRepository.findByEmail(email).ifPresent(user -> {
+            String rawToken = redisPasswordResetTokenService.createAndSaveToken(emailValue);
+            String link = frontendUrl + "/password-reset?token=" + rawToken;
 
             log.info("link = {}", link);
             eventPublisher.publishEvent(new PasswordResetEvent(emailValue, link));
@@ -138,7 +147,7 @@ public class UserCommandServiceImpl implements UserCommandService {
     public void resetPassword(PasswordResetRequest request) {
         String emailValue = redisPasswordResetTokenService.validateAndGetEmail(request.getToken());
 
-        User user = userRepository.findByEmailAndDeletedAtIsNull(Email.from(emailValue))
+        User user = userRepository.findByEmail(Email.from(emailValue))
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         user.updatePassword(passwordEncoder.encode(request.getNewPassword()));
