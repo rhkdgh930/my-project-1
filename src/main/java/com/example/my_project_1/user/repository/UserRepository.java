@@ -2,6 +2,7 @@ package com.example.my_project_1.user.repository;
 
 import com.example.my_project_1.user.domain.Email;
 import com.example.my_project_1.user.domain.User;
+import com.example.my_project_1.user.domain.UserStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
@@ -18,4 +19,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     @Query(value = "SELECT * FROM users", nativeQuery = true)
     List<User> findAllRaw();
+
+    List<User> findAllByUserStatus(UserStatus userStatus);
 }

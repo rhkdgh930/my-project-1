@@ -7,6 +7,7 @@ import com.example.my_project_1.auth.oauth.CustomOAuth2UserService;
 import com.example.my_project_1.auth.provider.CustomAuthenticationProvider;
 import com.example.my_project_1.auth.service.RedisLoginAttemptService;
 import com.example.my_project_1.auth.utils.UrlUtils;
+import com.example.my_project_1.user.service.UserQueryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -45,6 +46,7 @@ public class SecurityConfig {
 
     private final OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler;
     private final CustomOAuth2UserService customOAuth2UserService;
+    private final UserQueryService userQueryService;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -102,7 +104,7 @@ public class SecurityConfig {
             UserDetailsService userDetailsService,
             PasswordEncoder passwordEncoder
     ) {
-        return new CustomAuthenticationProvider(userDetailsService, passwordEncoder);
+        return new CustomAuthenticationProvider(userDetailsService, passwordEncoder, userQueryService);
     }
 
     @Bean

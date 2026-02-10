@@ -2,6 +2,7 @@ package com.example.my_project_1.auth.handler;
 
 import com.example.my_project_1.auth.exception.LoginFailException;
 import com.example.my_project_1.auth.exception.UserSuspendedException;
+import com.example.my_project_1.auth.exception.WithdrawalCompletedException;
 import com.example.my_project_1.auth.exception.WithdrawalPendingException;
 import com.example.my_project_1.auth.service.RedisLoginAttemptService;
 import com.example.my_project_1.common.exception.ErrorCode;
@@ -38,19 +39,17 @@ public class JwtLoginFailureHandler implements AuthenticationFailureHandler {
 
         if (exception instanceof UserSuspendedException suspendedEx) {
             errorCode = ErrorCode.USER_SUSPENDED;
-            Map<String, Object> map = new HashMap<>();
-            map.put("reason", suspendedEx.getReason() != null ? suspendedEx.getReason().getDescription() : "사유 없음");
-            map.put("suspendedUntil", suspendedEx.getSuspendedUntil());
-            map.put("permanent", suspendedEx.isPermanent());
-
-            data = map;
+            data = putSuspendedData(suspendedEx);
+        } else if (exception instanceof WithdrawalPendingException pendingEx) {
+            errorCode = ErrorCode.WITHDRAWAL_PENDING;
+            data = putWithdrawalPendingData(pendingEx);
         } else {
-            loginFail(email);
 
+            loginFail(email);
             if (exception instanceof LoginFailException) {
                 errorCode = ErrorCode.TOO_MANY_LOGIN_FAIL;
-            } else if (exception instanceof WithdrawalPendingException) {
-                errorCode = ErrorCode.WITHDRAWAL_PENDING;
+            } else if (exception instanceof WithdrawalCompletedException) {
+                errorCode = ErrorCode.WITHDRAWAL_COMPLETED;
             } else if (exception instanceof LockedException) {
                 errorCode = ErrorCode.USER_SUSPENDED;
             } else if (exception instanceof DisabledException) {
@@ -69,6 +68,24 @@ public class JwtLoginFailureHandler implements AuthenticationFailureHandler {
         response.getWriter().write(
                 DataSerializer.serialize(new ExceptionResponse(errorCode, data))
         );
+    }
+
+    private static Object putSuspendedData(UserSuspendedException suspendedEx) {
+        Map<String, Object> map = new HashMap<>();
+        map.put("reason", suspendedEx.getReason() != null ? suspendedEx.getReason().getDescription() : "사유 없음");
+        map.put("suspendedUntil", suspendedEx.getSuspendedUntil());
+        map.put("permanent", suspendedEx.isPermanent());
+
+        return map;
+    }
+
+    private static Object putWithdrawalPendingData(WithdrawalPendingException ex) {
+        Map<String, Object> map = new HashMap<>();
+        map.put("scheduledDeletionAt", ex.getScheduledDeletionAt());
+        map.put("remainingDays", ex.getRemainingDays());
+        map.put("canRestore", ex.isCanRestore());
+
+        return map;
     }
 
     private void loginFail(String email) {

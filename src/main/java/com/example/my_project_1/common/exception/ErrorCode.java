@@ -36,6 +36,7 @@ public enum ErrorCode {
     POST_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 게시물 입니다."),
 
     /* 401 UNAUTHORIZED: 인증 실패 */
+    WITHDRAWAL_COMPLETED(HttpStatus.UNAUTHORIZED, "이미 탈퇴 처리된 계정입니다."),
     LOGOUT_USER(HttpStatus.UNAUTHORIZED, "다시 로그인해주세요."),
     INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "이메일 또는 비밀번호가 올바르지 않습니다."),
     INVALID_PASSWORD(HttpStatus.UNAUTHORIZED, "비밀번호가 올바르지 않습니다."),

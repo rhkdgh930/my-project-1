@@ -19,6 +19,8 @@ public interface UserCommandService {
 
     UserWithdrawResponse withdraw(Long userId);
 
+    void cancelWithdraw(Long userId);
+
     void updatePassword(Long userId, PasswordUpdateRequest request);
 
     void requestPasswordReset(String email);

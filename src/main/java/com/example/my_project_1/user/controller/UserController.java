@@ -69,6 +69,14 @@ public class UserController {
         return ResponseEntity.ok(response);
     }
 
+    @PreAuthorize("hasRole('USER')")
+    @PostMapping("/withdraw-cancel")
+    public ResponseEntity<Void> cancelWithdraw(@AuthenticationPrincipal UserDetails userDetails) {
+        Long userId = Long.valueOf(userDetails.getUsername());
+        userCommandService.cancelWithdraw(userId);
+        return ResponseEntity.ok().build();
+    }
+
     @PreAuthorize("hasRole('USER')") // 로그인 필수
     @PatchMapping("/password")
     public ResponseEntity<Void> updatePassword(

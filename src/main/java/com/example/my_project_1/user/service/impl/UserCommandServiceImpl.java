@@ -24,6 +24,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+
 @Slf4j
 @Transactional
 @Service
@@ -106,6 +108,14 @@ public class UserCommandServiceImpl implements UserCommandService {
         redisTokenService.deleteRefreshTokenHash(userId);
 
         return UserWithdrawResponse.from(user);
+    }
+
+    @Override
+    public void cancelWithdraw(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        user.cancelWithdrawal(LocalDateTime.now());
     }
 
     @Override

@@ -43,6 +43,12 @@ public class User extends BaseEntity {
     @Embedded
     private UserSuspension suspension;
 
+    @Embedded
+    private UserWithdrawal withdrawal;
+
+    @Embedded
+    private UserDormancy dormancy;
+
     @Column(nullable = false)
     private String password;
 
@@ -57,7 +63,6 @@ public class User extends BaseEntity {
     @Column(nullable = false)
     private UserStatus userStatus; //ACTIVE, WITHDRAWN(탈퇴), DORMANT(휴면)
 
-    private LocalDateTime withdrawalRequestedAt;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -122,16 +127,23 @@ public class User extends BaseEntity {
 
     public void completeWithdrawal() {
         validateWithdrawalPending();
-        this.email = Email.from("withdrawn_" + id + "@known.com");
-        this.nickname = "탈퇴한 유저";
-        this.password = UUID.randomUUID().toString();
+        maskPersonalData();
         this.userStatus = UserStatus.WITHDRAWN;
     }
 
-    public void cancelWithdrawal() {
+    private void maskPersonalData() {
+        String uuid = UUID.randomUUID().toString().substring(0, 8);
+        this.email = Email.from("deleted_" + uuid + "_" + this.email.getValue());
+        this.nickname = "알수없음_" + uuid;
+        this.password = "WITHDRAWN";
+    }
+
+    public void cancelWithdrawal(LocalDateTime now) {
         validateWithdrawalPending();
-        this.userStatus = UserStatus.ACTIVE;
-        this.withdrawalRequestedAt = null;
+        if (this.withdrawal.isPending() && this.withdrawal.canRestore(now)) {
+            this.userStatus = UserStatus.ACTIVE;
+            this.withdrawal = null;
+        }
     }
 
     private void validateWithdrawalPending() {
@@ -143,7 +155,7 @@ public class User extends BaseEntity {
     public void requestWithdrawal() {
         validateActive();
         this.userStatus = UserStatus.WITHDRAWN_REQUESTED;
-        this.withdrawalRequestedAt = LocalDateTime.now();
+        this.withdrawal = UserWithdrawal.request(LocalDateTime.now());
     }
 
     public void updatePassword(String encodedPassword) {
@@ -161,6 +173,11 @@ public class User extends BaseEntity {
     public void updateProfile(String introduce, String profileImageUrl) {
         validateActive();
         this.profileDetail = ProfileDetail.update(introduce, profileImageUrl);
+    }
+
+    public void markDormant() {
+        validateActive();
+        this.userStatus = UserStatus.DORMANT;
     }
 
     private void validateActive() {
