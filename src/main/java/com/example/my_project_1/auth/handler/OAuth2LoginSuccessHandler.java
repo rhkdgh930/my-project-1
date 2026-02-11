@@ -30,7 +30,7 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
         Long userId = userDetails.getUserId();
 
         CachedUserContext ctx = redisUserContextService.getUserContext(userId);
-        redisUserContextService.validate(ctx);
+        redisUserContextService.validateActiveUser(ctx);
 
         // 1. JWT 토큰 생성
         String accessToken = jwtProvider.createAccessToken(userId, userDetails.getRole());
@@ -45,14 +45,7 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
         CookieUtils.addCookie(response, "accessToken", accessToken, accessTokenMaxAge);
         CookieUtils.addCookie(response, "refreshToken", refreshToken, refreshTokenMaxAge);
 
-        // 3. 프론트엔드로 리다이렉트 (Query Param으로 토큰 전달)
-        // 주의: 실무에서는 RefreshToken을 HttpOnly Cookie에 담는 것을 권장합니다.
-//        String targetUrl = UriComponentsBuilder.fromUriString("http://localhost:3000/oauth/callback")
-//                .queryParam("accessToken", accessToken)
-//                .queryParam("refreshToken", refreshToken)
-//                .build().toUriString();
 
-        //백엔드에서 테스트하기 위한 임시경로
         String targetUrl = UriComponentsBuilder.fromUriString("http://localhost:8080/api/auth/test") // 프론트 대신 백엔드로
                 .queryParam("accessToken", accessToken)
                 .build().toUriString();

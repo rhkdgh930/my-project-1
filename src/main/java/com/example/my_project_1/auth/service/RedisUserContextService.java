@@ -50,7 +50,7 @@ public class RedisUserContextService {
         return ctx;
     }
 
-    public void validate(CachedUserContext ctx) {
+    public void validateActiveUser(CachedUserContext ctx) {
         if (ctx.isDeleted()) {
             throw new JwtAuthenticationException(ErrorCode.USER_NOT_FOUND);
         }

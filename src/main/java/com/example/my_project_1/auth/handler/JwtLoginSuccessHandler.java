@@ -44,7 +44,7 @@ public class JwtLoginSuccessHandler implements AuthenticationSuccessHandler {
         userLoginService.updateLastLogin(userId);
 
         CachedUserContext ctx = redisUserContextService.getUserContext(userId);
-        redisUserContextService.validate(ctx);
+        redisUserContextService.validateActiveUser(ctx);
 
         String accessToken =
                 jwtProvider.createAccessToken(userId, principal.getRole());

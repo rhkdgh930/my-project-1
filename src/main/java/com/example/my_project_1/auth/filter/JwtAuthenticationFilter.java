@@ -52,7 +52,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             Long userId = Long.parseLong(claims.getSubject());
             CachedUserContext ctx = redisUserContextService.getUserContext(userId);
-            redisUserContextService.validate(ctx);
+            redisUserContextService.validateActiveUser(ctx);
 
             setAuthentication(ctx);
 
