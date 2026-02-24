@@ -1,5 +1,6 @@
 package com.example.my_project_1.postimage.controller;
 
+import com.example.my_project_1.auth.userdetails.UserDetailsImpl;
 import com.example.my_project_1.postimage.service.ImageUploadService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -22,10 +23,10 @@ public class ImageController {
 
     @PostMapping
     public ResponseEntity<?> upload(
-            @AuthenticationPrincipal UserDetails userDetails,
+            @AuthenticationPrincipal UserDetailsImpl userDetails,
             @RequestParam MultipartFile file
     ) {
-        Long uploaderId = Long.valueOf(userDetails.getUsername());
+        Long uploaderId = userDetails.getUserId();
         String imageUrl = imageUploadService.upload(file, uploaderId);
         return ResponseEntity.ok(Map.of("imageUrl", imageUrl));
     }

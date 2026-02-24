@@ -1,5 +1,6 @@
 package com.example.my_project_1.user.controller;
 
+import com.example.my_project_1.auth.userdetails.UserDetailsImpl;
 import com.example.my_project_1.user.service.UserCommandService;
 import com.example.my_project_1.user.service.request.PasswordResetRequest;
 import com.example.my_project_1.user.service.request.PasswordUpdateRequest;
@@ -47,32 +48,32 @@ public class UserController {
 
     @PreAuthorize("hasRole('USER')")
     @GetMapping("/test")
-    public ResponseEntity<UserDetails> getMyInfo(@AuthenticationPrincipal UserDetails userDetails) {
+    public ResponseEntity<UserDetails> getMyInfo(@AuthenticationPrincipal UserDetailsImpl userDetails) {
         return ResponseEntity.ok(userDetails);
     }
 
     @PreAuthorize("hasRole('USER')")
     @PatchMapping("/update-profile")
     public ResponseEntity<UserProfileResponse> updateProfile(
-            @AuthenticationPrincipal UserDetails userDetails,
+            @AuthenticationPrincipal UserDetailsImpl userDetails,
             @Valid @RequestBody UserProfileUpdateRequest request) {
-        Long userId = Long.valueOf(userDetails.getUsername());
+        Long userId = userDetails.getUserId();
         UserProfileResponse response = userCommandService.updateProfile(userId, request);
         return ResponseEntity.ok(response);
     }
 
     @PreAuthorize("hasRole('USER')")
     @PostMapping("/withdraw")
-    public ResponseEntity<UserWithdrawResponse> withdraw(@AuthenticationPrincipal UserDetails userDetails) {
-        Long userId = Long.valueOf(userDetails.getUsername());
+    public ResponseEntity<UserWithdrawResponse> withdraw(@AuthenticationPrincipal UserDetailsImpl userDetails) {
+        Long userId = userDetails.getUserId();
         UserWithdrawResponse response = userCommandService.withdraw(userId);
         return ResponseEntity.ok(response);
     }
 
     @PreAuthorize("hasRole('USER')")
     @PostMapping("/withdraw-cancel")
-    public ResponseEntity<Void> cancelWithdraw(@AuthenticationPrincipal UserDetails userDetails) {
-        Long userId = Long.valueOf(userDetails.getUsername());
+    public ResponseEntity<Void> cancelWithdraw(@AuthenticationPrincipal UserDetailsImpl userDetails) {
+        Long userId = userDetails.getUserId();
         userCommandService.cancelWithdraw(userId);
         return ResponseEntity.ok().build();
     }
@@ -80,9 +81,9 @@ public class UserController {
     @PreAuthorize("hasRole('USER')") // 로그인 필수
     @PatchMapping("/password")
     public ResponseEntity<Void> updatePassword(
-            @AuthenticationPrincipal UserDetails userDetails,
+            @AuthenticationPrincipal UserDetailsImpl userDetails,
             @Valid @RequestBody PasswordUpdateRequest request) {
-        Long userId = Long.valueOf(userDetails.getUsername());
+        Long userId = userDetails.getUserId();
         userCommandService.updatePassword(userId, request);
         return ResponseEntity.ok().build();
     }

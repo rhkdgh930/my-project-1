@@ -1,5 +1,6 @@
 package com.example.my_project_1.post.controller;
 
+import com.example.my_project_1.auth.userdetails.UserDetailsImpl;
 import com.example.my_project_1.common.utils.PageResponse;
 import com.example.my_project_1.post.service.PostQueryService;
 import com.example.my_project_1.post.service.PostRedisService;
@@ -29,10 +30,10 @@ public class PostController {
     @PostMapping
     public PostDetailResponse create(
             @PathVariable Long boardId,
-            @AuthenticationPrincipal UserDetails userDetails,
+            @AuthenticationPrincipal UserDetailsImpl userDetails,
             @RequestBody @Valid PostCreateRequest request
     ) {
-        Long userId = Long.valueOf(userDetails.getUsername());
+        Long userId = userDetails.getUserId();
         return postCommandService.create(boardId, userId, request);
     }
 
@@ -40,10 +41,10 @@ public class PostController {
     public PostDetailResponse update(
             @PathVariable Long boardId,
             @PathVariable Long postId,
-            @AuthenticationPrincipal UserDetails userDetails,
+            @AuthenticationPrincipal UserDetailsImpl userDetails,
             @RequestBody @Valid PostUpdateRequest request
     ) {
-        Long userId = Long.valueOf(userDetails.getUsername());
+        Long userId = userDetails.getUserId();
         return postCommandService.update(boardId, postId, userId, request);
     }
 
@@ -67,9 +68,9 @@ public class PostController {
     public boolean like(
             @PathVariable Long boardId,
             @PathVariable Long postId,
-            @AuthenticationPrincipal UserDetails userDetails
+            @AuthenticationPrincipal UserDetailsImpl userDetails
     ) {
-        Long userId = Long.valueOf(userDetails.getUsername());
+        Long userId = userDetails.getUserId();
         return postCommandService.like(boardId, postId, userId);
     }
 }

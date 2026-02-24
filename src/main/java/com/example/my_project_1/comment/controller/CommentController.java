@@ -1,5 +1,6 @@
 package com.example.my_project_1.comment.controller;
 
+import com.example.my_project_1.auth.userdetails.UserDetailsImpl;
 import com.example.my_project_1.comment.service.CommentCommandService;
 import com.example.my_project_1.comment.service.CommentQueryService;
 import com.example.my_project_1.comment.service.request.CommentCreateRequest;
@@ -23,9 +24,9 @@ public class CommentController {
     public void write(
             @PathVariable Long postId,
             @RequestBody CommentCreateRequest request,
-            @AuthenticationPrincipal UserDetails userDetails
+            @AuthenticationPrincipal UserDetailsImpl userDetails
     ) {
-        Long userId = Long.valueOf(userDetails.getUsername());
+        Long userId = userDetails.getUserId();
         commentCommandService.writeComment(postId, userId, request.getContent());
     }
 
@@ -33,9 +34,9 @@ public class CommentController {
     public void reply(
             @PathVariable Long commentId,
             @RequestBody CommentCreateRequest request,
-            @AuthenticationPrincipal UserDetails userDetails
+            @AuthenticationPrincipal UserDetailsImpl userDetails
     ) {
-        Long userId = Long.valueOf(userDetails.getUsername());
+        Long userId = userDetails.getUserId();
         commentCommandService.writeReply(commentId, userId, request.getContent());
     }
 
