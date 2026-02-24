@@ -28,6 +28,7 @@ public class AsyncConfig implements AsyncConfigurer {
         executor.setThreadNamePrefix("AsyncThread-");
 
         executor.initialize();
+
         return executor;
     }
 }

@@ -1,6 +1,5 @@
 package com.example.my_project_1.auth.controller;
 
-import com.example.my_project_1.auth.constant.SecurityConstants;
 import com.example.my_project_1.auth.service.AuthService;
 import com.example.my_project_1.auth.service.response.TokenResponse;
 import lombok.RequiredArgsConstructor;

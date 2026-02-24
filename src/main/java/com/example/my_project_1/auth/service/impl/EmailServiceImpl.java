@@ -5,8 +5,12 @@ import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.mail.MailSendException;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Recover;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -16,6 +20,7 @@ public class EmailServiceImpl implements EmailService {
 
     private final JavaMailSender javaMailSender;
 
+    @Retryable(retryFor = MailSendException.class, maxAttempts = 3, backoff = @Backoff(delay = 2000))
     @Override
     public void sendVerificationCode(String toEmail, String code) {
         String title = "[My Project] 회원가입 인증 코드입니다.";
@@ -34,6 +39,7 @@ public class EmailServiceImpl implements EmailService {
         sendMail(toEmail, title, content);
     }
 
+    @Retryable(retryFor = MailSendException.class, maxAttempts = 3, backoff = @Backoff(delay = 2000))
     @Override
     public void sendPasswordResetLink(String toEmail, String code) {
         String title = "[My Project] 비밀번호 변경 링크입니다.";
@@ -50,6 +56,26 @@ public class EmailServiceImpl implements EmailService {
                 """, code);
 
         sendMail(toEmail, title, content);
+    }
+
+    @Retryable(retryFor = MailSendException.class, maxAttempts = 3, backoff = @Backoff(delay = 2000))
+    @Override
+    public void sendDormancyWarning(String toEmail, String nickname) {
+        String title = "[My Project] 계정이 휴면 상태로 전환될 예정입니다.";
+        String content = String.format("""
+                <h2>휴면 전환 안내</h2>
+                <p>안녕하세요, <strong>%s</strong>님.</p>
+                <p>장기간 로그인이 없어 1개월 후 계정이 휴면 상태로 전환될 예정입니다.</p>
+                <p>서비스 이용을 원하시면 로그인해주세요.</p>
+                """, nickname);
+
+        sendMail(toEmail, title, content);
+    }
+
+    @Recover
+    public void recover(MailSendException e, String toEmail, String... args) {
+        log.error("[Email Failure] 최종 발송 실패: to={}, reason={}", toEmail, e.getMessage());
+        // TODO: 필요 시 DB 실패 로그 저장
     }
 
     private void sendMail(String to, String title, String content) {

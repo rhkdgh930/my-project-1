@@ -13,6 +13,7 @@ import org.hibernate.annotations.SQLRestriction;
 import org.springframework.util.Assert;
 
 import java.time.Duration;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -46,9 +47,6 @@ public class User extends BaseEntity {
     @Embedded
     private UserWithdrawal withdrawal;
 
-    @Embedded
-    private UserDormancy dormancy;
-
     @Column(nullable = false)
     private String password;
 
@@ -62,7 +60,6 @@ public class User extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private UserStatus userStatus; //ACTIVE, WITHDRAWN(탈퇴), DORMANT(휴면)
-
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -89,6 +86,7 @@ public class User extends BaseEntity {
                 .accountStatus(AccountStatus.NORMAL)
                 .isEmailVerified(true)
                 .socialType(SocialType.NONE)
+                .lastLoginAt(LocalDateTime.now())
                 .build();
     }
 
@@ -105,6 +103,7 @@ public class User extends BaseEntity {
                 .isEmailVerified(true)
                 .socialType(socialType)
                 .socialId(socialId)
+                .lastLoginAt(LocalDateTime.now())
                 .build();
     }
 
@@ -191,13 +190,19 @@ public class User extends BaseEntity {
     }
 
     public void updateLastLogin() {
+        LocalDate today = LocalDate.now();
+
+        if (this.lastLoginAt != null && this.lastLoginAt.toLocalDate().isEqual(today)) {
+            return;
+        }
+
         this.lastLoginAt = LocalDateTime.now();
     }
 
     @Builder
     private User(Email email, ProfileDetail profileDetail, String password, String nickname, Role role,
                  UserStatus userStatus, AccountStatus accountStatus, SocialType socialType, String socialId,
-                 boolean isEmailVerified) {
+                 boolean isEmailVerified, LocalDateTime lastLoginAt) {
 
         Assert.notNull(email, "이메일은 필수입니다.");
         Assert.hasText(password, "비밀번호는 필수입니다.");
@@ -213,5 +218,6 @@ public class User extends BaseEntity {
         this.socialType = (socialType != null) ? socialType : SocialType.NONE;
         this.socialId = socialId;
         this.isEmailVerified = isEmailVerified;
+        this.lastLoginAt = lastLoginAt;
     }
 }

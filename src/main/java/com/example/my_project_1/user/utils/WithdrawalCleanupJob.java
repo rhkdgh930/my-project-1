@@ -1,12 +1,11 @@
 package com.example.my_project_1.user.utils;
 
-import com.example.my_project_1.auth.service.RedisUserContextService;
-import com.example.my_project_1.user.domain.User;
 import com.example.my_project_1.user.domain.UserStatus;
 import com.example.my_project_1.user.repository.UserRepository;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Slice;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -18,24 +17,41 @@ import java.util.List;
 @Slf4j
 public class WithdrawalCleanupJob {
 
+    private static final int CHUNK_SIZE = 100;
     private final UserRepository userRepository;
-    private final RedisUserContextService redisUserContextService;
+    private final UserBatchProcessor userBatchProcessor;
 
-    @Transactional
-    @Scheduled(cron = "0 0 3 * * *") // 매일 새벽 3시
+    // FACT: 기존에 있던 @Transactional을 반드시 제거해야 함
+    @Scheduled(cron = "0 0 3 * * *")
     public void cleanupWithdrawnUsers() {
+        log.info("[WithdrawalCleanupBatch] Started.");
 
-        LocalDateTime now = LocalDateTime.now();
+        // UserWithdrawal.RETENTION_DAYS (7일) 기준
+        LocalDateTime threshold = LocalDateTime.now().minusDays(7);
+        Long lastId = 0L;
+        int processedCount = 0;
 
-        List<User> targets =
-                userRepository.findAllByUserStatus(UserStatus.WITHDRAWN_REQUESTED);
+        while (true) {
+            Slice<Long> idSlice = userRepository.findWithdrawalTargetIds(
+                    lastId,
+                    UserStatus.WITHDRAWN_REQUESTED,
+                    threshold,
+                    PageRequest.ofSize(CHUNK_SIZE)
+            );
 
-        for (User user : targets) {
-            if (user.getWithdrawal().shouldDelete(now)) {
-                user.completeWithdrawal();
-                redisUserContextService.evict(user.getId());
-                log.info("[WithdrawalCleanup] userId={}", user.getId());
-            }
+            if (idSlice.isEmpty()) break;
+
+            List<Long> userIds = idSlice.getContent();
+
+            // 트랜잭션 분리 호출
+            userBatchProcessor.processWithdrawalChunk(userIds);
+
+            processedCount += userIds.size();
+            lastId = userIds.get(userIds.size() - 1);
+
+            if (!idSlice.hasNext()) break;
         }
+
+        log.info("[WithdrawalCleanupBatch] Completed. Total Processed: {}", processedCount);
     }
 }
