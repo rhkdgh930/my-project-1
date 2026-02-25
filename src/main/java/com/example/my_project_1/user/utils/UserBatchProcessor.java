@@ -1,5 +1,6 @@
 package com.example.my_project_1.user.utils;
 
+import com.example.my_project_1.auth.service.RedisDormancyHistoryService;
 import com.example.my_project_1.auth.service.RedisUserContextService;
 import com.example.my_project_1.user.domain.User;
 import com.example.my_project_1.user.event.DormancyNotifyEvent;
@@ -20,6 +21,7 @@ public class UserBatchProcessor {
 
     private final UserRepository userRepository;
     private final RedisUserContextService redisUserContextService;
+    private final RedisDormancyHistoryService redisDormancyHistoryService;
     private final ApplicationEventPublisher eventPublisher;
 
     /**
@@ -28,25 +30,32 @@ public class UserBatchProcessor {
      * 장점: DB Connection 점유 시간을 최소화하고, 부분 실패를 허용합니다.
      */
     @Transactional
-    public void processChunk(List<Long> userIds, LocalDateTime dormantThreshold) {
-        // [Optimized Fetch] ID 리스트로 실제 엔티티 조회 (IN Query 사용)
+    public void processDormancyChunk(List<Long> userIds, LocalDateTime dormantThreshold) {
         List<User> users = userRepository.findAllById(userIds);
 
         for (User user : users) {
-            // 조회 시점의 상태를 기준으로 판단 (Snapshot)
+            // 1. 휴면 전환 로직 (12개월 경과)
             if (user.getLastLoginAt().isBefore(dormantThreshold)) {
-                // 1. 휴면 전환 (Dirty Checking)
                 user.markDormant();
                 redisUserContextService.evict(user.getId());
                 log.debug("[Dormant] User {} marked as dormant.", user.getId());
-            } else {
-                // 2. 휴면 경고 알림 (Event 발행)
-                // TransactionalEventListener에 의해 커밋 후에만 실제 메일이 발송됨
+                continue;
+            }
+
+            // 2. 휴면 경고 알림 로직 (11개월 경과)
+            // 💡 Redis를 조회하여 이번 달에 보낸 적이 있는지 확인
+            if (!redisDormancyHistoryService.hasBeenNotified(user.getId())) {
                 eventPublisher.publishEvent(new DormancyNotifyEvent(
                         user.getId(),
                         user.getEmail().getValue(),
                         user.getNickname()
                 ));
+
+                // 💡 이벤트 발행 후 Redis에 기록 저장 (30일 TTL)
+                redisDormancyHistoryService.setNotificationHistory(user.getId());
+                log.info("[Dormant-Batch] Alert sent to userId={}", user.getId());
+            } else {
+                log.debug("[Dormant-Batch] Skip alert for userId={} (Already notified)", user.getId());
             }
         }
     }

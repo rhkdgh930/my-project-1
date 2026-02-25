@@ -8,6 +8,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Slice;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StopWatch;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -22,14 +23,17 @@ public class WithdrawalCleanupJob {
     private final UserBatchProcessor userBatchProcessor;
 
     // FACT: 기존에 있던 @Transactional을 반드시 제거해야 함
-    @Scheduled(cron = "0 0 3 * * *")
+    @Scheduled(cron = "0 30 1 * * *") //21시 56분
     public void cleanupWithdrawnUsers() {
+        StopWatch stopWatch = new StopWatch("WithdrawalBatch");
+        stopWatch.start();
         log.info("[WithdrawalCleanupBatch] Started.");
 
         // UserWithdrawal.RETENTION_DAYS (7일) 기준
         LocalDateTime threshold = LocalDateTime.now().minusDays(7);
         Long lastId = 0L;
         int processedCount = 0;
+        int failedChunkCount = 0;
 
         while (true) {
             Slice<Long> idSlice = userRepository.findWithdrawalTargetIds(
@@ -44,14 +48,22 @@ public class WithdrawalCleanupJob {
             List<Long> userIds = idSlice.getContent();
 
             // 트랜잭션 분리 호출
-            userBatchProcessor.processWithdrawalChunk(userIds);
+            try {
+                userBatchProcessor.processWithdrawalChunk(userIds);
 
-            processedCount += userIds.size();
+                processedCount += userIds.size();
+            } catch (Exception e) {
+                log.error("[WithdrawalBatch] Chunk processing failed starting from userId={}. Error: {}",
+                        userIds.get(0), e.getMessage(), e);
+                failedChunkCount++;
+            }
             lastId = userIds.get(userIds.size() - 1);
 
             if (!idSlice.hasNext()) break;
         }
 
-        log.info("[WithdrawalCleanupBatch] Completed. Total Processed: {}", processedCount);
+        stopWatch.stop();
+        log.info("[WithdrawalCleanupBatch] Completed. Total Processed: {}, Failed Chunks: {}, Elapsed: {}ms",
+                processedCount, failedChunkCount, stopWatch.getTotalTimeMillis());
     }
 }

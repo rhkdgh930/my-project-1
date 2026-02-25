@@ -1,16 +1,10 @@
 package com.example.my_project_1.user.utils;
 
-import com.example.my_project_1.auth.service.RedisUserContextService;
-import com.example.my_project_1.user.domain.User;
 import com.example.my_project_1.user.domain.UserStatus;
-import com.example.my_project_1.user.event.DormancyNotifyEvent;
 import com.example.my_project_1.user.repository.UserRepository;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -29,7 +23,7 @@ public class DormantBatchJob {
     private final UserBatchProcessor userBatchProcessor;
 
     // [Note] Job 자체에는 트랜잭션을 걸지 않아 DB Connection을 오래 잡지 않도록 함
-    @Scheduled(cron = "0 0 3 * * *")
+    @Scheduled(cron = "0 29 1 * * *") // 21시 57분
     public void processDormancy() {
         StopWatch stopWatch = new StopWatch("DormantBatch");
         stopWatch.start();
@@ -41,6 +35,7 @@ public class DormantBatchJob {
 
         Long lastId = 0L;
         int processedCount = 0;
+        int failedChunkCount = 0;
 
         while (true) {
             // [Step 1] 처리 대상 ID 조회 (DB 부하 최소화)
@@ -57,9 +52,14 @@ public class DormantBatchJob {
             List<Long> userIds = idSlice.getContent();
 
             // [Step 2] Chunk 단위 트랜잭션 실행 (위임)
-            userBatchProcessor.processChunk(userIds, dormantThreshold);
-
-            processedCount += userIds.size();
+            try {
+                userBatchProcessor.processDormancyChunk(userIds, dormantThreshold);
+                processedCount += userIds.size();
+            } catch (Exception e) {
+                log.error("[DormantBatch] Chunk processing failed starting from userId={}. Error: {}",
+                        userIds.get(0), e.getMessage(), e);
+                failedChunkCount++;
+            }
 
             // 다음 Keyset을 위해 마지막 ID 갱신
             lastId = userIds.get(userIds.size() - 1);
@@ -69,8 +69,8 @@ public class DormantBatchJob {
         }
 
         stopWatch.stop();
-        log.info("[DormantBatch] Completed. Total Processed: {}, Elapsed: {}ms",
-                processedCount, stopWatch.getTotalTimeMillis());
+        log.info("[DormantBatch] Completed. Total Processed: {}, Failed Chunks: {}, Elapsed: {}ms",
+                processedCount, failedChunkCount, stopWatch.getTotalTimeMillis());
     }
 }
 
