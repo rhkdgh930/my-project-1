@@ -27,7 +27,7 @@ public class JwtLoginFilter extends UsernamePasswordAuthenticationFilter {
         setAuthenticationManager(authenticationManager);
         setAuthenticationSuccessHandler(successHandler);
         setAuthenticationFailureHandler(failureHandler);
-        this.loginAttemptService= loginAttemptService;
+        this.loginAttemptService = loginAttemptService;
         setFilterProcessesUrl("/api/auth/login");
     }
 
@@ -41,7 +41,7 @@ public class JwtLoginFilter extends UsernamePasswordAuthenticationFilter {
 
             if (loginAttemptService.isBlocked(email)) {
                 throw new LoginFailException(
-                        "너무 많은 로그인 시도 실패로 인해 계정이 일시 차단되었습니다, 10분뒤에 다시 시도해주세요." );
+                        "너무 많은 로그인 시도 실패로 인해 계정이 일시 차단되었습니다, 10분뒤에 다시 시도해주세요.");
             }
 
             UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
