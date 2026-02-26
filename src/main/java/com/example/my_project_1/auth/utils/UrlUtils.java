@@ -2,6 +2,13 @@ package com.example.my_project_1.auth.utils;
 
 public class UrlUtils {
     public static final String[] PERMITTED = {
+
+            //swagger
+            "/swagger-ui/**",
+            "/v3/api-docs/**",
+            "/swagger-ui.html",
+            "/api-docs/**",
+
             //auth
             "/api/auth/login",
             "/api/auth/reissue",
@@ -29,6 +36,7 @@ public class UrlUtils {
 
             //image
             "/favicon.ico",
-            "/images/**"
+            "/images/**",
+
     };
 }
