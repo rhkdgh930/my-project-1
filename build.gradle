@@ -40,6 +40,17 @@ dependencies {
 	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
 	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
 
+	//redis 키 암호화
+	implementation 'commons-codec:commons-codec:1.16.0'
+
+	//java mail sender
+	implementation 'org.springframework.boot:spring-boot-starter-mail'
+
+	implementation 'org.springframework.retry:spring-retry'
+	implementation 'org.springframework:spring-aspects'
+
+	//OAuth
+	implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
 
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.security:spring-security-test'
