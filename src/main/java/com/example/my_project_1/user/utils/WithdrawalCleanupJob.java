@@ -24,14 +24,12 @@ public class WithdrawalCleanupJob {
     private final UserRepository userRepository;
     private final UserBatchProcessor userBatchProcessor;
 
-    // FACT: 기존에 있던 @Transactional을 반드시 제거해야 함
     @Scheduled(cron = "0 30 1 * * *") //21시 56분
     public void cleanupWithdrawnUsers() {
         StopWatch stopWatch = new StopWatch("WithdrawalBatch");
         stopWatch.start();
         log.info("[WithdrawalCleanupBatch] Started.");
 
-        // UserWithdrawal.RETENTION_DAYS (7일) 기준
         LocalDateTime now = LocalDateTime.now(clock);
         LocalDateTime threshold = now.minusDays(7);
         Long lastId = 0L;
@@ -50,7 +48,6 @@ public class WithdrawalCleanupJob {
 
             List<Long> userIds = idSlice.getContent();
 
-            // 트랜잭션 분리 호출
             try {
                 userBatchProcessor.processWithdrawalChunk(userIds);
 

@@ -20,7 +20,6 @@ public class RedisLoginAttemptService {
 
         Long attempts = redisTemplate.opsForValue().increment(key);
 
-        // 최초 실패 시에만 TTL 설정
         if (attempts != null && attempts == 1L) {
             redisTemplate.expire(key, LOCK_TIME);
         }

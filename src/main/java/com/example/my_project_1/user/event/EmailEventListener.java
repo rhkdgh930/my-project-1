@@ -17,7 +17,7 @@ public class EmailEventListener {
     private final RedisEmailVerificationService redisEmailVerificationService;
     private final EmailService emailService;
 
-    @Async("asyncTaskExecutor") // 별도의 스레드에서 실행됨
+    @Async("asyncTaskExecutor")
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleEmailVerification(EmailVerificationEvent event) {
         log.info("Sending verification email asynchronously to: {}", event.getEmail());

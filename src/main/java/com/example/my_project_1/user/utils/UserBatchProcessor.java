@@ -34,7 +34,6 @@ public class UserBatchProcessor {
         List<User> users = userRepository.findAllById(userIds);
 
         for (User user : users) {
-            // 1. 휴면 전환 로직 (12개월 경과)
             if (user.getLastLoginAt().isBefore(dormantThreshold)) {
                 user.markDormant();
                 redisUserContextService.evict(user.getId());
@@ -42,8 +41,6 @@ public class UserBatchProcessor {
                 continue;
             }
 
-            // 2. 휴면 경고 알림 로직 (11개월 경과)
-            // 💡 Redis를 조회하여 이번 달에 보낸 적이 있는지 확인
             if (!redisDormancyHistoryService.hasBeenNotified(user.getId())) {
                 eventPublisher.publishEvent(new DormancyNotifyEvent(
                         user.getId(),
@@ -51,7 +48,6 @@ public class UserBatchProcessor {
                         user.getNickname()
                 ));
 
-                // 💡 이벤트 발행 후 Redis에 기록 저장 (30일 TTL)
                 redisDormancyHistoryService.setNotificationHistory(user.getId());
                 log.info("[Dormant-Batch] Alert sent to userId={}", user.getId());
             } else {

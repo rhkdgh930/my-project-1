@@ -24,7 +24,6 @@ public class DormantBatchJob {
     private final UserRepository userRepository;
     private final UserBatchProcessor userBatchProcessor;
 
-    // [Note] Job 자체에는 트랜잭션을 걸지 않아 DB Connection을 오래 잡지 않도록 함
     @Scheduled(cron = "0 29 1 * * *") // 21시 57분
     public void processDormancy() {
         StopWatch stopWatch = new StopWatch("DormantBatch");
@@ -40,8 +39,6 @@ public class DormantBatchJob {
         int failedChunkCount = 0;
 
         while (true) {
-            // [Step 1] 처리 대상 ID 조회 (DB 부하 최소화)
-            // Keyset Pagination: offset 없이 lastId 기준으로 인덱스 스캔
             Slice<Long> idSlice = userRepository.findDormantCandidateIds(
                     lastId,
                     UserStatus.ACTIVE,
@@ -53,7 +50,6 @@ public class DormantBatchJob {
 
             List<Long> userIds = idSlice.getContent();
 
-            // [Step 2] Chunk 단위 트랜잭션 실행 (위임)
             try {
                 userBatchProcessor.processDormancyChunk(userIds, dormantThreshold);
                 processedCount += userIds.size();

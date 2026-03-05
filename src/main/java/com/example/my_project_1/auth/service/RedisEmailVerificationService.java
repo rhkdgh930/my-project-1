@@ -27,7 +27,6 @@ public class RedisEmailVerificationService {
         emailService.sendVerificationCode(email, code);
     }
 
-    // 2. 인증번호 검증 (성공 시 '인증 증표' 저장)
     public void verifyCode(String email, String code) {
         String savedCode = redisTemplate.opsForValue().get(key(email));
 
@@ -39,14 +38,11 @@ public class RedisEmailVerificationService {
             throw new CustomException(ErrorCode.WRONG_VERIFICATION_CODE);
         }
 
-        // 인증 성공! -> Redis에 "이 이메일은 인증됨" 증표 저장
         redisTemplate.opsForValue().set(verifiedKey(email), "true", Duration.ofSeconds(VERIFIED_LIMIT_TIME));
 
-        // 사용한 인증 코드는 삭제
         redisTemplate.delete(key(email));
     }
 
-    // 3. (신규) 가입 시 인증 여부 확인
     public void checkIsVerified(String email) {
         String isVerified = redisTemplate.opsForValue().get(verifiedKey(email));
         if (isVerified == null) {
@@ -54,7 +50,6 @@ public class RedisEmailVerificationService {
         }
     }
 
-    // 4. (신규) 인증 증표 사용 완료 처리 (가입 완료 후 삭제)
     public void deleteVerifiedStatus(String email) {
         redisTemplate.delete(verifiedKey(email));
     }
