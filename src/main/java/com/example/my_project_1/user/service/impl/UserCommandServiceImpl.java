@@ -9,10 +9,7 @@ import com.example.my_project_1.user.event.EmailVerificationEvent;
 import com.example.my_project_1.user.event.PasswordResetEvent;
 import com.example.my_project_1.user.repository.UserRepository;
 import com.example.my_project_1.user.service.UserCommandService;
-import com.example.my_project_1.user.service.request.PasswordResetRequest;
-import com.example.my_project_1.user.service.request.PasswordUpdateRequest;
-import com.example.my_project_1.user.service.request.UserProfileUpdateRequest;
-import com.example.my_project_1.user.service.request.UserSignUpRequest;
+import com.example.my_project_1.user.service.request.*;
 import com.example.my_project_1.user.service.response.UserProfileResponse;
 import com.example.my_project_1.user.service.response.UserSignUpResponse;
 import com.example.my_project_1.user.service.response.UserWithdrawResponse;
@@ -24,6 +21,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.time.LocalDateTime;
 
 @Slf4j
@@ -31,6 +29,9 @@ import java.time.LocalDateTime;
 @Service
 @RequiredArgsConstructor
 public class UserCommandServiceImpl implements UserCommandService {
+
+    private final Clock clock;
+
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final RedisUserContextService redisUserContextService;
@@ -64,10 +65,12 @@ public class UserCommandServiceImpl implements UserCommandService {
         validateDuplicateEmail(email);
 
         String encodedPassword = passwordEncoder.encode(request.getPassword());
+
         User user = User.signUp(
                 email,
                 encodedPassword,
-                request.getNickname()
+                request.getNickname(),
+                LocalDateTime.now(clock)
         );
         User savedUser = userRepository.save(user);
 
@@ -98,11 +101,15 @@ public class UserCommandServiceImpl implements UserCommandService {
     }
 
     @Override
-    public UserWithdrawResponse withdraw(Long userId) {
+    public UserWithdrawResponse withdraw(Long userId, UserWithdrawRequest request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        user.requestWithdrawal();
+        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            throw new CustomException(ErrorCode.INVALID_PASSWORD);
+        }
+
+        user.requestWithdrawal(LocalDateTime.now(clock));
 
         redisUserContextService.evict(userId);
         redisTokenService.deleteRefreshTokenHash(userId);
@@ -115,7 +122,7 @@ public class UserCommandServiceImpl implements UserCommandService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        user.cancelWithdrawal(LocalDateTime.now());
+        user.cancelWithdrawal(LocalDateTime.now(clock));
     }
 
     @Override

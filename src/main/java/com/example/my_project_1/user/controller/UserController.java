@@ -2,10 +2,7 @@ package com.example.my_project_1.user.controller;
 
 import com.example.my_project_1.auth.userdetails.UserDetailsImpl;
 import com.example.my_project_1.user.service.UserCommandService;
-import com.example.my_project_1.user.service.request.PasswordResetRequest;
-import com.example.my_project_1.user.service.request.PasswordUpdateRequest;
-import com.example.my_project_1.user.service.request.UserProfileUpdateRequest;
-import com.example.my_project_1.user.service.request.UserSignUpRequest;
+import com.example.my_project_1.user.service.request.*;
 import com.example.my_project_1.user.service.response.UserProfileResponse;
 import com.example.my_project_1.user.service.response.UserSignUpResponse;
 import com.example.my_project_1.user.service.response.UserWithdrawResponse;
@@ -81,9 +78,10 @@ public class UserController {
     )
     @PreAuthorize("hasRole('USER')")
     @PostMapping("/withdraw")
-    public ResponseEntity<UserWithdrawResponse> withdraw(@AuthenticationPrincipal UserDetailsImpl userDetails) {
+    public ResponseEntity<UserWithdrawResponse> withdraw(@AuthenticationPrincipal UserDetailsImpl userDetails,
+                                                         @RequestBody UserWithdrawRequest request) {
         Long userId = userDetails.getUserId();
-        UserWithdrawResponse response = userCommandService.withdraw(userId);
+        UserWithdrawResponse response = userCommandService.withdraw(userId, request);
         return ResponseEntity.ok(response);
     }
 
