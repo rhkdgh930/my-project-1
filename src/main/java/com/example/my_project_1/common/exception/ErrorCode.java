@@ -24,6 +24,7 @@ public enum ErrorCode {
     EXPIRED_VERIFICATION_CODE(HttpStatus.BAD_REQUEST, "만료된 이메일 인증 토큰입니다."),
     WRONG_VERIFICATION_CODE(HttpStatus.BAD_REQUEST, "인증 토큰이 일치하지 않습니다."),
     UNVERIFIED_EMAIL(HttpStatus.BAD_REQUEST, "인증되지 않은 이메일 입니다."),
+    USER_DORMANT(HttpStatus.BAD_REQUEST, "휴면 상태의 계정입니다. 본인인증이 필요합니다."),
 
     // 추가: 이미 처리된 상태에 대한 요청
     ALREADY_EXIST_BOARD_NAME(HttpStatus.BAD_REQUEST, "이미 존재하는 게시판 이름 입니다."),

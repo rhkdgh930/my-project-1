@@ -45,7 +45,7 @@ class UserTest {
     }
 
     void signUp_fail_test(String email, String password, String nickname, String message) {
-        assertThatThrownBy(() -> User.signUp(Email.from(email), password, nickname))
+        assertThatThrownBy(() -> User.signUp(Email.from(email), password, nickname, LocalDateTime.now()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage(message);
     }
@@ -140,17 +140,6 @@ class UserTest {
                 .hasMessage("존재하지 않는 사용자입니다.");
     }
 
-//    @DisplayName("이미 차단된 유저는 차단에 실패한다.")
-//    @Test
-//    void suspend_fail_test_already_suspended() {
-//        User user = getVerifiedUser();
-//        user.suspend(SuspensionType.PERMANENT, SuspensionReason.OTHER, Duration.ofDays(1));
-//
-//        assertThatThrownBy(() -> user.suspend(SuspensionType.PERMANENT, SuspensionReason.OTHER, Duration.ofDays(1)))
-//                .isInstanceOf(CustomException.class)
-//                .hasMessage("차단된 계정입니다.");
-//    }
-
     @DisplayName("삭제되지 않고 이메일 인증을 완료한 유저는 활성화 상태입니다.")
     @Test
     void isActive_success_test() {
@@ -169,6 +158,7 @@ class UserTest {
         return User.signUp(
                 Email.from(request.getEmail()),
                 encodedPassword,
-                request.getNickname());
+                request.getNickname(),
+                LocalDateTime.now());
     }
 }

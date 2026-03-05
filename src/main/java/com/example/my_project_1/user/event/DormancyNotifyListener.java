@@ -14,7 +14,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 public class DormancyNotifyListener {
     private final EmailService emailService;
 
-    @Async
+    @Async("asyncTaskExecutor")
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleDormancyNotify(DormancyNotifyEvent event) {
         try {

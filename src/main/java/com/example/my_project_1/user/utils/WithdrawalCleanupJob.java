@@ -10,6 +10,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StopWatch;
 
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -17,20 +18,20 @@ import java.util.List;
 @RequiredArgsConstructor
 @Slf4j
 public class WithdrawalCleanupJob {
+    private final Clock clock;
 
     private static final int CHUNK_SIZE = 100;
     private final UserRepository userRepository;
     private final UserBatchProcessor userBatchProcessor;
 
-    // FACT: 기존에 있던 @Transactional을 반드시 제거해야 함
     @Scheduled(cron = "0 30 1 * * *") //21시 56분
     public void cleanupWithdrawnUsers() {
         StopWatch stopWatch = new StopWatch("WithdrawalBatch");
         stopWatch.start();
         log.info("[WithdrawalCleanupBatch] Started.");
 
-        // UserWithdrawal.RETENTION_DAYS (7일) 기준
-        LocalDateTime threshold = LocalDateTime.now().minusDays(7);
+        LocalDateTime now = LocalDateTime.now(clock);
+        LocalDateTime threshold = now.minusDays(7);
         Long lastId = 0L;
         int processedCount = 0;
         int failedChunkCount = 0;
@@ -47,7 +48,6 @@ public class WithdrawalCleanupJob {
 
             List<Long> userIds = idSlice.getContent();
 
-            // 트랜잭션 분리 호출
             try {
                 userBatchProcessor.processWithdrawalChunk(userIds);
 

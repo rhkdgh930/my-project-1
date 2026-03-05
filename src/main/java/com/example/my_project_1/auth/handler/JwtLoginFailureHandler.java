@@ -73,7 +73,7 @@ public class JwtLoginFailureHandler implements AuthenticationFailureHandler {
     private static Object putSuspendedData(UserSuspendedException suspendedEx) {
         Map<String, Object> map = new HashMap<>();
         map.put("reason", suspendedEx.getReason() != null ? suspendedEx.getReason().getDescription() : "사유 없음");
-        map.put("suspendedUntil", suspendedEx.getSuspendedUntil());
+        map.put("suspendedUntil", suspendedEx.getSuspendedUntil().toString());
         map.put("permanent", suspendedEx.isPermanent());
 
         return map;
@@ -81,7 +81,7 @@ public class JwtLoginFailureHandler implements AuthenticationFailureHandler {
 
     private static Object putWithdrawalPendingData(WithdrawalPendingException ex) {
         Map<String, Object> map = new HashMap<>();
-        map.put("scheduledDeletionAt", ex.getScheduledDeletionAt());
+        map.put("scheduledDeletionAt", ex.getScheduledDeletionAt().toString());
         map.put("remainingDays", ex.getRemainingDays());
         map.put("canRestore", ex.isCanRestore());
 

@@ -1,9 +1,6 @@
 package com.example.my_project_1.user.service;
 
-import com.example.my_project_1.user.service.request.PasswordResetRequest;
-import com.example.my_project_1.user.service.request.PasswordUpdateRequest;
-import com.example.my_project_1.user.service.request.UserProfileUpdateRequest;
-import com.example.my_project_1.user.service.request.UserSignUpRequest;
+import com.example.my_project_1.user.service.request.*;
 import com.example.my_project_1.user.service.response.UserProfileResponse;
 import com.example.my_project_1.user.service.response.UserSignUpResponse;
 import com.example.my_project_1.user.service.response.UserWithdrawResponse;
@@ -17,7 +14,7 @@ public interface UserCommandService {
 
     UserProfileResponse updateProfile(Long userId, UserProfileUpdateRequest request);
 
-    UserWithdrawResponse withdraw(Long userId);
+    UserWithdrawResponse withdraw(Long userId, UserWithdrawRequest request);
 
     void cancelWithdraw(Long userId);
 

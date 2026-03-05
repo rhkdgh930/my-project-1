@@ -5,6 +5,7 @@ import com.example.my_project_1.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -14,6 +15,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class LocalUserClient implements UserClient {
 
+    private final Clock clock;
     private final UserRepository userRepository;
 
     private static final String UNKNOWN_USER = "(탈퇴한 사용자)";
@@ -24,17 +26,19 @@ public class LocalUserClient implements UserClient {
         return userRepository.findAllById(ids).stream()
                 .collect(Collectors.toMap(
                         User::getId,
-                        user -> {
-                            if (user.isDeleted()) {
-                                return new UserSummary(user.getId(), UNKNOWN_USER);
-                            }
-
-                            if (user.getSuspension().isActive(LocalDateTime.now())) {
-                                return new UserSummary(user.getId(), SUSPENDED_USER);
-                            }
-
-                            return new UserSummary(user.getId(), user.getNickname());
-                        }
+                        user -> new UserSummary(user.getId(), resolveDisplayName(user))
                 ));
+    }
+
+    private String resolveDisplayName(User user) {
+        if (user.isWithdrawnCompletely() || user.isDeleted()) {
+            return UNKNOWN_USER;
+        }
+
+        if (user.isSuspended(LocalDateTime.now(clock))) {
+            return SUSPENDED_USER;
+        }
+
+        return user.getNickname();
     }
 }

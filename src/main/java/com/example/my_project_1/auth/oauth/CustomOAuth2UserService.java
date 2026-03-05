@@ -17,12 +17,17 @@ import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
+import java.time.LocalDateTime;
 import java.util.Map;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class CustomOAuth2UserService extends DefaultOAuth2UserService {
+
+    private final Clock clock;
+
     private final UserRepository userRepository;
 
     @Override
@@ -53,16 +58,18 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
     }
 
     private User saveOrUpdate(OAuth2UserInfo userInfo, SocialType socialType) {
+        LocalDateTime now = LocalDateTime.now(clock);
         return userRepository.findByEmail(Email.from(userInfo.getEmail()))
                 .map(user -> {
-                    user.updateLastLogin();
+                    user.updateLastLogin(now);
                     return user;
                 })
                 .orElseGet(() -> userRepository.save(User.socialSignUp(
                         Email.from(userInfo.getEmail()),
                         userInfo.getNickname(),
                         socialType,
-                        userInfo.getProviderId()
+                        userInfo.getProviderId(),
+                        now
                 )));
     }
 

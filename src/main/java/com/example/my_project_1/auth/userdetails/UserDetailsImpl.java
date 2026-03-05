@@ -61,7 +61,6 @@ public class UserDetailsImpl implements UserDetails, OAuth2User {
         return List.of(new SimpleGrantedAuthority("ROLE_" + role));
     }
 
-    //jwt 토큰을 탈취당했을 시 유저 이메일은 개인정보여서 userId로 수정
     @Override
     public String getUsername() {
         return email;

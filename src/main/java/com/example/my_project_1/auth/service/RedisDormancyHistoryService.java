@@ -17,7 +17,6 @@ public class RedisDormancyHistoryService {
         redisTemplate.opsForValue().set(key, "Y", Duration.ofDays(30));
     }
 
-    // 발송 기록 여부 확인
     public boolean hasBeenNotified(Long userId) {
         String key = key(userId);
         return Boolean.TRUE.equals(redisTemplate.hasKey(key));

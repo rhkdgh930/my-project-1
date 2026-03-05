@@ -62,6 +62,7 @@ public class JwtLoginSuccessHandler implements AuthenticationSuccessHandler {
         CookieUtils.addCookie(response, "refreshToken", refreshToken, refreshMaxAge);
 
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.setCharacterEncoding("UTF-8");
         response.getWriter().write(
                 DataSerializer.serialize(new TokenResponse(accessToken, refreshToken))
         );

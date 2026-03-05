@@ -9,7 +9,7 @@ public class ExceptionResponse {
     private final String code;
     private final String message;
 
-    @JsonInclude(JsonInclude.Include.NON_NULL) // 데이터가 있을 때만 포함
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     private final Object data;
 
     public ExceptionResponse(ErrorCode errorCode) {

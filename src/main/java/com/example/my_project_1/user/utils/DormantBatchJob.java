@@ -10,6 +10,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StopWatch;
 
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -17,19 +18,19 @@ import java.util.List;
 @RequiredArgsConstructor
 @Slf4j
 public class DormantBatchJob {
+    private final Clock clock;
 
     private static final int CHUNK_SIZE = 100; // 한 번에 처리할 트랜잭션 크기
     private final UserRepository userRepository;
     private final UserBatchProcessor userBatchProcessor;
 
-    // [Note] Job 자체에는 트랜잭션을 걸지 않아 DB Connection을 오래 잡지 않도록 함
     @Scheduled(cron = "0 29 1 * * *") // 21시 57분
     public void processDormancy() {
         StopWatch stopWatch = new StopWatch("DormantBatch");
         stopWatch.start();
         log.info("[DormantBatch] Started.");
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(clock);
         LocalDateTime notifyThreshold = now.minusMonths(11);
         LocalDateTime dormantThreshold = now.minusMonths(12);
 
@@ -38,8 +39,6 @@ public class DormantBatchJob {
         int failedChunkCount = 0;
 
         while (true) {
-            // [Step 1] 처리 대상 ID 조회 (DB 부하 최소화)
-            // Keyset Pagination: offset 없이 lastId 기준으로 인덱스 스캔
             Slice<Long> idSlice = userRepository.findDormantCandidateIds(
                     lastId,
                     UserStatus.ACTIVE,
@@ -51,7 +50,6 @@ public class DormantBatchJob {
 
             List<Long> userIds = idSlice.getContent();
 
-            // [Step 2] Chunk 단위 트랜잭션 실행 (위임)
             try {
                 userBatchProcessor.processDormancyChunk(userIds, dormantThreshold);
                 processedCount += userIds.size();
@@ -73,4 +71,3 @@ public class DormantBatchJob {
                 processedCount, failedChunkCount, stopWatch.getTotalTimeMillis());
     }
 }
-
