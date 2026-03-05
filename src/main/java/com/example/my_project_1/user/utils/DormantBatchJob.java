@@ -10,6 +10,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StopWatch;
 
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -17,6 +18,7 @@ import java.util.List;
 @RequiredArgsConstructor
 @Slf4j
 public class DormantBatchJob {
+    private final Clock clock;
 
     private static final int CHUNK_SIZE = 100; // 한 번에 처리할 트랜잭션 크기
     private final UserRepository userRepository;
@@ -29,7 +31,7 @@ public class DormantBatchJob {
         stopWatch.start();
         log.info("[DormantBatch] Started.");
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(clock);
         LocalDateTime notifyThreshold = now.minusMonths(11);
         LocalDateTime dormantThreshold = now.minusMonths(12);
 
@@ -73,4 +75,3 @@ public class DormantBatchJob {
                 processedCount, failedChunkCount, stopWatch.getTotalTimeMillis());
     }
 }
-

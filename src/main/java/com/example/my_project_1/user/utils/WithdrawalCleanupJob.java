@@ -10,6 +10,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StopWatch;
 
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -17,6 +18,7 @@ import java.util.List;
 @RequiredArgsConstructor
 @Slf4j
 public class WithdrawalCleanupJob {
+    private final Clock clock;
 
     private static final int CHUNK_SIZE = 100;
     private final UserRepository userRepository;
@@ -30,7 +32,8 @@ public class WithdrawalCleanupJob {
         log.info("[WithdrawalCleanupBatch] Started.");
 
         // UserWithdrawal.RETENTION_DAYS (7일) 기준
-        LocalDateTime threshold = LocalDateTime.now().minusDays(7);
+        LocalDateTime now = LocalDateTime.now(clock);
+        LocalDateTime threshold = now.minusDays(7);
         Long lastId = 0L;
         int processedCount = 0;
         int failedChunkCount = 0;

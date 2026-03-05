@@ -33,15 +33,16 @@ public class UserSuspension {
         return suspension;
     }
 
+
     public UserSuspension mergeWith(SuspensionType newType, SuspensionReason newReason, LocalDateTime now, Duration duration) {
         if (this.type == SuspensionType.PERMANENT) return this;
-
         if (newType == SuspensionType.PERMANENT) return create(newType, newReason, now, null);
 
-        LocalDateTime newProposedUntil = now.plus(duration);
-        LocalDateTime finalUntil = this.suspendedUntil.isAfter(newProposedUntil) ? this.suspendedUntil : newProposedUntil;
+        // 기존 정지가 끝나기 전이라면, 기존 종료일 기준으로 연장. 끝났다면 현재 시간 기준.
+        LocalDateTime baseTime = (this.suspendedUntil != null && this.suspendedUntil.isAfter(now))
+                ? this.suspendedUntil : now;
 
-        return create(newType, newReason, now, Duration.between(now, finalUntil));
+        return create(newType, newReason, now, Duration.between(now, baseTime.plus(duration)));
     }
 
     public boolean isActive(LocalDateTime now) {
