@@ -3,10 +3,7 @@ package com.example.my_project_1.auth.oauth;
 import com.example.my_project_1.auth.oauth.info.OAuth2UserInfo;
 import com.example.my_project_1.auth.oauth.info.impl.GoogleOAuth2UserInfo;
 import com.example.my_project_1.auth.userdetails.UserDetailsImpl;
-import com.example.my_project_1.user.domain.Email;
-import com.example.my_project_1.user.domain.SocialType;
-import com.example.my_project_1.user.domain.User;
-import com.example.my_project_1.user.domain.UserSuspension;
+import com.example.my_project_1.user.domain.*;
 import com.example.my_project_1.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -43,6 +40,20 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         User user = saveOrUpdate(userInfo, socialType);
 
         UserSuspension suspension = user.getSuspension();
+        UserWithdrawal withdrawal = user.getWithdrawal();
+
+        LocalDateTime now = LocalDateTime.now(clock);
+
+        LocalDateTime scheduledDeletionAt = null;
+        Long remainingDays = null;
+        boolean canRestore = false;
+
+        if (withdrawal != null) {
+            scheduledDeletionAt = withdrawal.getScheduledDeletionAt();
+            remainingDays = withdrawal.getRemainingDays(now);
+            canRestore = withdrawal.canRestore(now);
+        }
+
         return new UserDetailsImpl(
                 user.getId(),
                 user.getEmail().getValue(),
@@ -52,6 +63,9 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                 user.getUserStatus(),
                 suspension != null ? suspension.getReason() : null,
                 suspension != null ? suspension.getSuspendedUntil() : null,
+                scheduledDeletionAt,
+                remainingDays,
+                canRestore,
                 user.isDeleted(),
                 oAuth2User.getAttributes()
         );
@@ -74,12 +88,12 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
     }
 
     private SocialType getSocialType(String registrationId) {
-        if("google".equals(registrationId)) return SocialType.GOOGLE;
+        if ("google".equals(registrationId)) return SocialType.GOOGLE;
         return SocialType.NONE;
     }
 
     private OAuth2UserInfo getOAuth2UserInfo(SocialType socialType, Map<String, Object> attributes) {
-        if(socialType == SocialType.GOOGLE) return new GoogleOAuth2UserInfo(attributes);
+        if (socialType == SocialType.GOOGLE) return new GoogleOAuth2UserInfo(attributes);
         throw new OAuth2AuthenticationException("Unsupported Social Type");
     }
 }

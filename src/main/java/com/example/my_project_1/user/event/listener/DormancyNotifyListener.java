@@ -1,6 +1,7 @@
-package com.example.my_project_1.user.event;
+package com.example.my_project_1.user.event.listener;
 
 import com.example.my_project_1.auth.service.EmailService;
+import com.example.my_project_1.user.event.DormancyNotifyEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;

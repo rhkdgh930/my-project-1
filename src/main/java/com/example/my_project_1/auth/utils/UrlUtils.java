@@ -13,6 +13,7 @@ public class UrlUtils {
             "/api/auth/login",
             "/api/auth/reissue",
             "/api/auth/logout",
+            "/api/auth/restore",
 
             //OAuth
             "/api/auth/test",

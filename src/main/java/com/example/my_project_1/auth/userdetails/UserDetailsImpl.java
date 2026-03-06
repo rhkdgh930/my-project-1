@@ -23,13 +23,21 @@ public class UserDetailsImpl implements UserDetails, OAuth2User {
     private final String role;
     private final AccountStatus accountStatus;
     private final UserStatus userStatus;
+
     private final SuspensionReason reason;
     private final LocalDateTime suspendedUntil;
+
+    private final LocalDateTime scheduledDeletionAt;
+    private final Long remainingDays;
+    private final boolean canRestore;
+
     private final boolean deleted;
 
     private Map<String, Object> attributes;
 
-    public UserDetailsImpl(Long userId, String email, String password, String role, AccountStatus accountStatus, UserStatus userStatus, SuspensionReason reason, LocalDateTime suspendedUntil, boolean deleted) {
+    public UserDetailsImpl(Long userId, String email, String password, String role, AccountStatus accountStatus, UserStatus userStatus,
+                           SuspensionReason reason, LocalDateTime suspendedUntil,
+                           LocalDateTime scheduledDeletionAt, Long remainingDays, boolean canRestore, boolean deleted) {
         this.userId = userId;
         this.email = email;
         this.password = password;
@@ -38,10 +46,15 @@ public class UserDetailsImpl implements UserDetails, OAuth2User {
         this.userStatus = userStatus;
         this.reason = reason;
         this.suspendedUntil = suspendedUntil;
+        this.scheduledDeletionAt = scheduledDeletionAt;
+        this.remainingDays = remainingDays;
+        this.canRestore = canRestore;
         this.deleted = deleted;
     }
 
-    public UserDetailsImpl(Long userId, String email, String password, String role, AccountStatus accountStatus, UserStatus userStatus, SuspensionReason reason, LocalDateTime suspendedUntil, boolean deleted, Map<String, Object> attributes) {
+    public UserDetailsImpl(Long userId, String email, String password, String role, AccountStatus accountStatus,
+                           UserStatus userStatus, SuspensionReason reason, LocalDateTime suspendedUntil,
+                           LocalDateTime scheduledDeletionAt, Long remainingDays, boolean canRestore, boolean deleted, Map<String, Object> attributes) {
         this.userId = userId;
         this.email = email;
         this.password = password;
@@ -50,6 +63,9 @@ public class UserDetailsImpl implements UserDetails, OAuth2User {
         this.userStatus = userStatus;
         this.reason = reason;
         this.suspendedUntil = suspendedUntil;
+        this.scheduledDeletionAt = scheduledDeletionAt;
+        this.remainingDays = remainingDays;
+        this.canRestore = canRestore;
         this.deleted = deleted;
         this.attributes = attributes;
     }

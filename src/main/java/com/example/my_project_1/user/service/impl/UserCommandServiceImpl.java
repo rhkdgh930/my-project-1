@@ -7,6 +7,7 @@ import com.example.my_project_1.user.domain.Email;
 import com.example.my_project_1.user.domain.User;
 import com.example.my_project_1.user.event.EmailVerificationEvent;
 import com.example.my_project_1.user.event.PasswordResetEvent;
+import com.example.my_project_1.user.event.UserAccountChangedEvent;
 import com.example.my_project_1.user.repository.UserRepository;
 import com.example.my_project_1.user.service.UserCommandService;
 import com.example.my_project_1.user.service.request.*;
@@ -34,8 +35,6 @@ public class UserCommandServiceImpl implements UserCommandService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    private final RedisUserContextService redisUserContextService;
-    private final RedisTokenService redisTokenService;
     private final RedisEmailVerificationService redisEmailVerificationService;
     private final RedisPasswordResetTokenService redisPasswordResetTokenService;
     private final ApplicationEventPublisher eventPublisher;
@@ -95,7 +94,7 @@ public class UserCommandServiceImpl implements UserCommandService {
                 request.getProfileImageUrl()
         );
 
-        redisUserContextService.evict(userId);
+        eventPublisher.publishEvent(UserAccountChangedEvent.profileUpdated(userId));
 
         return UserProfileResponse.from(user);
     }
@@ -111,8 +110,7 @@ public class UserCommandServiceImpl implements UserCommandService {
 
         user.requestWithdrawal(LocalDateTime.now(clock));
 
-        redisUserContextService.evict(userId);
-        redisTokenService.deleteRefreshTokenHash(userId);
+        eventPublisher.publishEvent(UserAccountChangedEvent.securityStateChanged(userId));
 
         return UserWithdrawResponse.from(user);
     }
@@ -140,8 +138,7 @@ public class UserCommandServiceImpl implements UserCommandService {
 
         user.updatePassword(passwordEncoder.encode(request.getNewPassword()));
 
-        redisUserContextService.evict(userId);
-        redisTokenService.deleteRefreshTokenHash(userId);
+        eventPublisher.publishEvent(UserAccountChangedEvent.securityStateChanged(userId));
     }
 
     /***
@@ -169,8 +166,7 @@ public class UserCommandServiceImpl implements UserCommandService {
 
         user.updatePassword(passwordEncoder.encode(request.getNewPassword()));
 
-        redisTokenService.deleteRefreshTokenHash(user.getId());
-        redisUserContextService.evict(user.getId());
+        eventPublisher.publishEvent(UserAccountChangedEvent.securityStateChanged(user.getId()));
 
         redisPasswordResetTokenService.deleteToken(request.getToken());
     }
