@@ -13,7 +13,6 @@ import org.hibernate.annotations.SQLRestriction;
 import org.springframework.util.Assert;
 
 import java.time.Duration;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 

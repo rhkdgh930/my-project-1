@@ -5,7 +5,9 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 
 @Embeddable
 @Getter
@@ -26,15 +28,26 @@ public class UserWithdrawal {
         return requestedAt != null;
     }
 
-    public LocalDateTime scheduledDeletionAt() {
+    public LocalDateTime getScheduledDeletionAt() {
+        if (!isPending()) return null;
         return requestedAt.plusDays(RETENTION_DAYS);
     }
 
+    public Long getRemainingDays(LocalDateTime now) {
+        if (!isPending()) return null;
+        return ChronoUnit.DAYS.between(
+                now.toLocalDate(),
+                getScheduledDeletionAt().toLocalDate()
+        );
+    }
+
     public boolean canRestore(LocalDateTime now) {
-        return now.isBefore(scheduledDeletionAt());
+        if (!isPending()) return false;
+        return now.isBefore(getScheduledDeletionAt());
     }
 
     public boolean shouldDelete(LocalDateTime now) {
-        return now.isAfter(scheduledDeletionAt());
+        if (!isPending()) return false;
+        return now.isAfter(getScheduledDeletionAt());
     }
 }

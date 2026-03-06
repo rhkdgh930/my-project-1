@@ -42,7 +42,7 @@ public class JwtLoginFailureHandler implements AuthenticationFailureHandler {
             data = putSuspendedData(suspendedEx);
         } else if (exception instanceof WithdrawalPendingException pendingEx) {
             errorCode = ErrorCode.WITHDRAWAL_PENDING;
-            data = putWithdrawalPendingData(pendingEx);
+            data = putWithdrawalPendingData(pendingEx, email);
         } else {
 
             loginFail(email);
@@ -79,8 +79,9 @@ public class JwtLoginFailureHandler implements AuthenticationFailureHandler {
         return map;
     }
 
-    private static Object putWithdrawalPendingData(WithdrawalPendingException ex) {
+    private static Object putWithdrawalPendingData(WithdrawalPendingException ex, String email) {
         Map<String, Object> map = new HashMap<>();
+        map.put("email", email);
         map.put("scheduledDeletionAt", ex.getScheduledDeletionAt().toString());
         map.put("remainingDays", ex.getRemainingDays());
         map.put("canRestore", ex.isCanRestore());

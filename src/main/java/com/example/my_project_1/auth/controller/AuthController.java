@@ -1,6 +1,7 @@
 package com.example.my_project_1.auth.controller;
 
 import com.example.my_project_1.auth.service.AuthService;
+import com.example.my_project_1.auth.service.request.LoginRequest;
 import com.example.my_project_1.auth.service.response.TokenResponse;
 import com.example.my_project_1.user.service.UserCommandService;
 import com.example.my_project_1.user.service.request.UserSignUpRequest;
@@ -71,6 +72,18 @@ public class AuthController {
     public ResponseEntity<TokenResponse> reissue(
             @RequestHeader(REFRESH_TOKEN) String refreshToken) {
         TokenResponse tokenResponse = authService.reissue(refreshToken);
+        return ResponseEntity.ok(tokenResponse);
+    }
+
+    @Operation(
+            summary = "회원 탈퇴 취소",
+            description = "유예 기간(7일) 내에 탈퇴 요청을 취소하고 계정을 정상 상태로 복구합니다."
+    )
+    @PostMapping("/restore")
+    public ResponseEntity<TokenResponse> restore(@RequestBody LoginRequest request) {
+
+        TokenResponse tokenResponse = authService.restoreAccount(request);
+
         return ResponseEntity.ok(tokenResponse);
     }
 

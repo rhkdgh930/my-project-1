@@ -12,12 +12,16 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.time.Clock;
 import java.time.Duration;
+import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class RedisUserContextService {
+
+    private final Clock clock;
 
     private final RedisTemplate<String, CachedUserContext> redisTemplate;
     private final UserRepository userRepository;
@@ -40,7 +44,7 @@ public class RedisUserContextService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        CachedUserContext ctx = CachedUserContext.from(user);
+        CachedUserContext ctx = CachedUserContext.from(user, clock);
 
         try {
             redisTemplate.opsForValue().set(key, ctx, TTL);

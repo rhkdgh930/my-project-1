@@ -9,6 +9,7 @@ import com.example.my_project_1.auth.userdetails.UserDetailsImpl;
 import com.example.my_project_1.auth.utils.JwtProvider;
 import com.example.my_project_1.auth.utils.CookieUtils;
 import com.example.my_project_1.common.utils.DataSerializer;
+import com.example.my_project_1.user.domain.UserStatus;
 import com.example.my_project_1.user.service.UserLoginService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -19,6 +20,8 @@ import org.springframework.security.web.authentication.AuthenticationSuccessHand
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 
 @Component
 @RequiredArgsConstructor

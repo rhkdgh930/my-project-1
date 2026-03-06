@@ -5,10 +5,7 @@ import com.example.my_project_1.auth.exception.WithdrawalCompletedException;
 import com.example.my_project_1.auth.exception.WithdrawalPendingException;
 import com.example.my_project_1.auth.userdetails.UserDetailsImpl;
 import com.example.my_project_1.user.domain.AccountStatus;
-import com.example.my_project_1.user.domain.User;
 import com.example.my_project_1.user.domain.UserStatus;
-import com.example.my_project_1.user.domain.UserWithdrawal;
-import com.example.my_project_1.user.service.UserQueryService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -17,20 +14,13 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
-
 @Slf4j
 public class CustomAuthenticationProvider extends DaoAuthenticationProvider {
 
-    private final UserQueryService userQueryService;
-
-    public CustomAuthenticationProvider(UserDetailsService userDetailsService, PasswordEncoder passwordEncoder, UserQueryService userQueryService) {
+    public CustomAuthenticationProvider(UserDetailsService userDetailsService, PasswordEncoder passwordEncoder) {
         super(userDetailsService);
         setPasswordEncoder(passwordEncoder);
         setHideUserNotFoundExceptions(false);
-        this.userQueryService = userQueryService;
     }
 
     @Override
@@ -38,35 +28,36 @@ public class CustomAuthenticationProvider extends DaoAuthenticationProvider {
         log.info("[CustomAuthenticationProvider called]");
         super.additionalAuthenticationChecks(userDetails, authentication);
 
-        UserDetailsImpl details = (UserDetailsImpl) userDetails;
+        UserDetailsImpl details = getUserDetails((UserDetailsImpl) userDetails);
 
-        User user = userQueryService.getByIdOrThrow(details.getUserId());
+        if (details.getAccountStatus() == AccountStatus.SUSPENDED) {
+            throw new UserSuspendedException(
+                    "차단된 계정입니다.",
+                    details.getSuspendedUntil(),
+                    details.getReason()
+            );
+        }
+    }
 
-        if (user.isDeleted()) {
+    private static UserDetailsImpl getUserDetails(UserDetailsImpl userDetails) {
+        UserDetailsImpl details = userDetails;
+
+
+        if (details.isDeleted()) {
             throw new WithdrawalCompletedException("탈퇴 처리 된 계정입니다.");
         }
 
-        if (user.getUserStatus() == UserStatus.WITHDRAWN_REQUESTED) {
-            UserWithdrawal withdrawal = user.getWithdrawal();
-
-            long remainingDays = ChronoUnit.DAYS.between(
-                    LocalDate.now(),
-                    withdrawal.scheduledDeletionAt().toLocalDate()
-            );
-
+        if (details.getUserStatus() == UserStatus.WITHDRAWN_REQUESTED) {
+            if (!details.isCanRestore()) {
+                throw new WithdrawalCompletedException("탈퇴 기한이 지나 복구할 수 없는 계정입니다.");
+            }
             throw new WithdrawalPendingException(
-                    "탈퇴 대기중인 계정입니다.",
-                    withdrawal.scheduledDeletionAt(),
-                    Math.max(remainingDays, 0),
-                    withdrawal.canRestore(LocalDateTime.now()));
-        }
-
-        if (user.getAccountStatus() == AccountStatus.SUSPENDED) {
-            throw new UserSuspendedException(
-                    "차단된 계정입니다.",
-                    user.getSuspension().getSuspendedUntil(),
-                    user.getSuspension().getReason()
+                    "탈퇴 요청 상태입니다.",
+                    details.getScheduledDeletionAt(),
+                    details.getRemainingDays(),
+                    true
             );
         }
+        return details;
     }
 }

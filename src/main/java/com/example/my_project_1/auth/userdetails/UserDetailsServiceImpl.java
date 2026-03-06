@@ -1,19 +1,23 @@
 package com.example.my_project_1.auth.userdetails;
 
-import com.example.my_project_1.auth.exception.UserSuspendedException;
-import com.example.my_project_1.auth.exception.WithdrawalPendingException;
-import com.example.my_project_1.user.domain.*;
+import com.example.my_project_1.user.domain.Email;
+import com.example.my_project_1.user.domain.User;
+import com.example.my_project_1.user.domain.UserSuspension;
+import com.example.my_project_1.user.domain.UserWithdrawal;
 import com.example.my_project_1.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.authentication.LockedException;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
+import java.time.Clock;
+import java.time.LocalDateTime;
+
 @Service
 @RequiredArgsConstructor
 public class UserDetailsServiceImpl implements UserDetailsService {
+    private final Clock clock;
     private final UserRepository userRepository;
 
     @Override
@@ -24,6 +28,19 @@ public class UserDetailsServiceImpl implements UserDetailsService {
                 );
 
         UserSuspension suspension = user.getSuspension();
+        UserWithdrawal withdrawal = user.getWithdrawal();
+
+        LocalDateTime now = LocalDateTime.now(clock);
+
+        LocalDateTime scheduledDeletionAt = null;
+        Long remainingDays = null;
+        boolean canRestore = false;
+
+        if (withdrawal != null) {
+            scheduledDeletionAt = withdrawal.getScheduledDeletionAt();
+            remainingDays = withdrawal.getRemainingDays(now);
+            canRestore = withdrawal.canRestore(now);
+        }
 
         return new UserDetailsImpl(
                 user.getId(),
@@ -34,6 +51,9 @@ public class UserDetailsServiceImpl implements UserDetailsService {
                 user.getUserStatus(),
                 suspension != null ? suspension.getReason() : null,
                 suspension != null ? suspension.getSuspendedUntil() : null,
+                scheduledDeletionAt,
+                remainingDays,
+                canRestore,
                 user.isDeleted()
         );
     }
