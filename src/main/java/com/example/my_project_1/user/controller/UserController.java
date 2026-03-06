@@ -26,39 +26,6 @@ public class UserController {
     private final UserCommandService userCommandService;
 
     @Operation(
-            summary = "이메일 인증 코드 발송",
-            description = "회원가입 전 이메일 소유 확인을 위해 인증 코드를 발송합니다."
-    )
-    @PostMapping("/verification-code")
-    public ResponseEntity<Void> sendVerificationCode(@RequestParam @Email String email) {
-        userCommandService.sendVerificationCode(email);
-        return ResponseEntity.ok().build();
-    }
-
-    @Operation(
-            summary = "이메일 인증 코드 확인",
-            description = "메일로 받은 코드와 이메일을 대조하여 인증을 완료합니다. 성공 시 Redis에 인증 완료 상태가 저장됩니다."
-    )
-    @PostMapping("/verify")
-    public ResponseEntity<String> verifyEmail(
-            @RequestParam("email") String email,
-            @RequestParam("code") String code
-    ) {
-        userCommandService.verifyEmail(email, code);
-        return ResponseEntity.ok("이메일 인증이 완료되었습니다. 회원가입을 진행해주세요.");
-    }
-
-    @Operation(
-            summary = "회원가입",
-            description = "인증이 완료된 이메일과 사용자 정보를 입력받아 회원가입을 완료합니다."
-    )
-    @PostMapping("/signup")
-    public ResponseEntity<UserSignUpResponse> signUp(@Valid @RequestBody UserSignUpRequest request) {
-        UserSignUpResponse response = userCommandService.signUp(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
-    }
-
-    @Operation(
             summary = "프로필 수정",
             description = "유저의 자기소개나 프로필 이미지 URL을 변경합니다."
     )
