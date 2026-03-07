@@ -7,6 +7,8 @@ import com.example.my_project_1.user.service.response.UserProfileResponse;
 import com.example.my_project_1.user.service.response.UserSignUpResponse;
 import com.example.my_project_1.user.service.response.UserWithdrawResponse;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
@@ -18,22 +20,66 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
-@Tag(name = "USER API", description = "회원가입, 인증, 프로필 관리 등 일반 유저 기능 관련 API")
+@Tag(name = "User API", description = "회원가입, 이메일 인증, 프로필 관리 등 일반 사용자 기능")
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/user")
+@RequestMapping("/api/users")
 public class UserController {
+
     private final UserCommandService userCommandService;
 
     @Operation(
+            summary = "이메일 인증 코드 발송",
+            description = "회원가입 전 이메일 소유 확인을 위해 인증 코드를 발송합니다."
+    )
+    @PostMapping("/emails/verification")
+    public ResponseEntity<Void> sendVerificationCode(
+            @Parameter(description = "인증할 이메일")
+            @RequestParam @Email String email) {
+
+        userCommandService.sendVerificationCode(email);
+        return ResponseEntity.ok().build();
+    }
+
+    @Operation(
+            summary = "이메일 인증 코드 확인",
+            description = "이메일과 인증 코드를 검증하여 인증을 완료합니다."
+    )
+    @PostMapping("/emails/verification/confirm")
+    public ResponseEntity<String> verifyEmail(
+            @Parameter(description = "이메일")
+            @RequestParam String email,
+
+            @Parameter(description = "이메일 인증 코드")
+            @RequestParam String code) {
+
+        userCommandService.verifyEmail(email, code);
+        return ResponseEntity.ok("이메일 인증이 완료되었습니다.");
+    }
+
+    @Operation(
+            summary = "회원가입",
+            description = "인증된 이메일로 회원가입을 진행합니다."
+    )
+    @ApiResponse(responseCode = "201", description = "회원가입 성공")
+    @PostMapping("/signup")
+    public ResponseEntity<UserSignUpResponse> signUp(
+            @Valid @RequestBody UserSignUpRequest request) {
+
+        UserSignUpResponse response = userCommandService.signUp(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @Operation(
             summary = "프로필 수정",
-            description = "유저의 자기소개나 프로필 이미지 URL을 변경합니다."
+            description = "자기소개 및 프로필 이미지를 수정합니다."
     )
     @PreAuthorize("hasRole('USER')")
-    @PatchMapping("/update-profile")
+    @PatchMapping("/me/profile")
     public ResponseEntity<UserProfileResponse> updateProfile(
             @AuthenticationPrincipal UserDetailsImpl userDetails,
             @Valid @RequestBody UserProfileUpdateRequest request) {
+
         Long userId = userDetails.getUserId();
         UserProfileResponse response = userCommandService.updateProfile(userId, request);
         return ResponseEntity.ok(response);
@@ -41,38 +87,29 @@ public class UserController {
 
     @Operation(
             summary = "회원 탈퇴 요청",
-            description = "사용자가 탈퇴를 요청합니다. 즉시 삭제되지 않으며 7일간의 유예 기간 동안 '탈퇴 대기' 상태가 됩니다."
+            description = "회원 탈퇴를 요청합니다. 실제 삭제는 7일 후 배치 작업에서 처리됩니다."
     )
     @PreAuthorize("hasRole('USER')")
-    @PostMapping("/withdraw")
-    public ResponseEntity<UserWithdrawResponse> withdraw(@AuthenticationPrincipal UserDetailsImpl userDetails,
-                                                         @RequestBody UserWithdrawRequest request) {
+    @DeleteMapping("/me")
+    public ResponseEntity<UserWithdrawResponse> withdraw(
+            @AuthenticationPrincipal UserDetailsImpl userDetails,
+            @RequestBody UserWithdrawRequest request) {
+
         Long userId = userDetails.getUserId();
         UserWithdrawResponse response = userCommandService.withdraw(userId, request);
         return ResponseEntity.ok(response);
     }
 
     @Operation(
-            summary = "회원 탈퇴 취소",
-            description = "유예 기간(7일) 내에 탈퇴 요청을 취소하고 계정을 정상 상태로 복구합니다."
+            summary = "비밀번호 변경",
+            description = "현재 비밀번호 확인 후 새로운 비밀번호로 변경합니다."
     )
     @PreAuthorize("hasRole('USER')")
-    @PostMapping("/withdraw-cancel")
-    public ResponseEntity<Void> cancelWithdraw(@AuthenticationPrincipal UserDetailsImpl userDetails) {
-        Long userId = userDetails.getUserId();
-        userCommandService.cancelWithdraw(userId);
-        return ResponseEntity.ok().build();
-    }
-
-    @Operation(
-            summary = "비밀번호 변경 (로그인 상태)",
-            description = "현재 비밀번호 확인 후 새로운 비밀번호로 업데이트합니다. 성공 시 모든 기기에서 로그아웃 처리됩니다."
-    )
-    @PreAuthorize("hasRole('USER')") // 로그인 필수
-    @PatchMapping("/password")
+    @PatchMapping("/me/password")
     public ResponseEntity<Void> updatePassword(
             @AuthenticationPrincipal UserDetailsImpl userDetails,
             @Valid @RequestBody PasswordUpdateRequest request) {
+
         Long userId = userDetails.getUserId();
         userCommandService.updatePassword(userId, request);
         return ResponseEntity.ok().build();
@@ -80,17 +117,20 @@ public class UserController {
 
     @Operation(
             summary = "비밀번호 재설정 링크 발송",
-            description = "비밀번호를 잊은 경우, 이메일로 비밀번호를 초기화할 수 있는 링크를 전송합니다."
+            description = "비밀번호 재설정을 위한 이메일 링크를 발송합니다."
     )
     @PostMapping("/password-reset/request")
-    public ResponseEntity<Void> requestPasswordReset(@RequestParam @Email String email) {
+    public ResponseEntity<Void> requestPasswordReset(
+            @Parameter(description = "비밀번호 재설정 요청 이메일")
+            @RequestParam @Email String email) {
+
         userCommandService.requestPasswordReset(email);
-        return ResponseEntity.ok().build(); // 이메일이 없어도 항상 200 OK
+        return ResponseEntity.ok().build();
     }
 
     @Operation(
-            summary = "비밀번호 재설정 확인",
-            description = "이메일로 받은 토큰을 사용하여 새로운 비밀번호를 설정합니다."
+            summary = "비밀번호 재설정",
+            description = "이메일로 받은 토큰을 이용하여 비밀번호를 재설정합니다."
     )
     @PostMapping("/password-reset/confirm")
     public ResponseEntity<Void> confirmPasswordReset(
@@ -105,5 +145,4 @@ public class UserController {
     public ResponseEntity<UserDetails> getMyInfo(@AuthenticationPrincipal UserDetailsImpl userDetails) {
         return ResponseEntity.ok(userDetails);
     }
-
 }

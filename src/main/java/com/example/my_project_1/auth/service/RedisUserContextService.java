@@ -44,7 +44,7 @@ public class RedisUserContextService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        CachedUserContext ctx = CachedUserContext.from(user, clock);
+        CachedUserContext ctx = CachedUserContext.from(user, LocalDateTime.now(clock));
 
         try {
             redisTemplate.opsForValue().set(key, ctx, TTL);

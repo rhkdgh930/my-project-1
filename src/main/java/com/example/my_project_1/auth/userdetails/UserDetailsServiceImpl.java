@@ -1,9 +1,6 @@
 package com.example.my_project_1.auth.userdetails;
 
-import com.example.my_project_1.user.domain.Email;
-import com.example.my_project_1.user.domain.User;
-import com.example.my_project_1.user.domain.UserSuspension;
-import com.example.my_project_1.user.domain.UserWithdrawal;
+import com.example.my_project_1.user.domain.*;
 import com.example.my_project_1.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -27,10 +24,9 @@ public class UserDetailsServiceImpl implements UserDetailsService {
                         new UsernameNotFoundException("User not found")
                 );
 
-        UserSuspension suspension = user.getSuspension();
-        UserWithdrawal withdrawal = user.getWithdrawal();
-
         LocalDateTime now = LocalDateTime.now(clock);
+
+        UserWithdrawal withdrawal = user.getWithdrawal();
 
         LocalDateTime scheduledDeletionAt = null;
         Long remainingDays = null;
@@ -42,6 +38,17 @@ public class UserDetailsServiceImpl implements UserDetailsService {
             canRestore = withdrawal.canRestore(now);
         }
 
+        UserSuspension suspension = user.getSuspension();
+
+        SuspensionReason suspensionReason = null;
+        LocalDateTime suspendedUntil = null;
+
+        if (suspension != null) {
+            suspensionReason = suspension.getReason();
+            suspendedUntil = suspension.getSuspendedUntil();
+        }
+
+
         return new UserDetailsImpl(
                 user.getId(),
                 user.getEmail().getValue(),
@@ -49,8 +56,8 @@ public class UserDetailsServiceImpl implements UserDetailsService {
                 user.getRole().name(),
                 user.getAccountStatus(),
                 user.getUserStatus(),
-                suspension != null ? suspension.getReason() : null,
-                suspension != null ? suspension.getSuspendedUntil() : null,
+                suspensionReason,
+                suspendedUntil,
                 scheduledDeletionAt,
                 remainingDays,
                 canRestore,

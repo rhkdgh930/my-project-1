@@ -22,6 +22,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.time.LocalDateTime;
 
 @Slf4j
@@ -30,12 +31,13 @@ import java.time.LocalDateTime;
 @Transactional(readOnly = true)
 public class AuthServiceImpl implements AuthService {
 
+    private final Clock clock;
+
     private final JwtProvider jwtProvider;
     private final PasswordEncoder passwordEncoder;
     private final RedisTokenService redisTokenService;
     private final RedisUserContextService userContextService;
     private final UserRepository userRepository;
-    private final RedisUserContextService redisUserContextService;
     private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
@@ -95,7 +97,7 @@ public class AuthServiceImpl implements AuthService {
         }
 
         // 🔥 도메인 로직
-        user.cancelWithdrawal(LocalDateTime.now());
+        user.cancelWithdrawal(LocalDateTime.now(clock));
 
         // Redis 캐시 제거
         eventPublisher.publishEvent(UserAccountChangedEvent.profileUpdated(user.getId()));

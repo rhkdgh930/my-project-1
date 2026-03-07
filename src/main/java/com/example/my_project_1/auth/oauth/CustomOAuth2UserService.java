@@ -37,12 +37,11 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
         OAuth2UserInfo userInfo = getOAuth2UserInfo(socialType, oAuth2User.getAttributes());
 
-        User user = saveOrUpdate(userInfo, socialType);
-
-        UserSuspension suspension = user.getSuspension();
-        UserWithdrawal withdrawal = user.getWithdrawal();
-
         LocalDateTime now = LocalDateTime.now(clock);
+
+        User user = saveOrUpdate(userInfo, socialType, now);
+
+        UserWithdrawal withdrawal = user.getWithdrawal();
 
         LocalDateTime scheduledDeletionAt = null;
         Long remainingDays = null;
@@ -54,6 +53,17 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             canRestore = withdrawal.canRestore(now);
         }
 
+        UserSuspension suspension = user.getSuspension();
+
+        SuspensionReason suspensionReason = null;
+        LocalDateTime suspendedUntil = null;
+
+        if (suspension != null) {
+            suspensionReason = suspension.getReason();
+            suspendedUntil = suspension.getSuspendedUntil();
+        }
+
+
         return new UserDetailsImpl(
                 user.getId(),
                 user.getEmail().getValue(),
@@ -61,8 +71,8 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                 user.getRole().name(),
                 user.getAccountStatus(),
                 user.getUserStatus(),
-                suspension != null ? suspension.getReason() : null,
-                suspension != null ? suspension.getSuspendedUntil() : null,
+                suspensionReason,
+                suspendedUntil,
                 scheduledDeletionAt,
                 remainingDays,
                 canRestore,
@@ -71,8 +81,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         );
     }
 
-    private User saveOrUpdate(OAuth2UserInfo userInfo, SocialType socialType) {
-        LocalDateTime now = LocalDateTime.now(clock);
+    private User saveOrUpdate(OAuth2UserInfo userInfo, SocialType socialType, LocalDateTime now) {
         return userRepository.findByEmail(Email.from(userInfo.getEmail()))
                 .map(user -> {
                     user.updateLastLogin(now);

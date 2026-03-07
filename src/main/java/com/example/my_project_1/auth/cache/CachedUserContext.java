@@ -5,7 +5,6 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.time.Clock;
 import java.time.LocalDateTime;
 
 @Getter
@@ -27,11 +26,9 @@ public class CachedUserContext {
 
     private boolean deleted;
 
-    public static CachedUserContext from(User user, Clock clock) {
-        UserSuspension suspension = user.getSuspension();
-        UserWithdrawal withdrawal = user.getWithdrawal();
+    public static CachedUserContext from(User user, LocalDateTime now) {
 
-        LocalDateTime now = LocalDateTime.now(clock);
+        UserWithdrawal withdrawal = user.getWithdrawal();
 
         LocalDateTime scheduledDeletionAt = null;
         Long remainingDays = null;
@@ -43,14 +40,24 @@ public class CachedUserContext {
             canRestore = withdrawal.canRestore(now);
         }
 
+        UserSuspension suspension = user.getSuspension();
+
+        SuspensionReason suspensionReason = null;
+        LocalDateTime suspendedUntil = null;
+
+        if (suspension != null) {
+            suspensionReason = suspension.getReason();
+            suspendedUntil = suspension.getSuspendedUntil();
+        }
+
         return new CachedUserContext(
                 user.getId(),
                 user.getEmail().getValue(),
                 user.getRole(),
                 user.getUserStatus(),
                 user.getAccountStatus(),
-                suspension != null ? suspension.getReason() : null,
-                suspension != null ? suspension.getSuspendedUntil() : null,
+                suspensionReason,
+                suspendedUntil,
                 scheduledDeletionAt,
                 remainingDays,
                 canRestore,
