@@ -25,10 +25,15 @@ public class CustomAuthenticationProvider extends DaoAuthenticationProvider {
 
     @Override
     protected void additionalAuthenticationChecks(UserDetails userDetails, UsernamePasswordAuthenticationToken authentication) throws AuthenticationException {
-        log.info("[CustomAuthenticationProvider called]");
         super.additionalAuthenticationChecks(userDetails, authentication);
 
-        UserDetailsImpl details = getUserDetails((UserDetailsImpl) userDetails);
+        UserDetailsImpl details = (UserDetailsImpl) userDetails;
+
+        validateWithdrawalStatus(details);
+        validateAccountStatus(details);
+    }
+
+    private void validateAccountStatus(UserDetailsImpl details) {
 
         if (details.getAccountStatus() == AccountStatus.SUSPENDED) {
             throw new UserSuspendedException(
@@ -39,18 +44,18 @@ public class CustomAuthenticationProvider extends DaoAuthenticationProvider {
         }
     }
 
-    private static UserDetailsImpl getUserDetails(UserDetailsImpl userDetails) {
-        UserDetailsImpl details = userDetails;
-
+    private void validateWithdrawalStatus(UserDetailsImpl details) {
 
         if (details.isDeleted()) {
             throw new WithdrawalCompletedException("탈퇴 처리 된 계정입니다.");
         }
 
         if (details.getUserStatus() == UserStatus.WITHDRAWN_REQUESTED) {
+
             if (!details.isCanRestore()) {
                 throw new WithdrawalCompletedException("탈퇴 기한이 지나 복구할 수 없는 계정입니다.");
             }
+
             throw new WithdrawalPendingException(
                     "탈퇴 요청 상태입니다.",
                     details.getScheduledDeletionAt(),
@@ -58,6 +63,5 @@ public class CustomAuthenticationProvider extends DaoAuthenticationProvider {
                     true
             );
         }
-        return details;
     }
 }
