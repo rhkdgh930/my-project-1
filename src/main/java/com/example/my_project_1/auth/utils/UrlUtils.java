@@ -21,10 +21,9 @@ public class UrlUtils {
             "oauth2/authorization/google",
 
             //user
-            "/api/user/signup",
-            "/api/user/verify",
-            "/api/user/verification-code",
-            "/api/user/password-reset/**",
+            "/api/users/signup",
+            "/api/users/emails/verification/**",
+            "/api/users/password-reset/**",
 
             //board
             "/api/boards/**",

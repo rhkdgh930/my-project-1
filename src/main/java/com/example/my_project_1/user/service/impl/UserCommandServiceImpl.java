@@ -116,14 +116,6 @@ public class UserCommandServiceImpl implements UserCommandService {
     }
 
     @Override
-    public void cancelWithdraw(Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-
-        user.cancelWithdrawal(LocalDateTime.now(clock));
-    }
-
-    @Override
     public void updatePassword(Long userId, PasswordUpdateRequest request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
