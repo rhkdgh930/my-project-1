@@ -13,6 +13,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDateTime;
 
@@ -20,6 +21,8 @@ import java.time.LocalDateTime;
 @Service
 @RequiredArgsConstructor
 public class AdminCommandServiceImpl implements AdminCommandService {
+    private final Clock clock;
+
     private final UserRepository userRepository;
     private final ApplicationEventPublisher eventPublisher;
 
@@ -27,7 +30,7 @@ public class AdminCommandServiceImpl implements AdminCommandService {
     public void suspendUser(Long userId, SuspensionType type, SuspensionReason reason, Duration duration) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-        user.suspend(type, reason, duration, LocalDateTime.now());
+        user.suspend(type, reason, duration, LocalDateTime.now(clock));
 
         eventPublisher.publishEvent(UserAccountChangedEvent.securityStateChanged(userId));
     }
