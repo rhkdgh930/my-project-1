@@ -72,21 +72,13 @@ class BoardTest {
         Board board = getBoard();
         assertThat(board.getName()).isEqualTo(NAME);
         assertThat(board.getDescription()).isEqualTo(DESCRIPTION);
-        assertThat(board.getBoardStatus()).isEqualTo(BoardStatus.ACTIVE);
 
-        board.delete();
+        String uuid = "12345678";
+        String maskedName = NAME + "_deleted_" + uuid;
+        board.maskBoardData(uuid);
 
-        assertThat(board.getBoardStatus()).isEqualTo(BoardStatus.INACTIVE);
-    }
-    @DisplayName("이미 삭제된 게시판은 삭제를 실패합니다.")
-    @Test
-    void board_soft_delete_fail_test_already_inactive() {
-        Board board = getBoard();
-        board.delete();
-
-        assertThatThrownBy(() -> board.delete())
-                .isInstanceOf(CustomException.class)
-                .hasMessage("이미 삭제된 게시판 입니다.");
+        assertThat(board.getName()).isEqualTo(maskedName);
+        assertThat(board.getDescription()).isEqualTo("삭제된 게시판 입니다.");
     }
 
     private static Board getBoard() {
@@ -95,7 +87,6 @@ class BoardTest {
     }
 
     private static BoardCreateRequest getBoardCreateRequest() {
-        BoardCreateRequest request = BoardFixture.CreateBoardRequest();
-        return request;
+        return BoardFixture.CreateBoardRequest();
     }
 }

@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.UUID;
 
 @Transactional
 @RequiredArgsConstructor
@@ -55,7 +56,9 @@ public class BoardCommandServiceImpl implements BoardCommandService {
     @Override
     public void delete(Long boardId) {
         Board board = findBoard(boardId);
-        board.delete();
+        String uuid = UUID.randomUUID().toString().substring(0, 8);
+        board.maskBoardData(uuid);
+        boardRepository.delete(board);
     }
 
     private Board findBoard(Long boardId) {

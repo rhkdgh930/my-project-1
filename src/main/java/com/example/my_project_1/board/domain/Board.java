@@ -13,6 +13,7 @@ import org.hibernate.annotations.SQLRestriction;
 import org.springframework.util.Assert;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * [Policy] 이 엔티티는 Soft Delete 정책을 따릅니다.
@@ -37,10 +38,6 @@ public class Board extends BaseEntity {
 
     private String description;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private BoardStatus boardStatus;
-
     public static Board create(String name, String description) {
         return Board.builder()
                 .name(name)
@@ -53,7 +50,6 @@ public class Board extends BaseEntity {
         Assert.hasText(name, "게시판명은 필수입니다.");
         this.name = name;
         this.description = description;
-        this.boardStatus = BoardStatus.ACTIVE;
     }
 
     public void update(String name, String description) {
@@ -62,10 +58,9 @@ public class Board extends BaseEntity {
         this.description = description;
     }
 
-    public void delete() {
-        if (boardStatus == BoardStatus.INACTIVE) {
-            throw new CustomException(ErrorCode.ALREADY_DELETED_BOARD);
-        }
-        boardStatus = BoardStatus.INACTIVE;
+    public void maskBoardData(String uuid) {
+        this.name = this.name + "_deleted_" + uuid;
+        this.description = "삭제된 게시판 입니다.";
     }
+
 }

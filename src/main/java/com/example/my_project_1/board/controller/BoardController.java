@@ -51,14 +51,14 @@ public class BoardController {
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping
-    public ResponseEntity<List<BoardResponse>> getAllActiveBoards() {
-        List<BoardResponse> responses = boardQueryService.findAllActiveBoards();
+    @GetMapping("/all")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<BoardResponse>> getAllBoardsForAdmin() {
+        List<BoardResponse> responses = boardQueryService.findAllBoardsForAdmin();
         return ResponseEntity.ok(responses);
     }
 
-    @GetMapping("/all")
-    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping
     public ResponseEntity<List<BoardResponse>> getAllBoards() {
         List<BoardResponse> responses = boardQueryService.findAllBoards();
         return ResponseEntity.ok(responses);
