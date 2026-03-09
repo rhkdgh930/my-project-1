@@ -13,7 +13,7 @@ public class UserSignUpRequest {
     @Schema(title = "이메일 계정", description = "로그인 아이디로 사용될 유효한 이메일 주소",
             example = "gemini@example.com", requiredMode = Schema.RequiredMode.REQUIRED)
     @NotBlank(message = "이메일 입력은 필수입니다.")
-    @Email
+    @Email(message = "올바른 형식의 이메일 주소여야 합니다.")
     private String email;
 
     @Schema(title = "비밀번호", description = "보안 정책에 따른 8자 이상 비밀번호",
