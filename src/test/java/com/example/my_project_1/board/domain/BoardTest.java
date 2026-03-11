@@ -6,6 +6,8 @@ import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.time.LocalDateTime;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.*;
@@ -73,11 +75,9 @@ class BoardTest {
         assertThat(board.getName()).isEqualTo(NAME);
         assertThat(board.getDescription()).isEqualTo(DESCRIPTION);
 
-        String uuid = "12345678";
-        String maskedName = NAME + "_deleted_" + uuid;
-        board.maskBoardData(uuid);
+        board.delete(LocalDateTime.now());
 
-        assertThat(board.getName()).isEqualTo(maskedName);
+        assertThat(board.getName()).contains("deleted");
         assertThat(board.getDescription()).isEqualTo("삭제된 게시판 입니다.");
     }
 
