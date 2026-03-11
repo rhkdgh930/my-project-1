@@ -20,7 +20,7 @@ public class BoardQueryServiceImpl implements BoardQueryService {
 
     @Override
     public List<BoardResponse> findAllBoardsForAdmin() {
-        List<Board> boards = boardRepository.findAllIncludingDeleted();
+        List<Board> boards = boardRepository.findAll();
         return boards.stream()
                 .map(BoardResponse::from)
                 .toList();
@@ -28,7 +28,7 @@ public class BoardQueryServiceImpl implements BoardQueryService {
 
     @Override
     public List<BoardResponse> findAllBoards() {
-        List<Board> boards = boardRepository.findAll();
+        List<Board> boards = boardRepository.findAllByDeletedAtIsNull();
         return boards.stream()
                 .map(BoardResponse::from)
                 .toList();
@@ -37,7 +37,7 @@ public class BoardQueryServiceImpl implements BoardQueryService {
 
     @Override
     public BoardResponse findBoardById(Long boardId) {
-        Board board = boardRepository.findById(boardId)
+        Board board = boardRepository.findByIdAndDeletedAtIsNull(boardId)
                 .orElseThrow(() -> new CustomException(ErrorCode.BOARD_NOT_FOUND));
         return BoardResponse.from(board);
     }
