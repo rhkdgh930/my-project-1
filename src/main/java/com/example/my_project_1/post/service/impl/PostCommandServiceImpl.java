@@ -37,7 +37,7 @@ public class PostCommandServiceImpl implements PostCommandService {
     @Override
     public PostDetailResponse create(Long boardId, Long userId, PostCreateRequest request) {
         Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new IllegalArgumentException("게시판 없음"));
+                .orElseThrow(() -> new CustomException(ErrorCode.BOARD_NOT_FOUND));
 
         String nickname = getNickname(userId);
 
