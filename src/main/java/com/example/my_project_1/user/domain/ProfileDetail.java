@@ -1,10 +1,12 @@
 package com.example.my_project_1.user.domain;
 
 import jakarta.persistence.Embeddable;
+import jakarta.validation.constraints.Size;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.validator.constraints.URL;
 
 @Embeddable
 @Getter
@@ -14,7 +16,10 @@ public class ProfileDetail {
     private static final String DEFAULT_INTRODUCE = "자기소개를 입력해주세요.";
     private static final String DEFAULT_IMG_URL = "uploads/default.png";
 
+    @Size(max = 500)
     private String introduce;
+
+    @URL
     private String profileImageUrl;
 
     public static ProfileDetail defaultProfile() {

@@ -115,5 +115,4 @@ public class Post extends BaseEntity {
         this.viewCount = viewCount;
         this.likeCount = likeCount;
     }
-
 }

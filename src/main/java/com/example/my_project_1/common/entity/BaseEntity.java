@@ -23,8 +23,8 @@ public abstract class BaseEntity {
 
     protected LocalDateTime deletedAt;
 
-    public void softDelete() {
-        this.deletedAt = LocalDateTime.now();
+    public void softDelete(LocalDateTime now) {
+        this.deletedAt = now;
     }
 
     public boolean isDeleted() {

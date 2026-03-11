@@ -5,7 +5,7 @@ import com.example.my_project_1.board.service.response.BoardResponse;
 import java.util.List;
 
 public interface BoardQueryService {
-    List<BoardResponse> findAllActiveBoards();
+    List<BoardResponse> findAllBoardsForAdmin();
 
     List<BoardResponse> findAllBoards();
 

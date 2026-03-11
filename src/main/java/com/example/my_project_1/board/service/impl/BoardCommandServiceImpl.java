@@ -12,12 +12,15 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
+import java.time.Clock;
+import java.time.LocalDateTime;
+
 
 @Transactional
 @RequiredArgsConstructor
 @Service
 public class BoardCommandServiceImpl implements BoardCommandService {
+    private final Clock clock;
     private final BoardRepository boardRepository;
 
     @Override
@@ -55,11 +58,11 @@ public class BoardCommandServiceImpl implements BoardCommandService {
     @Override
     public void delete(Long boardId) {
         Board board = findBoard(boardId);
-        board.delete();
+        board.delete(LocalDateTime.now(clock));
     }
 
     private Board findBoard(Long boardId) {
-        return boardRepository.findById(boardId)
+        return boardRepository.findByIdAndDeletedAtIsNull(boardId)
                 .orElseThrow(() -> new CustomException(ErrorCode.BOARD_NOT_FOUND));
     }
 }

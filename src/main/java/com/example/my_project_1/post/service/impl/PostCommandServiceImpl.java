@@ -1,7 +1,6 @@
 package com.example.my_project_1.post.service.impl;
 
 import com.example.my_project_1.board.domain.Board;
-import com.example.my_project_1.board.domain.BoardStatus;
 import com.example.my_project_1.board.repository.BoardRepository;
 import com.example.my_project_1.common.exception.CustomException;
 import com.example.my_project_1.common.exception.ErrorCode;
@@ -38,7 +37,7 @@ public class PostCommandServiceImpl implements PostCommandService {
     @Override
     public PostDetailResponse create(Long boardId, Long userId, PostCreateRequest request) {
         Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new IllegalArgumentException("게시판 없음"));
+                .orElseThrow(() -> new CustomException(ErrorCode.BOARD_NOT_FOUND));
 
         String nickname = getNickname(userId);
 
@@ -75,9 +74,6 @@ public class PostCommandServiceImpl implements PostCommandService {
 
         if (!post.getBoard().getId().equals(boardId)) {
             throw new CustomException(ErrorCode.INVALID_BOARD_POST_RELATION);
-        }
-        if (post.getBoard().getBoardStatus() == BoardStatus.INACTIVE) {
-            throw new CustomException(ErrorCode.ALREADY_DELETED_BOARD);
         }
 
         if (!post.getUserId().equals(userId)) {

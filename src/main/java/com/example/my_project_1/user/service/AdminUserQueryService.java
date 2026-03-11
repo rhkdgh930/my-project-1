@@ -4,6 +4,6 @@ import com.example.my_project_1.user.service.response.UserDetailResponse;
 
 import java.util.List;
 
-public interface AdminQueryService {
+public interface AdminUserQueryService {
     List<UserDetailResponse> findAll();
 }

@@ -6,6 +6,8 @@ import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.time.LocalDateTime;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.*;
@@ -72,21 +74,11 @@ class BoardTest {
         Board board = getBoard();
         assertThat(board.getName()).isEqualTo(NAME);
         assertThat(board.getDescription()).isEqualTo(DESCRIPTION);
-        assertThat(board.getBoardStatus()).isEqualTo(BoardStatus.ACTIVE);
 
-        board.delete();
+        board.delete(LocalDateTime.now());
 
-        assertThat(board.getBoardStatus()).isEqualTo(BoardStatus.INACTIVE);
-    }
-    @DisplayName("이미 삭제된 게시판은 삭제를 실패합니다.")
-    @Test
-    void board_soft_delete_fail_test_already_inactive() {
-        Board board = getBoard();
-        board.delete();
-
-        assertThatThrownBy(() -> board.delete())
-                .isInstanceOf(CustomException.class)
-                .hasMessage("이미 삭제된 게시판 입니다.");
+        assertThat(board.getName()).contains("deleted");
+        assertThat(board.getDescription()).isEqualTo("삭제된 게시판 입니다.");
     }
 
     private static Board getBoard() {
@@ -95,7 +87,6 @@ class BoardTest {
     }
 
     private static BoardCreateRequest getBoardCreateRequest() {
-        BoardCreateRequest request = BoardFixture.CreateBoardRequest();
-        return request;
+        return BoardFixture.CreateBoardRequest();
     }
 }

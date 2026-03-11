@@ -1,7 +1,6 @@
 package com.example.my_project_1.board.service.impl;
 
 import com.example.my_project_1.board.domain.Board;
-import com.example.my_project_1.board.domain.BoardStatus;
 import com.example.my_project_1.board.repository.BoardRepository;
 import com.example.my_project_1.board.service.BoardQueryService;
 import com.example.my_project_1.board.service.response.BoardResponse;
@@ -20,8 +19,8 @@ public class BoardQueryServiceImpl implements BoardQueryService {
     private final BoardRepository boardRepository;
 
     @Override
-    public List<BoardResponse> findAllActiveBoards() {
-        List<Board> boards = boardRepository.findAllByBoardStatus(BoardStatus.ACTIVE);
+    public List<BoardResponse> findAllBoardsForAdmin() {
+        List<Board> boards = boardRepository.findAll();
         return boards.stream()
                 .map(BoardResponse::from)
                 .toList();
@@ -29,7 +28,7 @@ public class BoardQueryServiceImpl implements BoardQueryService {
 
     @Override
     public List<BoardResponse> findAllBoards() {
-        List<Board> boards = boardRepository.findAll();
+        List<Board> boards = boardRepository.findAllByDeletedAtIsNull();
         return boards.stream()
                 .map(BoardResponse::from)
                 .toList();
@@ -38,7 +37,7 @@ public class BoardQueryServiceImpl implements BoardQueryService {
 
     @Override
     public BoardResponse findBoardById(Long boardId) {
-        Board board = boardRepository.findById(boardId)
+        Board board = boardRepository.findByIdAndDeletedAtIsNull(boardId)
                 .orElseThrow(() -> new CustomException(ErrorCode.BOARD_NOT_FOUND));
         return BoardResponse.from(board);
     }
