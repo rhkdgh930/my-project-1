@@ -50,7 +50,7 @@ public class BoardCommandServiceImpl implements BoardCommandService {
     }
 
     private void validateDuplicateName(String name) {
-        if (boardRepository.existsByName(name)) {
+        if (boardRepository.existsByNameAndDeletedAtIsNull(name)) {
             throw new CustomException(ErrorCode.ALREADY_EXIST_BOARD_NAME);
         }
     }
