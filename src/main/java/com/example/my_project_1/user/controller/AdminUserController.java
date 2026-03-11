@@ -1,7 +1,7 @@
 package com.example.my_project_1.user.controller;
 
-import com.example.my_project_1.user.service.AdminCommandService;
-import com.example.my_project_1.user.service.AdminQueryService;
+import com.example.my_project_1.user.service.AdminUserCommandService;
+import com.example.my_project_1.user.service.AdminUserQueryService;
 import com.example.my_project_1.user.service.request.UserSuspensionRequest;
 import com.example.my_project_1.user.service.response.UserDetailResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -16,21 +16,21 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@Tag(name = "Admin API", description = "관리자 전용 API")
+@Tag(name = "Admin User API", description = "관리자 전용 User API")
 @PreAuthorize("hasRole('ADMIN')")
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/admin")
-public class AdminController {
+@RequestMapping("/api/admin/users")
+public class AdminUserController {
 
-    private final AdminQueryService adminQueryService;
-    private final AdminCommandService adminCommandService;
+    private final AdminUserQueryService adminQueryService;
+    private final AdminUserCommandService adminCommandService;
 
     @Operation(
             summary = "유저 차단",
             description = "관리자가 특정 유저를 일정 기간 동안 차단합니다."
     )
-    @PostMapping("/users/{userId}/suspend")
+    @PostMapping("/{userId}/suspend")
     public ResponseEntity<Void> suspendUser(
             @Parameter(description = "차단할 유저 ID")
             @PathVariable Long userId,
@@ -51,7 +51,7 @@ public class AdminController {
             summary = "전체 유저 조회",
             description = "관리자가 시스템에 등록된 모든 유저를 조회합니다."
     )
-    @GetMapping("/users")
+    @GetMapping
     public ResponseEntity<List<UserDetailResponse>> readAll() {
 
         List<UserDetailResponse> responses = adminQueryService.findAll();

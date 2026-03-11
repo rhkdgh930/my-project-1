@@ -5,6 +5,6 @@ import com.example.my_project_1.user.domain.SuspensionType;
 
 import java.time.Duration;
 
-public interface AdminCommandService {
+public interface AdminUserCommandService {
     void suspendUser(Long userId, SuspensionType type, SuspensionReason reason, Duration duration);
 }

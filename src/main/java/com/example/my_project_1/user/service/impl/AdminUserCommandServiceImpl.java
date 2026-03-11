@@ -7,7 +7,7 @@ import com.example.my_project_1.user.domain.SuspensionType;
 import com.example.my_project_1.user.domain.User;
 import com.example.my_project_1.user.event.UserAccountChangedEvent;
 import com.example.my_project_1.user.repository.UserRepository;
-import com.example.my_project_1.user.service.AdminCommandService;
+import com.example.my_project_1.user.service.AdminUserCommandService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -20,7 +20,7 @@ import java.time.LocalDateTime;
 @Transactional
 @Service
 @RequiredArgsConstructor
-public class AdminCommandServiceImpl implements AdminCommandService {
+public class AdminUserCommandServiceImpl implements AdminUserCommandService {
     private final Clock clock;
 
     private final UserRepository userRepository;
