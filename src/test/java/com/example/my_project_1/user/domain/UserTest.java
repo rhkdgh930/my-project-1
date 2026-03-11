@@ -111,7 +111,7 @@ class UserTest {
         User user = getVerifiedUser();
         assertThat(user.isDeleted()).isFalse();
 
-        user.softDelete();
+        user.delete(LocalDateTime.now());
         assertThat(user.isDeleted()).isTrue();
     }
 
@@ -132,7 +132,7 @@ class UserTest {
     @Test
     void suspend_fail_test_already_deleted() {
         User user = getVerifiedUser();
-        user.softDelete();
+        user.delete(LocalDateTime.now());
 
         assertThat(user.isDeleted()).isTrue();
         assertThatThrownBy(() -> user.suspend(SuspensionType.PERMANENT, SuspensionReason.OTHER, Duration.ofDays(1), LocalDateTime.now()))
