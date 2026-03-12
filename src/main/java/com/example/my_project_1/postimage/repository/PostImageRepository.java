@@ -1,7 +1,7 @@
 package com.example.my_project_1.postimage.repository;
 
 import com.example.my_project_1.postimage.domain.ImageStatus;
-import com.example.my_project_1.postimage.domain.PostImage;
+import com.example.my_project_1.postimage.domain.Image;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -12,13 +12,13 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Repository
-public interface PostImageRepository extends JpaRepository<PostImage, Long> {
-    List<PostImage> findAllByImageUrlInAndUploaderId(
+public interface PostImageRepository extends JpaRepository<Image, Long> {
+    List<Image> findAllByImageUrlInAndUploaderId(
             List<String> urls,
             Long uploaderId
     );
 
-    List<PostImage> findTop100ByImageStatusAndCreatedAtBefore(
+    List<Image> findTop100ByImageStatusAndCreatedAtBefore(
             ImageStatus imageStatus,
             LocalDateTime time
     );

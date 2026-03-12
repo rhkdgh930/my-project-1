@@ -12,7 +12,7 @@ import com.example.my_project_1.post.service.request.PostCreateRequest;
 import com.example.my_project_1.post.service.request.PostUpdateRequest;
 import com.example.my_project_1.post.service.response.PostDetailResponse;
 import com.example.my_project_1.postimage.domain.ImageStatus;
-import com.example.my_project_1.postimage.domain.PostImage;
+import com.example.my_project_1.postimage.domain.Image;
 import com.example.my_project_1.postimage.repository.PostImageRepository;
 import com.example.my_project_1.postimage.utils.ImageUrlParser;
 import com.example.my_project_1.user.client.UserClient;
@@ -61,7 +61,7 @@ public class PostCommandServiceImpl implements PostCommandService {
 
     private void attachImages(Post post, Long userId, String content) {
         List<String> urls = ImageUrlParser.extract(content);
-        List<PostImage> images =
+        List<Image> images =
                 postImageRepository.findAllByImageUrlInAndUploaderId(urls, userId);
 
         images.forEach(img -> img.attach(post));
@@ -90,14 +90,14 @@ public class PostCommandServiceImpl implements PostCommandService {
     private void syncImages(Post post, Long userId, String content) {
         List<String> currentUrls = ImageUrlParser.extract(content);
 
-        List<PostImage> toRemove = post.getImages().stream()
+        List<Image> toRemove = post.getImages().stream()
                 .filter(img -> img.getImageStatus() == ImageStatus.USED)
                 .filter(img -> !currentUrls.contains(img.getImageUrl()))
                 .toList();
 
         toRemove.forEach(post::removeImage);
 
-        List<PostImage> newImages =
+        List<Image> newImages =
                 postImageRepository.findAllByImageUrlInAndUploaderId(
                         currentUrls, userId
                 );

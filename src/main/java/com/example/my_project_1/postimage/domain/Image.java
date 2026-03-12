@@ -14,8 +14,8 @@ import static org.springframework.util.Assert.notNull;
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Table(name = "post_image")
-public class PostImage extends BaseEntity {
+@Table(name = "image")
+public class Image extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -35,8 +35,8 @@ public class PostImage extends BaseEntity {
     @Column(nullable = false)
     private ImageStatus imageStatus;
 
-    public static PostImage pending(Long uploaderId) {
-        return PostImage.builder()
+    public static Image pending(Long uploaderId) {
+        return Image.builder()
                 .imageUrl("PENDING")
                 .uploaderId(uploaderId)
                 .imageStatus(ImageStatus.PENDING)
@@ -62,7 +62,7 @@ public class PostImage extends BaseEntity {
     }
 
     @Builder
-    private PostImage(String imageUrl, Long uploaderId, ImageStatus imageStatus) {
+    private Image(String imageUrl, Long uploaderId, ImageStatus imageStatus) {
         hasText(imageUrl, "이미저 경로는 필수입니다.");
         notNull(uploaderId, "업로더명은 필수입니다.");
         notNull(imageStatus, "이미지 상태는 필수입니다.");

@@ -1,7 +1,7 @@
 package com.example.my_project_1.postimage.utils;
 
 import com.example.my_project_1.postimage.domain.ImageStatus;
-import com.example.my_project_1.postimage.domain.PostImage;
+import com.example.my_project_1.postimage.domain.Image;
 import com.example.my_project_1.postimage.repository.PostImageRepository;
 import com.example.my_project_1.postimage.service.ImageStorage;
 import lombok.RequiredArgsConstructor;
@@ -24,13 +24,13 @@ public class OrphanImageCleanupScheduler {
     @Scheduled(cron = "0 0 * * * *") // 매 시간
     @Transactional
     public void cleanup() {
-        List<PostImage> targets =
+        List<Image> targets =
                 postImageRepository.findTop100ByImageStatusAndCreatedAtBefore(
                         ImageStatus.PENDING,
                         LocalDateTime.now().minusHours(24)
                 );
 
-        for (PostImage image : targets) {
+        for (Image image : targets) {
             imageStorage.delete(image.getImageUrl());
             image.markDeleted();
         }

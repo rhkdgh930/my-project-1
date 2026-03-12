@@ -4,7 +4,7 @@ import com.example.my_project_1.board.domain.Board;
 import com.example.my_project_1.common.entity.BaseEntity;
 import com.example.my_project_1.common.exception.CustomException;
 import com.example.my_project_1.common.exception.ErrorCode;
-import com.example.my_project_1.postimage.domain.PostImage;
+import com.example.my_project_1.postimage.domain.Image;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -45,7 +45,7 @@ public class Post extends BaseEntity {
             mappedBy = "post",
             cascade = CascadeType.ALL
     )
-    private List<PostImage> images = new ArrayList<>();
+    private List<Image> images = new ArrayList<>();
 
     private long viewCount;
     private long likeCount;
@@ -90,7 +90,7 @@ public class Post extends BaseEntity {
         super.softDelete(now);
     }
 
-    public void addImage(PostImage image) {
+    public void addImage(Image image) {
         if (this.images.contains(image)) {
             return;
         }
@@ -98,7 +98,7 @@ public class Post extends BaseEntity {
         image.attach(this);
     }
 
-    public void removeImage(PostImage image) {
+    public void removeImage(Image image) {
         images.remove(image);
         image.detach();
     }

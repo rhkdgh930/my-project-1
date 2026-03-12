@@ -1,6 +1,6 @@
 package com.example.my_project_1.postimage.service.impl;
 
-import com.example.my_project_1.postimage.domain.PostImage;
+import com.example.my_project_1.postimage.domain.Image;
 import com.example.my_project_1.postimage.repository.PostImageRepository;
 import com.example.my_project_1.postimage.service.ImageStorage;
 import com.example.my_project_1.postimage.service.ImageUploadService;
@@ -21,8 +21,8 @@ public class ImageUploadServiceImpl implements ImageUploadService {
         validate(file);
 
         // DB에 먼저 pending상태로 저장 후, url받아오면 상태 변경
-        PostImage image = postImageRepository.save(
-                PostImage.pending(uploaderId)
+        Image image = postImageRepository.save(
+                Image.pending(uploaderId)
         );
 
         String imageUrl = imageStorage.upload(file);
