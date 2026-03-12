@@ -15,7 +15,7 @@ public class PostSyncScheduler {
     private final PostRedisService redisService;
     private final PostRepository postRepository;
 
-    @Scheduled(fixedDelay = 10_000) //10초
+    @Scheduled(fixedDelay = 30_000) //30초
     @Transactional
     public void sync() {
         Set<String> dirtyIds = redisService.getDirtyPostIds();
