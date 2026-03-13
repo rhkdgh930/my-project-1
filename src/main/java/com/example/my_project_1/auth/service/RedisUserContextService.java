@@ -38,7 +38,7 @@ public class RedisUserContextService {
                 return cached;
             }
         } catch (Exception e) {
-            log.error("[RedisUserContextService.getUserContext] cache get : {}", e.getMessage());
+            log.error("[RedisUserContextService.getUserContext]: cache get : {}", e.getMessage());
         }
 
         User user = userRepository.findById(userId)
@@ -49,7 +49,7 @@ public class RedisUserContextService {
         try {
             redisTemplate.opsForValue().set(key, ctx, TTL);
         } catch (Exception e) {
-            log.error("[RedisUserContextService.getUserContext] cache put : {}", e.getMessage());
+            log.error("[RedisUserContextService.getUserContext]: cache put : {}", e.getMessage());
         }
         return ctx;
     }

@@ -53,7 +53,7 @@ public class RedisTokenService {
                     redisTemplate.hasKey(BL_KEY.formatted(hash(accessToken)))
             );
         } catch (Exception e) {
-            log.error("Redis connection failed in isBlacklisted: {}", e.getMessage());
+            log.error("[RedisTokenService.isBlacklisted]: Redis connection failed in isBlacklisted: {}", e.getMessage());
             throw new JwtAuthenticationException(ErrorCode.AUTHENTICATION_FAILED);
         }
     }
@@ -63,7 +63,7 @@ public class RedisTokenService {
         redisTemplate.opsForValue().set(
                 HISTORY_KEY.formatted(oldRtHash),
                 value,
-                Duration.ofSeconds(10) // 10초 동안만 기억
+                Duration.ofSeconds(10)
         );
     }
 

@@ -1,4 +1,4 @@
-package com.example.my_project_1.postimage.domain;
+package com.example.my_project_1.image.domain;
 
 public enum ImageStatus {
     PENDING,

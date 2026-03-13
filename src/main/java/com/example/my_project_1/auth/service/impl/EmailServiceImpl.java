@@ -74,7 +74,7 @@ public class EmailServiceImpl implements EmailService {
 
     @Recover
     public void recover(MailSendException e, String toEmail, String... args) {
-        log.error("[Email Failure] 최종 발송 실패: to={}, reason={}", toEmail, e.getMessage());
+        log.error("[EmailServiceImpl.recover]: 최종 발송 실패: to={}, reason={}", toEmail, e.getMessage());
         // TODO: 필요 시 DB 실패 로그 저장
     }
 
@@ -86,9 +86,9 @@ public class EmailServiceImpl implements EmailService {
             helper.setSubject(title);
             helper.setText(content, true);
             javaMailSender.send(message);
-            log.info("Email sent successfully to: {}", to);
+            log.info("[EmailServiceImpl.recover]: Email sent successfully to: {}", to);
         } catch (MessagingException e) {
-            log.error("Failed to send email", e);
+            log.error("[EmailServiceImpl.recover]: Failed to send email", e);
             throw new RuntimeException("이메일 발송에 실패했습니다.");
         }
     }

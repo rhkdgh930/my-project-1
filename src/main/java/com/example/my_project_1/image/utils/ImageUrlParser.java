@@ -1,4 +1,4 @@
-package com.example.my_project_1.postimage.utils;
+package com.example.my_project_1.image.utils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -13,7 +13,7 @@ public final class ImageUrlParser {
     private ImageUrlParser() {
     }
 
-    public static List<String> extract(String content) {
+    public static List<String> extractStorageKeys(String content) {
         if (content == null) return List.of();
 
         List<String> urls = new ArrayList<>();
