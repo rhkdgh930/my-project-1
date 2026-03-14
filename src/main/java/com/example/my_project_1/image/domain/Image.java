@@ -26,7 +26,7 @@ public class Image extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private ImageStatus status;
+    private ImageStatus imageStatus;
 
     private Long ownerId;
 
@@ -37,7 +37,7 @@ public class Image extends BaseEntity {
         return Image.builder()
                 .uploaderId(uploaderId)
                 .storageKey(storageKey)
-                .status(ImageStatus.PENDING)
+                .imageStatus(ImageStatus.PENDING)
                 .build();
     }
 
@@ -48,34 +48,34 @@ public class Image extends BaseEntity {
 
         this.ownerId = ownerId;
         this.ownerType = ownerType;
-        this.status = ImageStatus.USED;
+        this.imageStatus = ImageStatus.USED;
     }
 
     public void detach() {
-        if (this.status != ImageStatus.USED) {
+        if (this.imageStatus != ImageStatus.USED) {
             return;
         }
 
         this.ownerId = null;
         this.ownerType = null;
-        this.status = ImageStatus.DETACHED;
+        this.imageStatus = ImageStatus.DETACHED;
     }
 
     public void markDeleted() {
-        this.status = ImageStatus.DELETED;
+        this.imageStatus = ImageStatus.DELETED;
     }
 
     public boolean isAttachable() {
-        return this.status == ImageStatus.PENDING || this.status == ImageStatus.DETACHED;
+        return this.imageStatus == ImageStatus.PENDING || this.imageStatus == ImageStatus.DETACHED;
     }
 
     @Builder
-    private Image(String storageKey, Long uploaderId, ImageStatus status) {
+    private Image(String storageKey, Long uploaderId, ImageStatus imageStatus) {
         hasText(storageKey, "이미저 경로는 필수입니다.");
         notNull(uploaderId, "업로더명은 필수입니다.");
-        notNull(status, "이미지 상태는 필수입니다.");
+        notNull(imageStatus, "이미지 상태는 필수입니다.");
         this.storageKey = storageKey;
         this.uploaderId = uploaderId;
-        this.status = status;
+        this.imageStatus = imageStatus;
     }
 }

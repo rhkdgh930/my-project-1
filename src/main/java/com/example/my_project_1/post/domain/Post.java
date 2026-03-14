@@ -4,7 +4,6 @@ import com.example.my_project_1.board.domain.Board;
 import com.example.my_project_1.common.entity.BaseEntity;
 import com.example.my_project_1.common.exception.CustomException;
 import com.example.my_project_1.common.exception.ErrorCode;
-import com.example.my_project_1.postimage.domain.Image;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -12,8 +11,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 
 import static org.springframework.util.Assert.hasText;
 import static org.springframework.util.Assert.notNull;
@@ -40,12 +37,6 @@ public class Post extends BaseEntity {
     @Lob
     @Column(nullable = false)
     private String content;
-
-    @OneToMany(
-            mappedBy = "post",
-            cascade = CascadeType.ALL
-    )
-    private List<Image> images = new ArrayList<>();
 
     private long viewCount;
     private long likeCount;
@@ -88,19 +79,6 @@ public class Post extends BaseEntity {
         this.title = "삭제된 게시글입니다.";
         this.content = "삭제된 게시글입니다.";
         super.softDelete(now);
-    }
-
-    public void addImage(Image image) {
-        if (this.images.contains(image)) {
-            return;
-        }
-        images.add(image);
-        image.attach(this);
-    }
-
-    public void removeImage(Image image) {
-        images.remove(image);
-        image.detach();
     }
 
     public void updateCounts(long viewCount, long likeCount) {
