@@ -4,29 +4,17 @@ import com.example.my_project_1.board.domain.Board;
 import com.example.my_project_1.common.entity.BaseEntity;
 import com.example.my_project_1.common.exception.CustomException;
 import com.example.my_project_1.common.exception.ErrorCode;
-import com.example.my_project_1.postimage.domain.PostImage;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.SQLDelete;
-import org.hibernate.annotations.SQLRestriction;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.time.LocalDateTime;
 
 import static org.springframework.util.Assert.hasText;
 import static org.springframework.util.Assert.notNull;
 
-/**
- * [Policy] 이 엔티티는 Soft Delete 정책을 따릅니다.
- * 삭제 시 실제 DELETE 대신 @SQLDelete에 정의된 UPDATE가 실행되며,
- * @SQLRestriction에 의해 삭제되지 않은 데이터만 기본 조회됩니다.
- */
-
-@SQLDelete(sql = "UPDATE post SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?")
-@SQLRestriction("deleted_at IS NULL")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Entity
@@ -49,12 +37,6 @@ public class Post extends BaseEntity {
     @Lob
     @Column(nullable = false)
     private String content;
-
-    @OneToMany(
-            mappedBy = "post",
-            cascade = CascadeType.ALL
-    )
-    private List<PostImage> images = new ArrayList<>();
 
     private long viewCount;
     private long likeCount;
@@ -90,25 +72,13 @@ public class Post extends BaseEntity {
         this.content = content;
     }
 
-    public void delete() {
+    public void delete(LocalDateTime now) {
         if (super.isDeleted()) {
             throw new CustomException(ErrorCode.ALREADY_DELETED_POST);
         }
         this.title = "삭제된 게시글입니다.";
         this.content = "삭제된 게시글입니다.";
-    }
-
-    public void addImage(PostImage image) {
-        if (this.images.contains(image)) {
-            return;
-        }
-        images.add(image);
-        image.attach(this);
-    }
-
-    public void removeImage(PostImage image) {
-        images.remove(image);
-        image.detach();
+        super.softDelete(now);
     }
 
     public void updateCounts(long viewCount, long likeCount) {

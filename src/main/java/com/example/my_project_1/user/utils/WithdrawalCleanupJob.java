@@ -28,7 +28,7 @@ public class WithdrawalCleanupJob {
     public void cleanupWithdrawnUsers() {
         StopWatch stopWatch = new StopWatch("WithdrawalBatch");
         stopWatch.start();
-        log.info("[WithdrawalCleanupBatch] Started.");
+        log.info("[BATCH][WithdrawalCleanup] started");
 
         LocalDateTime now = LocalDateTime.now(clock);
         LocalDateTime threshold = now.minusDays(7);
@@ -53,8 +53,11 @@ public class WithdrawalCleanupJob {
 
                 processedCount += userIds.size();
             } catch (Exception e) {
-                log.error("[WithdrawalBatch] Chunk processing failed starting from userId={}. Error: {}",
-                        userIds.get(0), e.getMessage(), e);
+                log.error(
+                        "[BATCH][WithdrawalCleanup] chunk failed | startUserId={}",
+                        userIds.get(0),
+                        e
+                );
                 failedChunkCount++;
             }
             lastId = userIds.get(userIds.size() - 1);
@@ -63,7 +66,11 @@ public class WithdrawalCleanupJob {
         }
 
         stopWatch.stop();
-        log.info("[WithdrawalCleanupBatch] Completed. Total Processed: {}, Failed Chunks: {}, Elapsed: {}ms",
-                processedCount, failedChunkCount, stopWatch.getTotalTimeMillis());
+        log.info(
+                "[BATCH][WithdrawalCleanup] completed | processed={} failedChunks={} elapsedMs={}",
+                processedCount,
+                failedChunkCount,
+                stopWatch.getTotalTimeMillis()
+        );
     }
 }

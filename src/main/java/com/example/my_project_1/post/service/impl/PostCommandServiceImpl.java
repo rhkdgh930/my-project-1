@@ -5,19 +5,21 @@ import com.example.my_project_1.board.repository.BoardRepository;
 import com.example.my_project_1.common.exception.CustomException;
 import com.example.my_project_1.common.exception.ErrorCode;
 import com.example.my_project_1.post.domain.Post;
+import com.example.my_project_1.post.event.PostCreatedEvent;
+import com.example.my_project_1.post.event.PostUpdatedEvent;
 import com.example.my_project_1.post.repository.PostRepository;
 import com.example.my_project_1.post.service.PostCommandService;
 import com.example.my_project_1.post.service.PostRedisService;
 import com.example.my_project_1.post.service.request.PostCreateRequest;
 import com.example.my_project_1.post.service.request.PostUpdateRequest;
 import com.example.my_project_1.post.service.response.PostDetailResponse;
-import com.example.my_project_1.postimage.domain.ImageStatus;
-import com.example.my_project_1.postimage.domain.PostImage;
-import com.example.my_project_1.postimage.repository.PostImageRepository;
-import com.example.my_project_1.postimage.utils.ImageUrlParser;
+import com.example.my_project_1.image.domain.ImageOwnerType;
+import com.example.my_project_1.image.service.ImageService;
+import com.example.my_project_1.image.utils.ImageUrlParser;
 import com.example.my_project_1.user.client.UserClient;
 import com.example.my_project_1.user.client.UserSummary;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,16 +32,14 @@ import java.util.Map;
 public class PostCommandServiceImpl implements PostCommandService {
     private final BoardRepository boardRepository;
     private final PostRepository postRepository;
-    private final PostImageRepository postImageRepository;
     private final PostRedisService postRedisService;
     private final UserClient userClient;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     public PostDetailResponse create(Long boardId, Long userId, PostCreateRequest request) {
-        Board board = boardRepository.findById(boardId)
+        Board board = boardRepository.findByIdAndDeletedAtIsNull(boardId)
                 .orElseThrow(() -> new CustomException(ErrorCode.BOARD_NOT_FOUND));
-
-        String nickname = getNickname(userId);
 
         Post post = Post.create(
                 board,
@@ -48,27 +48,21 @@ public class PostCommandServiceImpl implements PostCommandService {
                 request.getContent()
         );
 
-        attachImages(post, userId, request.getContent());
+        postRepository.save(post);
 
-        return PostDetailResponse.from(postRepository.save(post), nickname);
-    }
+        List<String> keys = ImageUrlParser.extractStorageKeys(request.getContent());
 
-    private String getNickname(Long userId) {
-        Map<Long, UserSummary> userMap = userClient.findUsersByIds(List.of(userId));
-        UserSummary user = userMap.get(userId);
-        return (user != null) ? user.nickname() : "알 수 없는 사용자";
-    }
+        eventPublisher.publishEvent(
+                new PostCreatedEvent(post.getId(), userId, keys));
 
-    private void attachImages(Post post, Long userId, String content) {
-        List<String> urls = ImageUrlParser.extract(content);
-        List<PostImage> images =
-                postImageRepository.findAllByImageUrlInAndUploaderId(urls, userId);
+        String nickname = getNickname(userId);
 
-        images.forEach(img -> img.attach(post));
+        return PostDetailResponse.from(post, nickname);
     }
 
     @Override
     public PostDetailResponse update(Long boardId, Long postId, Long userId, PostUpdateRequest request) {
+
         Post post = postRepository.findByIdAndDeletedAtIsNull(postId)
                 .orElseThrow(() -> new CustomException(ErrorCode.POST_NOT_FOUND));
 
@@ -80,31 +74,18 @@ public class PostCommandServiceImpl implements PostCommandService {
             throw new CustomException(ErrorCode.ACCESS_DENIED);
         }
 
-        String nickname = getNickname(userId);
-        syncImages(post, userId, request.getContent());
-
         post.update(request.getTitle(), request.getContent());
+
+        List<String> keys =
+                ImageUrlParser.extractStorageKeys(request.getContent());
+
+        eventPublisher.publishEvent(
+                new PostUpdatedEvent(post.getId(), userId, keys)
+        );
+
+        String nickname = getNickname(userId);
+
         return PostDetailResponse.from(post, nickname);
-    }
-
-    private void syncImages(Post post, Long userId, String content) {
-        List<String> currentUrls = ImageUrlParser.extract(content);
-
-        List<PostImage> toRemove = post.getImages().stream()
-                .filter(img -> img.getImageStatus() == ImageStatus.USED)
-                .filter(img -> !currentUrls.contains(img.getImageUrl()))
-                .toList();
-
-        toRemove.forEach(post::removeImage);
-
-        List<PostImage> newImages =
-                postImageRepository.findAllByImageUrlInAndUploaderId(
-                        currentUrls, userId
-                );
-
-        newImages.stream()
-                .filter(img -> img.getImageStatus() == ImageStatus.PENDING)
-                .forEach(img -> img.attach(post));
     }
 
     @Override
@@ -117,5 +98,11 @@ public class PostCommandServiceImpl implements PostCommandService {
         }
 
         return postRedisService.toggleLike(postId, userId);
+    }
+
+    private String getNickname(Long userId) {
+        Map<Long, UserSummary> userMap = userClient.findUsersByIds(List.of(userId));
+        UserSummary user = userMap.get(userId);
+        return (user != null) ? user.nickname() : "알 수 없는 사용자";
     }
 }

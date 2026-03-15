@@ -1,6 +1,6 @@
-package com.example.my_project_1.postimage.service.impl;
+package com.example.my_project_1.image.service.impl;
 
-import com.example.my_project_1.postimage.service.ImageStorage;
+import com.example.my_project_1.image.service.ImageStorage;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;

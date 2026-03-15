@@ -21,7 +21,10 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ExceptionResponse> handleAccessDeniedException(AccessDeniedException ex) {
-        log.warn("[GlobalExceptionHandler.handleAccessDeniedException] (Method area) | 403 Forbidden | message={}", ex.getMessage());
+        log.warn(
+                "[SECURITY][AccessDeniedHandler][FORBIDDEN] message={}",
+                ex.getMessage()
+        );
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body(new ExceptionResponse(ErrorCode.ACCESS_DENIED));
     }
@@ -48,7 +51,11 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ExceptionResponse> handleGeneralException(Exception ex) {
-        log.error("Unhandled exception occurred: {}", ex.getMessage(), ex);
+        log.error(
+                "[SYSTEM][GlobalExceptionHandler][UNHANDLED_EXCEPTION] message={}",
+                ex.getMessage(),
+                ex
+        );
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(new ExceptionResponse(ErrorCode.INTERNAL_SERVER_ERROR));
     }

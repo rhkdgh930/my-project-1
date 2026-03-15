@@ -1,11 +1,10 @@
-package com.example.my_project_1.postimage.controller;
+package com.example.my_project_1.image.controller;
 
 import com.example.my_project_1.auth.userdetails.UserDetailsImpl;
-import com.example.my_project_1.postimage.service.ImageUploadService;
+import com.example.my_project_1.image.service.ImageUploadService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -27,7 +26,7 @@ public class ImageController {
             @RequestParam MultipartFile file
     ) {
         Long uploaderId = userDetails.getUserId();
-        String imageUrl = imageUploadService.upload(file, uploaderId);
-        return ResponseEntity.ok(Map.of("imageUrl", imageUrl));
+        String storageKey = imageUploadService.upload(file, uploaderId);
+        return ResponseEntity.ok(Map.of("storageKey", storageKey));
     }
 }

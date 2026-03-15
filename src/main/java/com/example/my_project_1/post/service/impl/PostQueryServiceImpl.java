@@ -69,7 +69,7 @@ public class PostQueryServiceImpl implements PostQueryService {
 
     @Override
     public PostDetailResponse getPostDetail(Long boardId, Long postId) {
-        Post post = postRepository.findById(postId)
+        Post post = postRepository.findByIdAndDeletedAtIsNull(postId)
                 .orElseThrow(() -> new CustomException(ErrorCode.POST_NOT_FOUND));
 
         if (!post.getBoard().getId().equals(boardId)) {

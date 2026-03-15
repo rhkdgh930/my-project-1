@@ -37,7 +37,10 @@ public class UserBatchProcessor {
             if (user.getLastLoginAt().isBefore(dormantThreshold)) {
                 user.markDormant();
                 redisUserContextService.evict(user.getId());
-                log.debug("[Dormant] User {} marked as dormant.", user.getId());
+                log.debug(
+                        "[BATCH][DormantUserJob] user marked dormant | userId={}",
+                        user.getId()
+                );
                 continue;
             }
 
@@ -49,9 +52,15 @@ public class UserBatchProcessor {
                 ));
 
                 redisDormancyHistoryService.setNotificationHistory(user.getId());
-                log.info("[Dormant-Batch] Alert sent to userId={}", user.getId());
+                log.info(
+                        "[BATCH][DormantUserJob] dormancy warning sent | userId={}",
+                        user.getId()
+                );
             } else {
-                log.debug("[Dormant-Batch] Skip alert for userId={} (Already notified)", user.getId());
+                log.debug(
+                        "[BATCH][DormantUserJob] skip dormancy warning (already notified) | userId={}",
+                        user.getId()
+                );
             }
         }
     }
@@ -63,7 +72,10 @@ public class UserBatchProcessor {
         for (User user : users) {
             user.completeWithdrawal();
             redisUserContextService.evict(user.getId());
-            log.info("[WithdrawalCleanup] userId={} completely withdrawn.", user.getId());
+            log.info(
+                    "[BATCH][WithdrawalCleanup] user withdrawn | userId={}",
+                    user.getId()
+            );
         }
     }
 }

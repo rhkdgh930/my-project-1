@@ -27,7 +27,12 @@ public class DataSerializer {
         try {
             return objectMapper.readValue(data, clazz);
         } catch (JsonProcessingException e) {
-            log.error("[DataSerializer.deserialize] data={}, clazz={}", data, clazz, e);
+            log.error(
+                    "[UTIL][DataSerializer][DESERIALIZE_FAIL] clazz={} reason={}",
+                    clazz.getSimpleName(),
+                    e.getClass().getSimpleName(),
+                    e
+            );
             throw new IllegalStateException("JSON deserialization failed", e);
         }
     }
@@ -36,7 +41,12 @@ public class DataSerializer {
         try {
             return Optional.of(objectMapper.readValue(data, clazz));
         } catch (Exception e) {
-            log.warn("[DataSerializer.tryDeserialize] data={}, clazz={} failed", data, clazz, e);
+            log.warn(
+                    "[UTIL][DataSerializer][TRY_DESERIALIZE_FAIL] clazz={} dataLength={} reason={}",
+                    clazz.getSimpleName(),
+                    data != null ? data.length() : 0,
+                    e.getClass().getSimpleName()
+            );
             return Optional.empty();
         }
     }
@@ -45,7 +55,12 @@ public class DataSerializer {
         try {
             return objectMapper.readValue(inputStream, clazz);
         } catch (IOException e) {
-            log.error("[DataSerializer.deserialize] inputStream={}, clazz={}", inputStream, clazz, e);
+            log.error(
+                    "[UTIL][DataSerializer][DESERIALIZE_STREAM_FAIL] clazz={} reason={}",
+                    clazz.getSimpleName(),
+                    e.getClass().getSimpleName(),
+                    e
+            );
             throw new IllegalStateException("JSON deserialization failed", e);
         }
     }
@@ -54,7 +69,12 @@ public class DataSerializer {
         try {
             return objectMapper.writeValueAsString(object);
         } catch (JsonProcessingException e) {
-            log.error("[DataSerializer.serialize] object={}", object, e);
+            log.error(
+                    "[UTIL][DataSerializer][SERIALIZE_FAIL] type={} reason={}",
+                    object != null ? object.getClass().getSimpleName() : "null",
+                    e.getClass().getSimpleName(),
+                    e
+            );
             throw new IllegalStateException("JSON serialization failed", e);
         }
     }

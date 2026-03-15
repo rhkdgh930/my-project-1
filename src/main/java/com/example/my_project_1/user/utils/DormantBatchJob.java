@@ -1,5 +1,6 @@
 package com.example.my_project_1.user.utils;
 
+import com.example.my_project_1.common.logging.BatchTraceHelper;
 import com.example.my_project_1.user.domain.UserStatus;
 import com.example.my_project_1.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -26,48 +27,69 @@ public class DormantBatchJob {
 
     @Scheduled(cron = "0 29 1 * * *") // 21시 57분
     public void processDormancy() {
-        StopWatch stopWatch = new StopWatch("DormantBatch");
-        stopWatch.start();
-        log.info("[DormantBatch] Started.");
+        BatchTraceHelper.start();
 
-        LocalDateTime now = LocalDateTime.now(clock);
-        LocalDateTime notifyThreshold = now.minusMonths(11);
-        LocalDateTime dormantThreshold = now.minusMonths(12);
+        try {
 
-        Long lastId = 0L;
-        int processedCount = 0;
-        int failedChunkCount = 0;
+            StopWatch stopWatch = new StopWatch("DormantBatch");
+            stopWatch.start();
 
-        while (true) {
-            Slice<Long> idSlice = userRepository.findDormantCandidateIds(
-                    lastId,
-                    UserStatus.ACTIVE,
+            LocalDateTime now = LocalDateTime.now(clock);
+            LocalDateTime notifyThreshold = now.minusMonths(11);
+            LocalDateTime dormantThreshold = now.minusMonths(12);
+
+            log.info(
+                    "[BATCH][DormantUserJob][START] notifyThreshold={} dormantThreshold={}",
                     notifyThreshold,
-                    PageRequest.ofSize(CHUNK_SIZE)
+                    dormantThreshold
             );
 
-            if (idSlice.isEmpty()) break;
+            Long lastId = 0L;
+            int processedCount = 0;
+            int failedChunkCount = 0;
 
-            List<Long> userIds = idSlice.getContent();
+            while (true) {
+                Slice<Long> idSlice = userRepository.findDormantCandidateIds(
+                        lastId,
+                        UserStatus.ACTIVE,
+                        notifyThreshold,
+                        PageRequest.ofSize(CHUNK_SIZE)
+                );
 
-            try {
-                userBatchProcessor.processDormancyChunk(userIds, dormantThreshold);
-                processedCount += userIds.size();
-            } catch (Exception e) {
-                log.error("[DormantBatch] Chunk processing failed starting from userId={}. Error: {}",
-                        userIds.get(0), e.getMessage(), e);
-                failedChunkCount++;
+                if (idSlice.isEmpty()) break;
+
+                List<Long> userIds = idSlice.getContent();
+
+                try {
+                    userBatchProcessor.processDormancyChunk(userIds, dormantThreshold);
+                    processedCount += userIds.size();
+                } catch (Exception e) {
+                    log.error(
+                            "[BATCH][DormantUserJob][CHUNK_FAIL] startUserId={} endUserId={} chunkSize={}",
+                            userIds.get(0),
+                            userIds.get(userIds.size() - 1),
+                            userIds.size(),
+                            e
+                    );
+                    failedChunkCount++;
+                }
+
+                // 다음 Keyset을 위해 마지막 ID 갱신
+                lastId = userIds.get(userIds.size() - 1);
+
+                // 더 이상 페이지가 없으면 종료
+                if (!idSlice.hasNext()) break;
             }
 
-            // 다음 Keyset을 위해 마지막 ID 갱신
-            lastId = userIds.get(userIds.size() - 1);
-
-            // 더 이상 페이지가 없으면 종료
-            if (!idSlice.hasNext()) break;
+            stopWatch.stop();
+            log.info(
+                    "[BATCH][DormantUserJob][COMPLETE] processed={} failedChunks={} elapsedMs={}",
+                    processedCount,
+                    failedChunkCount,
+                    stopWatch.getTotalTimeMillis()
+            );
+        } finally {
+            BatchTraceHelper.clear();
         }
-
-        stopWatch.stop();
-        log.info("[DormantBatch] Completed. Total Processed: {}, Failed Chunks: {}, Elapsed: {}ms",
-                processedCount, failedChunkCount, stopWatch.getTotalTimeMillis());
     }
 }

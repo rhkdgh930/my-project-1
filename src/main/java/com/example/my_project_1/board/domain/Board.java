@@ -1,6 +1,8 @@
 package com.example.my_project_1.board.domain;
 
 import com.example.my_project_1.common.entity.BaseEntity;
+import com.example.my_project_1.common.exception.CustomException;
+import com.example.my_project_1.common.exception.ErrorCode;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -47,6 +49,9 @@ public class Board extends BaseEntity {
     }
 
     public void delete(LocalDateTime now) {
+        if (super.isDeleted()) {
+            throw new CustomException(ErrorCode.ALREADY_DELETED_BOARD);
+        }
         String uuid = UUID.randomUUID().toString().substring(0, 8);
         this.name = "deleted_" + uuid + "_" + this.name;
         this.description = "삭제된 게시판 입니다.";
