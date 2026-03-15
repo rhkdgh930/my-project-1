@@ -23,7 +23,7 @@ public class RedisUserContextService {
 
     private final Clock clock;
 
-    private final RedisTemplate<String, CachedUserContext> redisTemplate;
+    private final RedisTemplate<String, CachedUserContext> userContextRedisTemplate;
     private final UserRepository userRepository;
 
     private static final Duration TTL = Duration.ofMinutes(5);
@@ -33,12 +33,24 @@ public class RedisUserContextService {
         String key = key(userId);
 
         try {
-            CachedUserContext cached = redisTemplate.opsForValue().get(key);
+            CachedUserContext cached = userContextRedisTemplate.opsForValue().get(key);
             if (cached != null) {
+                log.info(
+                        "[CACHE][UserContext][HIT] userId={}",
+                        userId
+                );
                 return cached;
             }
+            log.info("[CACHE][UserContext][MISS] userId={}", userId);
+
         } catch (Exception e) {
-            log.error("[RedisUserContextService.getUserContext]: cache get : {}", e.getMessage());
+            log.error(
+                    "[CACHE][UserContext][GET_FAIL] userId={} errorType={} message={}",
+                    userId,
+                    e.getClass().getSimpleName(),
+                    e.getMessage(),
+                    e
+            );
         }
 
         User user = userRepository.findById(userId)
@@ -47,9 +59,13 @@ public class RedisUserContextService {
         CachedUserContext ctx = CachedUserContext.from(user, LocalDateTime.now(clock));
 
         try {
-            redisTemplate.opsForValue().set(key, ctx, TTL);
+            userContextRedisTemplate.opsForValue().set(key, ctx, TTL);
         } catch (Exception e) {
-            log.error("[RedisUserContextService.getUserContext]: cache put : {}", e.getMessage());
+            log.warn(
+                    "[CACHE][UserContext][PUT_FAIL] userId={}",
+                    userId,
+                    e
+            );
         }
         return ctx;
     }
@@ -65,7 +81,11 @@ public class RedisUserContextService {
     }
 
     public void evict(Long userId) {
-        redisTemplate.delete(key(userId));
+        userContextRedisTemplate.delete(key(userId));
+        log.debug(
+                "[CACHE][UserContext][EVICT] userId={}",
+                userId
+        );
     }
 
     private String key(Long userId) {

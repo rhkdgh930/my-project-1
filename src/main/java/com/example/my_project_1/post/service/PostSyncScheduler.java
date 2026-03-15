@@ -2,12 +2,14 @@ package com.example.my_project_1.post.service;
 
 import com.example.my_project_1.post.repository.PostRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Set;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class PostSyncScheduler {
@@ -18,6 +20,7 @@ public class PostSyncScheduler {
     @Scheduled(fixedDelay = 30_000) //30초
     @Transactional
     public void sync() {
+        log.debug("[BATCH][PostSyncJob][START]");
         Set<String> dirtyIds = redisService.getDirtyPostIds();
         if (dirtyIds == null || dirtyIds.isEmpty()) return;
 
@@ -30,5 +33,9 @@ public class PostSyncScheduler {
             );
         }
         redisService.clearDirtySet();
+        log.debug(
+                "[BATCH][PostSyncJob][COMPLETE] postCount={}",
+                dirtyIds.size()
+        );
     }
 }

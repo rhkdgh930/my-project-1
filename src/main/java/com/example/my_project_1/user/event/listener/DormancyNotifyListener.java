@@ -23,10 +23,16 @@ public class DormancyNotifyListener {
                     event.getEmail(),
                     event.getNickname()
             );
-            log.info("[Email] Sent dormancy warning to userId={}", event.getUserId());
+            log.info(
+                    "[EVENT][DormancyNotifyListener][SEND_SUCCESS] userId={}",
+                    event.getUserId()
+            );
         } catch (Exception e) {
-            // 비동기 실행 중 에러는 메인 배치에 영향을 주지 않음. 로깅 후 모니터링 대상.
-            log.error("[Email] Failed to send warning to userId={}", event.getUserId(), e);
+            log.error(
+                    "[EVENT][DormancyNotifyListener][SEND_FAIL] userId={}",
+                    event.getUserId(),
+                    e
+            );
         }
     }
 }

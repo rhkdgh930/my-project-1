@@ -45,6 +45,10 @@ public class RedisTokenService {
                 "1",
                 Duration.ofMillis(ttl)
         );
+        log.debug(
+                "[SECURITY][RedisTokenService][TOKEN_BLACKLISTED] ttlMs={}",
+                ttl
+        );
     }
 
     public boolean isBlacklisted(String accessToken) {
@@ -53,7 +57,10 @@ public class RedisTokenService {
                     redisTemplate.hasKey(BL_KEY.formatted(hash(accessToken)))
             );
         } catch (Exception e) {
-            log.error("[RedisTokenService.isBlacklisted]: Redis connection failed in isBlacklisted: {}", e.getMessage());
+            log.error(
+                    "[CACHE][RedisTokenService][REDIS_ACCESS_FAIL] operation=isBlacklisted",
+                    e
+            );
             throw new JwtAuthenticationException(ErrorCode.AUTHENTICATION_FAILED);
         }
     }

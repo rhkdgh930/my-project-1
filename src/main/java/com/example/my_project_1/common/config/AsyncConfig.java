@@ -1,5 +1,6 @@
 package com.example.my_project_1.common.config;
 
+import com.example.my_project_1.common.logging.MdcTaskDecorator;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.AsyncConfigurer;
@@ -28,7 +29,9 @@ public class AsyncConfig implements AsyncConfigurer {
         executor.setQueueCapacity(500);
 
         // 4. 스레드 이름 접두사 (로그에서 비동기 스레드 확인용)
-        executor.setThreadNamePrefix("AsyncThread-");
+        executor.setThreadNamePrefix("async-");
+
+        executor.setTaskDecorator(new MdcTaskDecorator());
 
         executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
 

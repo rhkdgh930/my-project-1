@@ -77,7 +77,11 @@ public class JwtProvider {
         } catch (MalformedJwtException | SignatureException | IllegalArgumentException e) {
             throw new JwtAuthenticationException(ErrorCode.INVALID_TOKEN);
         } catch (Exception e) {
-            log.error("[JwtProvider.parseClaimsSafely]: Unknown error: {}", e.getMessage());
+            log.error(
+                    "[SECURITY][JwtProvider][TOKEN_PARSE_FAIL] reason={}",
+                    e.getClass().getSimpleName(),
+                    e
+            );
             throw new JwtAuthenticationException(ErrorCode.INVALID_TOKEN);
         }
     }

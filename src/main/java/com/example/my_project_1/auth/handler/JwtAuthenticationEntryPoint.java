@@ -27,9 +27,10 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
         }
 
         log.warn(
-                "[JwtAuthenticationEntryPoint.commence]: 401 Unauthorized | uri={} | message={}",
+                "[SECURITY][JwtAuthenticationEntryPoint] unauthorized | uri={} ip={} error={}",
                 request.getRequestURI(),
-                errorCode.getMessage()
+                request.getRemoteAddr(),
+                errorCode.name()
         );
 
         sendExceptionResponse(response, errorCode);

@@ -22,7 +22,10 @@ public class UserAccountChangedEventListener {
     public void handleUserAccountChanged(UserAccountChangedEvent event) {
 
         Long userId = event.getUserId();
-
+        log.info(
+                "[SECURITY][UserAccountChanged] tokens revoked | userId={}",
+                userId
+        );
         try {
             redisUserContextService.evict(userId);
 
@@ -30,11 +33,12 @@ public class UserAccountChangedEventListener {
                 redisTokenService.deleteRefreshTokenHash(userId);
             }
 
-            log.info("[Security] User tokens revoked. userId={}", event.getUserId());
-
         } catch (Exception e) {
-            log.error("[Cache Eviction Failed] userId={}, message={}", event.getUserId(), e.getMessage());
-
+            log.error(
+                    "[CACHE][UserAccountChanged] cache eviction failed | userId={}",
+                    event.getUserId(),
+                    e
+            );
         }
     }
 }

@@ -24,30 +24,36 @@ public class ImageCleanupScheduler {
     @Scheduled(cron = "0 0 3 * * *")
     @Transactional
     public void cleanup() {
-
+        log.info("[BATCH][ImageCleanupJob][START]");
         cleanByStatus(ImageStatus.PENDING, LocalDateTime.now().minusDays(1));
         cleanByStatus(ImageStatus.DETACHED, LocalDateTime.now().minusDays(7));
 
     }
 
     private void cleanByStatus(ImageStatus status, LocalDateTime threshold) {
-
+        int totalDeleted = 0;
         while (true) {
 
-            List<Image> targets =
+            List<Image> images =
                     imageRepository.findTop100ByImageStatusAndCreatedAtBefore(status, threshold);
 
-            if (targets.isEmpty()) break;
+            if (images.isEmpty()) break;
+            totalDeleted += images.size();
 
-            for (Image image : targets) {
-
+            for (Image image : images) {
+                log.debug(
+                        "[BATCH][ImageCleanupJob][DELETE_IMAGE] imageId={} key={}",
+                        image.getId(),
+                        image.getStorageKey()
+                );
                 imageStorage.delete(image.getStorageKey());
-
                 image.markDeleted();
 
             }
-
         }
-
+        log.info(
+                "[BATCH][ImageCleanupJob][COMPLETE] deletedCount={}",
+                totalDeleted
+        );
     }
 }

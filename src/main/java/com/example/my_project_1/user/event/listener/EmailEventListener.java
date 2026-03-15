@@ -22,22 +22,36 @@ public class EmailEventListener {
     @Async("asyncTaskExecutor")
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleEmailVerification(EmailVerificationEvent event) {
-        log.info("Sending verification email asynchronously to: {}", event.getEmail());
+        log.info(
+                "[EVENT][EmailVerificationListener][SEND_START] email={}",
+                event.getEmail()
+        );
         try {
             redisEmailVerificationService.sendCode(event.getEmail());
         } catch (Exception e) {
-            log.error("Failed to send verification email", e);
+            log.error(
+                    "[EVENT][EmailVerificationListener][SEND_FAIL] email={}",
+                    event.getEmail(),
+                    e
+            );
         }
     }
 
     @Async("asyncTaskExecutor")
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handlePasswordReset(PasswordResetEvent event) {
-        log.info("Sending password reset link asynchronously to: {}", event.getEmail());
+        log.info(
+                "[EVENT][PasswordResetListener][SEND_START] email={}",
+                event.getEmail()
+        );
         try {
             emailService.sendPasswordResetLink(event.getEmail(), event.getResetLink());
         } catch (Exception e) {
-            log.error("Failed to send password reset link", e);
+            log.error(
+                    "[EVENT][PasswordResetListener][SEND_FAIL] email={}",
+                    event.getEmail(),
+                    e
+            );
         }
     }
 }
