@@ -11,15 +11,15 @@ public class MdcTaskDecorator implements TaskDecorator {
     public Runnable decorate(Runnable runnable) {
         Map<String, String> contextMap = MDC.getCopyOfContextMap();
         return () -> {
+            if (contextMap != null) {
+                MDC.setContextMap(contextMap);
+            }
+
             try {
-                if (contextMap != null) {
-                    MDC.setContextMap(contextMap);
-                }
                 runnable.run();
             } finally {
                 MDC.clear();
             }
-
         };
     }
 }

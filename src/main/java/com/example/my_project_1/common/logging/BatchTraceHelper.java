@@ -7,16 +7,10 @@ import java.util.UUID;
 public class BatchTraceHelper {
 
     public static void start() {
-        String traceId = UUID.randomUUID()
-                .toString()
-                .replace("-", "")
-                .substring(0, 16);
-        MDC.put(TraceIdFilter.TRACE_ID, traceId);
-
+        MDC.put(TraceConstants.TRACE_ID, TraceIdGenerator.generate());
     }
 
     public static void clear() {
         MDC.clear();
-
     }
 }

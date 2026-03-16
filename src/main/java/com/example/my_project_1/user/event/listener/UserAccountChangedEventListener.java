@@ -23,8 +23,9 @@ public class UserAccountChangedEventListener {
 
         Long userId = event.getUserId();
         log.info(
-                "[SECURITY][UserAccountChanged] tokens revoked | userId={}",
-                userId
+                "[EVENT][UserAccountChangedEventListener][USER_ACCOUNT_CHANGED] userId={} securityCritical={}",
+                userId,
+                event.isSecurityCritical()
         );
         try {
             redisUserContextService.evict(userId);
@@ -35,8 +36,8 @@ public class UserAccountChangedEventListener {
 
         } catch (Exception e) {
             log.error(
-                    "[CACHE][UserAccountChanged] cache eviction failed | userId={}",
-                    event.getUserId(),
+                    "[CACHE][RedisUserContextService][EVICT_FAIL] userId={}",
+                    userId,
                     e
             );
         }
