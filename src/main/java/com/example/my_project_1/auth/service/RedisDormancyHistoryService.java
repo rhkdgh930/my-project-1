@@ -12,14 +12,18 @@ public class RedisDormancyHistoryService {
     private final StringRedisTemplate redisTemplate;
     private static final String DORMANT_NOTIFY_KEY = "user::dormant::notified::%s";
 
-    public void setNotificationHistory(Long userId) {
+    public boolean tryMarkNotified(Long userId) {
         String key = key(userId);
-        redisTemplate.opsForValue().set(key, "Y", Duration.ofDays(30));
+
+        Boolean success = redisTemplate.opsForValue()
+                .setIfAbsent(key, "1", Duration.ofDays(30));
+
+        return Boolean.TRUE.equals(success);
     }
 
-    public boolean hasBeenNotified(Long userId) {
+    public void deleteNotificationHistory(Long userId) {
         String key = key(userId);
-        return Boolean.TRUE.equals(redisTemplate.hasKey(key));
+        redisTemplate.delete(key);
     }
 
     private String key(Long userId) {

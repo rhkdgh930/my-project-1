@@ -81,6 +81,8 @@ public class EmailServiceImpl implements EmailService {
                 e.getMessage(),
                 e
         );
+
+        throw e;
         // TODO: 필요 시 DB 실패 로그 저장
     }
 

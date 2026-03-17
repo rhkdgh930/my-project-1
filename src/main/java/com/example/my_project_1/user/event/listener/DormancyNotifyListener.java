@@ -1,6 +1,7 @@
 package com.example.my_project_1.user.event.listener;
 
 import com.example.my_project_1.auth.service.EmailService;
+import com.example.my_project_1.auth.service.RedisDormancyHistoryService;
 import com.example.my_project_1.user.event.DormancyNotifyEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,10 +15,12 @@ import org.springframework.transaction.event.TransactionalEventListener;
 @RequiredArgsConstructor
 public class DormancyNotifyListener {
     private final EmailService emailService;
+    private final RedisDormancyHistoryService redisDormancyHistoryService;
 
     @Async("asyncTaskExecutor")
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleDormancyNotify(DormancyNotifyEvent event) {
+        Long userId = event.getUserId();
         try {
             emailService.sendDormancyWarning(
                     event.getEmail(),
@@ -25,14 +28,15 @@ public class DormancyNotifyListener {
             );
             log.info(
                     "[EVENT][DormancyNotifyListener][SEND_SUCCESS] userId={}",
-                    event.getUserId()
+                    userId
             );
         } catch (Exception e) {
             log.error(
                     "[EVENT][DormancyNotifyListener][SEND_FAIL] userId={}",
-                    event.getUserId(),
+                    userId,
                     e
             );
+            redisDormancyHistoryService.deleteNotificationHistory(userId);
         }
     }
 }
