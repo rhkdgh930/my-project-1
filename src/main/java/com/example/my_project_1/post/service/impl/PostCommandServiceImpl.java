@@ -4,6 +4,11 @@ import com.example.my_project_1.board.domain.Board;
 import com.example.my_project_1.board.repository.BoardRepository;
 import com.example.my_project_1.common.exception.CustomException;
 import com.example.my_project_1.common.exception.ErrorCode;
+import com.example.my_project_1.common.utils.DataSerializer;
+import com.example.my_project_1.outbox.domain.OutboxEvent;
+import com.example.my_project_1.outbox.domain.OutboxEventType;
+import com.example.my_project_1.outbox.listener.OutboxMessageEvent;
+import com.example.my_project_1.outbox.repository.OutboxRepository;
 import com.example.my_project_1.post.domain.Post;
 import com.example.my_project_1.post.event.PostCreatedEvent;
 import com.example.my_project_1.post.event.PostUpdatedEvent;
@@ -35,6 +40,7 @@ public class PostCommandServiceImpl implements PostCommandService {
     private final PostRedisService postRedisService;
     private final UserClient userClient;
     private final ApplicationEventPublisher eventPublisher;
+    private final OutboxRepository outboxRepository;
 
     @Override
     public PostDetailResponse create(Long boardId, Long userId, PostCreateRequest request) {
@@ -52,12 +58,18 @@ public class PostCommandServiceImpl implements PostCommandService {
 
         List<String> keys = ImageUrlParser.extractStorageKeys(request.getContent());
 
-        eventPublisher.publishEvent(
-                new PostCreatedEvent(post.getId(), userId, keys));
+        OutboxEvent outbox = outboxRepository.save(
+                OutboxEvent.create(
+                        OutboxEventType.POST_CREATED,
+                        DataSerializer.serialize(
+                                new PostCreatedEvent(post.getId(), userId, keys)
+                        )
+                )
+        );
 
-        String nickname = getNickname(userId);
+        eventPublisher.publishEvent(new OutboxMessageEvent(outbox.getId()));
 
-        return PostDetailResponse.from(post, nickname);
+        return PostDetailResponse.from(post, getNickname(userId));
     }
 
     @Override
@@ -79,13 +91,18 @@ public class PostCommandServiceImpl implements PostCommandService {
         List<String> keys =
                 ImageUrlParser.extractStorageKeys(request.getContent());
 
-        eventPublisher.publishEvent(
-                new PostUpdatedEvent(post.getId(), userId, keys)
+        OutboxEvent outbox = outboxRepository.save(
+                OutboxEvent.create(
+                        OutboxEventType.POST_UPDATED,
+                        DataSerializer.serialize(
+                                new PostUpdatedEvent(post.getId(), userId, keys)
+                        )
+                )
         );
 
-        String nickname = getNickname(userId);
+        eventPublisher.publishEvent(new OutboxMessageEvent(outbox.getId()));
 
-        return PostDetailResponse.from(post, nickname);
+        return PostDetailResponse.from(post, getNickname(userId));
     }
 
     @Override
