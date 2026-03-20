@@ -21,9 +21,10 @@ public class JwtAccessDeniedHandler implements AccessDeniedHandler {
     public void handle(HttpServletRequest request, HttpServletResponse response, AccessDeniedException accessDeniedException) throws IOException, ServletException {
 
         log.warn(
-                "[SECURITY][JwtAccessDeniedHandler] access denied | uri={} ip={}",
+                "[SECURITY][JwtAccessDeniedHandler][ACCESS_DENIED] uri={} ip={} method={}",
                 request.getRequestURI(),
-                request.getRemoteAddr()
+                request.getRemoteAddr(),
+                request.getMethod()
         );
 
         sendExceptionResponse(response);

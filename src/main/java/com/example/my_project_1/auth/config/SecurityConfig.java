@@ -7,6 +7,8 @@ import com.example.my_project_1.auth.oauth.CustomOAuth2UserService;
 import com.example.my_project_1.auth.provider.CustomAuthenticationProvider;
 import com.example.my_project_1.auth.service.RedisLoginAttemptService;
 import com.example.my_project_1.auth.utils.UrlUtils;
+import com.example.my_project_1.common.logging.HttpLoggingFilter;
+import com.example.my_project_1.common.logging.SecurityUserMdcFilter;
 import com.example.my_project_1.common.logging.TraceIdFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -48,6 +50,8 @@ public class SecurityConfig {
     private final CustomOAuth2UserService customOAuth2UserService;
 
     private final TraceIdFilter traceIdFilter;
+    private final HttpLoggingFilter httpLoggingFilter;
+    private final SecurityUserMdcFilter securityUserMdcFilter;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -77,6 +81,8 @@ public class SecurityConfig {
 
                 .addFilterBefore(traceIdFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterAfter(jwtAuthenticationFilter, TraceIdFilter.class)
+                .addFilterAfter(securityUserMdcFilter, JwtAuthenticationFilter.class)
+                .addFilterAfter(httpLoggingFilter, SecurityUserMdcFilter.class)
                 .addFilterAt(jwtLoginFilter(), UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

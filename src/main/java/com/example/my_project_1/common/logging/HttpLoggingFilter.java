@@ -4,15 +4,15 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.slf4j.MDC;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.UUID;
 
+@Slf4j
 @Component
-public class TraceIdFilter extends OncePerRequestFilter {
+public class HttpLoggingFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(
@@ -21,12 +21,26 @@ public class TraceIdFilter extends OncePerRequestFilter {
             FilterChain filterChain
     ) throws ServletException, IOException {
 
-        MDC.put(TraceConstants.TRACE_ID, TraceIdGenerator.generate());
+        long start = System.currentTimeMillis();
+
+        log.info(
+                "[HTTP][REQUEST] {} {} ip={}",
+                request.getMethod(),
+                request.getRequestURI(),
+                request.getRemoteAddr()
+        );
 
         try {
             filterChain.doFilter(request, response);
         } finally {
-            MDC.clear();
+
+            long duration = System.currentTimeMillis() - start;
+
+            log.info(
+                    "[HTTP][RESPONSE] status={} duration={}ms",
+                    response.getStatus(),
+                    duration
+            );
         }
     }
 }

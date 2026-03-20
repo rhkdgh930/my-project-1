@@ -1,18 +1,20 @@
 package com.example.my_project_1.common.logging;
 
+import com.example.my_project_1.auth.userdetails.UserDetailsImpl;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.MDC;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.UUID;
 
 @Component
-public class TraceIdFilter extends OncePerRequestFilter {
+public class SecurityUserMdcFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(
@@ -21,12 +23,19 @@ public class TraceIdFilter extends OncePerRequestFilter {
             FilterChain filterChain
     ) throws ServletException, IOException {
 
-        MDC.put(TraceConstants.TRACE_ID, TraceIdGenerator.generate());
+        Authentication authentication =
+                SecurityContextHolder.getContext().getAuthentication();
+
+        if (authentication != null &&
+                authentication.getPrincipal() instanceof UserDetailsImpl user) {
+
+            MDC.put(TraceConstants.USER_ID, String.valueOf(user.getUserId()));
+        }
 
         try {
             filterChain.doFilter(request, response);
         } finally {
-            MDC.clear();
+            MDC.remove(TraceConstants.USER_ID);
         }
     }
 }

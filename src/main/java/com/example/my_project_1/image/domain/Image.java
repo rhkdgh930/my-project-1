@@ -20,8 +20,10 @@ public class Image extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false, unique = true)
     private String storageKey;
 
+    @Column(nullable = false)
     private Long uploaderId;
 
     @Enumerated(EnumType.STRING)
@@ -42,8 +44,17 @@ public class Image extends BaseEntity {
     }
 
     public void attach(Long ownerId, ImageOwnerType ownerType) {
+
+        if (isAlreadyAttachedTo(ownerId, ownerType)) {
+            return;
+        }
+
+        if (this.ownerId != null && !this.ownerId.equals(ownerId)) {
+            throw new IllegalStateException("이미 다른 엔티티에 연결된 이미지입니다.");
+        }
+
         if (!isAttachable()) {
-            throw new IllegalStateException("이미 attach 할 수 없는 상태입니다.");
+            throw new IllegalStateException("attach 불가능한 상태입니다. status=" + imageStatus);
         }
 
         this.ownerId = ownerId;
@@ -52,6 +63,11 @@ public class Image extends BaseEntity {
     }
 
     public void detach() {
+
+        if (this.imageStatus == ImageStatus.DETACHED) {
+            return;
+        }
+
         if (this.imageStatus != ImageStatus.USED) {
             return;
         }
@@ -62,18 +78,32 @@ public class Image extends BaseEntity {
     }
 
     public void markDeleted() {
+
+        if (this.imageStatus == ImageStatus.DELETED) {
+            return;
+        }
+
         this.imageStatus = ImageStatus.DELETED;
     }
 
     public boolean isAttachable() {
-        return this.imageStatus == ImageStatus.PENDING || this.imageStatus == ImageStatus.DETACHED;
+        return this.imageStatus == ImageStatus.PENDING
+                || this.imageStatus == ImageStatus.DETACHED;
+    }
+
+    private boolean isAlreadyAttachedTo(Long ownerId, ImageOwnerType ownerType) {
+        return this.ownerId != null
+                && this.ownerId.equals(ownerId)
+                && this.ownerType == ownerType
+                && this.imageStatus == ImageStatus.USED;
     }
 
     @Builder
     private Image(String storageKey, Long uploaderId, ImageStatus imageStatus) {
-        hasText(storageKey, "이미저 경로는 필수입니다.");
-        notNull(uploaderId, "업로더명은 필수입니다.");
+        hasText(storageKey, "이미지 경로는 필수입니다.");
+        notNull(uploaderId, "업로더 ID는 필수입니다.");
         notNull(imageStatus, "이미지 상태는 필수입니다.");
+
         this.storageKey = storageKey;
         this.uploaderId = uploaderId;
         this.imageStatus = imageStatus;
