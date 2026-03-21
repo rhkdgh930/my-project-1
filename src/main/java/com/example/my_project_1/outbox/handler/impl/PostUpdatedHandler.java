@@ -5,8 +5,7 @@ import com.example.my_project_1.image.domain.ImageOwnerType;
 import com.example.my_project_1.image.service.ImageService;
 import com.example.my_project_1.outbox.domain.OutboxEventType;
 import com.example.my_project_1.outbox.handler.OutboxHandler;
-import com.example.my_project_1.post.event.PostCreatedEvent;
-import com.example.my_project_1.post.event.PostUpdatedEvent;
+import com.example.my_project_1.post.event.PostUpdatedOutboxEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -25,8 +24,8 @@ public class PostUpdatedHandler implements OutboxHandler {
 
     @Override
     public void handle(String payload) {
-        PostUpdatedEvent event =
-                DataSerializer.deserialize(payload, PostUpdatedEvent.class);
+        PostUpdatedOutboxEvent event =
+                DataSerializer.deserialize(payload, PostUpdatedOutboxEvent.class);
 
         log.debug(
                 "[EVENT][PostUpdatedHandler][SYNC_IMAGES] postId={} imageCount={}",

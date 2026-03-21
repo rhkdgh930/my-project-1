@@ -5,7 +5,7 @@ import com.example.my_project_1.image.domain.ImageOwnerType;
 import com.example.my_project_1.image.service.ImageService;
 import com.example.my_project_1.outbox.domain.OutboxEventType;
 import com.example.my_project_1.outbox.handler.OutboxHandler;
-import com.example.my_project_1.post.event.PostCreatedEvent;
+import com.example.my_project_1.post.event.PostCreatedOutboxEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -24,8 +24,8 @@ public class PostCreatedHandler implements OutboxHandler {
 
     @Override
     public void handle(String payload) {
-        PostCreatedEvent event =
-                DataSerializer.deserialize(payload, PostCreatedEvent.class);
+        PostCreatedOutboxEvent event =
+                DataSerializer.deserialize(payload, PostCreatedOutboxEvent.class);
 
         log.debug(
                 "[EVENT][PostCreatedHandler][ATTACH_IMAGES] postId={} imageCount={}",

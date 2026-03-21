@@ -10,7 +10,7 @@ import java.util.List;
 @Getter
 @AllArgsConstructor
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class PostUpdatedEvent {
+public class PostUpdatedOutboxEvent {
 
     private Long postId;
     private Long userId;
