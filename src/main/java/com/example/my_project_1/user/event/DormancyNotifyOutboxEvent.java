@@ -5,7 +5,7 @@ import lombok.Getter;
 
 @Getter
 @AllArgsConstructor
-public class DormancyNotifyEvent {
+public class DormancyNotifyOutboxEvent {
     private Long userId;
     private String email;
     private String nickname;
