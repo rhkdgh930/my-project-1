@@ -10,16 +10,14 @@ import com.example.my_project_1.outbox.domain.OutboxEventType;
 import com.example.my_project_1.outbox.listener.OutboxMessageEvent;
 import com.example.my_project_1.outbox.repository.OutboxRepository;
 import com.example.my_project_1.post.domain.Post;
-import com.example.my_project_1.post.event.PostCreatedEvent;
-import com.example.my_project_1.post.event.PostUpdatedEvent;
+import com.example.my_project_1.post.event.PostCreatedOutboxEvent;
+import com.example.my_project_1.post.event.PostUpdatedOutboxEvent;
 import com.example.my_project_1.post.repository.PostRepository;
 import com.example.my_project_1.post.service.PostCommandService;
 import com.example.my_project_1.post.service.PostRedisService;
 import com.example.my_project_1.post.service.request.PostCreateRequest;
 import com.example.my_project_1.post.service.request.PostUpdateRequest;
 import com.example.my_project_1.post.service.response.PostDetailResponse;
-import com.example.my_project_1.image.domain.ImageOwnerType;
-import com.example.my_project_1.image.service.ImageService;
 import com.example.my_project_1.image.utils.ImageUrlParser;
 import com.example.my_project_1.user.client.UserClient;
 import com.example.my_project_1.user.client.UserSummary;
@@ -62,7 +60,7 @@ public class PostCommandServiceImpl implements PostCommandService {
                 OutboxEvent.create(
                         OutboxEventType.POST_CREATED,
                         DataSerializer.serialize(
-                                new PostCreatedEvent(post.getId(), userId, keys)
+                                new PostCreatedOutboxEvent(post.getId(), userId, keys)
                         )
                 )
         );
@@ -95,7 +93,7 @@ public class PostCommandServiceImpl implements PostCommandService {
                 OutboxEvent.create(
                         OutboxEventType.POST_UPDATED,
                         DataSerializer.serialize(
-                                new PostUpdatedEvent(post.getId(), userId, keys)
+                                new PostUpdatedOutboxEvent(post.getId(), userId, keys)
                         )
                 )
         );
