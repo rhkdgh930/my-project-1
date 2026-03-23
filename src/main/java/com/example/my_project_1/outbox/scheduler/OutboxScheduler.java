@@ -19,11 +19,11 @@ public class OutboxScheduler {
 
     @Scheduled(fixedDelay = 60000)
     public void run() {
-        List<OutboxEvent> events =
-                outboxRepository.findProcessableEvents(
+        List<Long> ids =
+                outboxRepository.findProcessableIds(
                         LocalDateTime.now(),
                         PageRequest.of(0, 50)
                 );
-        events.forEach(e -> outboxProcessor.process(e.getId()));
+        ids.forEach(outboxProcessor::process);
     }
 }

@@ -72,10 +72,4 @@ public class OutboxEvent {
         this.lastTriedAt = LocalDateTime.now();
     }
 
-    public boolean canProcess() {
-        return (this.status == OutboxStatus.PENDING
-                || this.status == OutboxStatus.FAILED)
-                && this.nextRetryAt != null
-                && this.nextRetryAt.isBefore(LocalDateTime.now());
-    }
 }

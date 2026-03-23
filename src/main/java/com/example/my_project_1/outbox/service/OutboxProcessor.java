@@ -31,13 +31,19 @@ public class OutboxProcessor {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void process(Long outboxId) {
+        //PENDING -> PROCESSING
+        int updated = outboxRepository.claim(outboxId);
+        if (updated == 0) {
+            log.debug("[OUTBOX][SKIP_ALREADY_PROCESSING] id={}", outboxId);
+            return;
+        }
+
         OutboxEvent event = outboxRepository.findById(outboxId)
                 .orElseThrow();
 
-        if (!event.canProcess()) return;
-
         try {
             OutboxHandler handler = handlerMap.get(event.getEventType());
+
             if (handler == null) {
                 log.error("[OUTBOX][HANDLER_NOT_FOUND] type={}, id={}", event.getEventType(), outboxId);
                 event.markDead("HANDLER_NOT_FOUND");
@@ -45,12 +51,13 @@ public class OutboxProcessor {
             }
 
             handler.handle(event.getPayload());
-
+            //PROCESSING -> SUCCESS
             event.markSuccess();
 
             log.debug("[OUTBOX][SUCCESS] type={}, id={}", event.getEventType(), outboxId);
 
         } catch (Exception e) {
+            //PROCESSING -> FAILED
             event.markFail(e);
 
             log.error("[OUTBOX][PROCESS_ERROR] type={}, id={}, retry={}, message={}",

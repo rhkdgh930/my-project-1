@@ -1,5 +1,6 @@
 package com.example.my_project_1.user.batch;
 
+import com.example.my_project_1.user.domain.User;
 import com.example.my_project_1.user.domain.UserStatus;
 import com.example.my_project_1.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -40,38 +41,27 @@ public class WithdrawalCleanupJob {
 
         while (true) {
 
-            List<Long> userIds =
-                    userRepository.findWithdrawalUserIds(
+            List<User> users =
+                    userRepository.findWithdrawalUsers(
                             lastId,
                             UserStatus.WITHDRAWN_REQUESTED,
                             threshold,
                             PageRequest.ofSize(CHUNK_SIZE)
                     );
 
-            if (userIds.isEmpty()) {
-                break;
-            }
+            if (users.isEmpty()) break;
 
             try {
 
-                processor.processWithdrawalChunk(userIds);
+                processor.processWithdrawalChunk(users);
 
-                processedCount += userIds.size();
+                processedCount += users.size();
 
             } catch (Exception e) {
-
-                log.error(
-                        "[BATCH][WithdrawalCleanupJob][CHUNK_FAIL] startUserId={} endUserId={} chunkSize={}",
-                        userIds.get(0),
-                        userIds.get(userIds.size() - 1),
-                        userIds.size(),
-                        e
-                );
-
                 failedChunkCount++;
             }
 
-            lastId = userIds.get(userIds.size() - 1);
+            lastId = users.get(users.size() - 1).getId();
         }
 
         stopWatch.stop();
