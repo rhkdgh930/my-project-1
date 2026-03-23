@@ -23,75 +23,27 @@ import java.util.List;
 @RequiredArgsConstructor
 public class UserBatchProcessor {
 
-    private final UserRepository userRepository;
-    private final RedisUserContextService redisUserContextService;
-    private final ApplicationEventPublisher eventPublisher;
-    private final OutboxRepository outboxRepository;
+    private final UserBatchWorker worker;
 
-    public void processDormancyChunk(List<Long> userIds, LocalDateTime dormantThreshold) {
-        for (Long userId : userIds) {
+    public void processDormancyChunk(List<User> users, LocalDateTime threshold) {
+        for (User user : users) {
             try {
-                processSingleUserWithDormancy(userId, dormantThreshold);
+                worker.processSingleUserWithDormancy(user, threshold);
             } catch (Exception e) {
-                log.error("[BATCH][Dormancy][USER_FAIL] userId={}", userId, e);
+                log.error("[BATCH][Dormancy][USER_FAIL] userId={}",
+                        user.getId(), e);
             }
         }
     }
 
-    @Transactional
-    public void processSingleUserWithDormancy(Long userId, LocalDateTime dormantThreshold) {
-        User user = userRepository.findById(userId)
-                .orElseThrow();
-
-        if (user.getLastLoginAt().isBefore(dormantThreshold)) {
-
-            user.markDormant();
-            redisUserContextService.evict(userId);
-
-            log.info("[BATCH][Dormant] userId={}", userId);
-            return;
-        }
-
-        String payload = DataSerializer.serialize(
-                new DormancyNotifyOutboxEvent(
-                        user.getId(),
-                        user.getEmail().getValue(),
-                        user.getNickname()
-                )
-        );
-
-        OutboxEvent outbox = outboxRepository.save(
-                OutboxEvent.create(
-                        OutboxEventType.DORMANCY_NOTIFY,
-                        payload
-                )
-        );
-
-        eventPublisher.publishEvent(
-                new OutboxMessageEvent(outbox.getId())
-        );
-
-        log.info("[BATCH][Notify] queued | userId={}", userId);
-    }
-
-    public void processWithdrawalChunk(List<Long> userIds) {
-        for (Long userId : userIds) {
+    public void processWithdrawalChunk(List<User> users) {
+        for (User user : users) {
             try {
-                processSingleWithdrawal(userId);
+                worker.processSingleWithdrawal(user);
             } catch (Exception e) {
-                log.error("[BATCH][Withdrawal][USER_FAIL] userId={}", userId, e);
+                log.error("[BATCH][Withdrawal][USER_FAIL] userId={}",
+                        user.getId(), e);
             }
         }
-    }
-
-    @Transactional
-    public void processSingleWithdrawal(Long userId) {
-        User user = userRepository.findById(userId).orElseThrow();
-
-        user.completeWithdrawal();
-
-        redisUserContextService.evict(userId);
-
-        log.info("[BATCH][Withdrawal] userId={}", userId);
     }
 }
