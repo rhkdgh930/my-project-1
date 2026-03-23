@@ -61,6 +61,10 @@ public class PostRedisService {
         redisTemplate.delete(DIRTY_SET_KEY);
     }
 
+    public void removeDirty(Long postId) {
+        redisTemplate.opsForSet().remove(DIRTY_SET_KEY, postId.toString());
+    }
+
     private void markAsDirty(Long postId) {
         redisTemplate.opsForSet().add(DIRTY_SET_KEY, postId.toString());
     }

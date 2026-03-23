@@ -20,22 +20,24 @@ public class PostSyncScheduler {
     @Scheduled(fixedDelay = 30_000) //30초
     @Transactional
     public void sync() {
-        log.debug("[BATCH][PostSyncJob][START]");
         Set<String> dirtyIds = redisService.getDirtyPostIds();
         if (dirtyIds == null || dirtyIds.isEmpty()) return;
 
         for (String id : dirtyIds) {
-            Long postId = Long.parseLong(id);
-            postRepository.updateCounts(
-                    postId,
-                    redisService.getView(postId),
-                    redisService.getLike(postId)
-            );
+            try {
+                Long postId = Long.parseLong(id);
+
+                postRepository.updateCounts(
+                        postId,
+                        redisService.getView(postId),
+                        redisService.getLike(postId)
+                );
+
+                redisService.removeDirty(postId);
+
+            } catch (Exception e) {
+                log.error("[SYNC FAIL] postId={}", id, e);
+            }
         }
-        redisService.clearDirtySet();
-        log.debug(
-                "[BATCH][PostSyncJob][COMPLETE] postCount={}",
-                dirtyIds.size()
-        );
     }
 }
