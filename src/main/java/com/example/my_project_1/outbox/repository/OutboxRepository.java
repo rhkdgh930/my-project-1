@@ -20,7 +20,7 @@ public interface OutboxRepository extends JpaRepository<OutboxEvent, Long> {
             """)
     List<Long> findProcessableIds(LocalDateTime now, Pageable pageable);
 
-    @Modifying
+    @Modifying(clearAutomatically = true)
     @Query("""
                 UPDATE OutboxEvent o
                 SET o.status = 'PROCESSING'
@@ -28,4 +28,13 @@ public interface OutboxRepository extends JpaRepository<OutboxEvent, Long> {
                   AND o.status IN ('PENDING', 'FAILED')
             """)
     int claim(@Param("id") Long id);
+
+    @Modifying
+    @Query("""
+                UPDATE OutboxEvent o
+                SET o.status = 'FAILED'
+                WHERE o.status = 'PROCESSING'
+                  AND o.lastTriedAt < :threshold
+            """)
+    int recoverStuckEvents(@Param("threshold") LocalDateTime threshold);
 }

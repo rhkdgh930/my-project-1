@@ -5,10 +5,9 @@ import com.example.my_project_1.board.repository.BoardRepository;
 import com.example.my_project_1.common.exception.CustomException;
 import com.example.my_project_1.common.exception.ErrorCode;
 import com.example.my_project_1.common.utils.DataSerializer;
-import com.example.my_project_1.outbox.domain.OutboxEvent;
+import com.example.my_project_1.image.utils.ImageUrlParser;
 import com.example.my_project_1.outbox.domain.OutboxEventType;
-import com.example.my_project_1.outbox.listener.OutboxMessageEvent;
-import com.example.my_project_1.outbox.repository.OutboxRepository;
+import com.example.my_project_1.outbox.service.OutboxPublisher;
 import com.example.my_project_1.post.domain.Post;
 import com.example.my_project_1.post.event.PostCreatedOutboxEvent;
 import com.example.my_project_1.post.event.PostUpdatedOutboxEvent;
@@ -18,11 +17,9 @@ import com.example.my_project_1.post.service.PostRedisService;
 import com.example.my_project_1.post.service.request.PostCreateRequest;
 import com.example.my_project_1.post.service.request.PostUpdateRequest;
 import com.example.my_project_1.post.service.response.PostDetailResponse;
-import com.example.my_project_1.image.utils.ImageUrlParser;
 import com.example.my_project_1.user.client.UserClient;
 import com.example.my_project_1.user.client.UserSummary;
 import lombok.RequiredArgsConstructor;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,12 +30,14 @@ import java.util.Map;
 @RequiredArgsConstructor
 @Service
 public class PostCommandServiceImpl implements PostCommandService {
+    private static final String POST_CREATED = "POST_CREATED:";
+    private static final String POST_UPDATED = "POST_UPDATED:";
+
     private final BoardRepository boardRepository;
     private final PostRepository postRepository;
     private final PostRedisService postRedisService;
     private final UserClient userClient;
-    private final ApplicationEventPublisher eventPublisher;
-    private final OutboxRepository outboxRepository;
+    private final OutboxPublisher outboxPublisher;
 
     @Override
     public PostDetailResponse create(Long boardId, Long userId, PostCreateRequest request) {
@@ -56,17 +55,13 @@ public class PostCommandServiceImpl implements PostCommandService {
 
         List<String> keys = ImageUrlParser.extractStorageKeys(request.getContent());
 
-        OutboxEvent outbox = outboxRepository.save(
-                OutboxEvent.create(
-                        OutboxEventType.POST_CREATED,
-                        DataSerializer.serialize(
-                                new PostCreatedOutboxEvent(post.getId(), userId, keys)
-                        )
-                )
+        outboxPublisher.publish(
+                OutboxEventType.POST_CREATED,
+                DataSerializer.serialize(
+                        new PostCreatedOutboxEvent(post.getId(), userId, keys)
+                ),
+                POST_CREATED + post.getId()
         );
-
-        eventPublisher.publishEvent(new OutboxMessageEvent(outbox.getId()));
-
         return PostDetailResponse.from(post, getNickname(userId));
     }
 
@@ -89,16 +84,15 @@ public class PostCommandServiceImpl implements PostCommandService {
         List<String> keys =
                 ImageUrlParser.extractStorageKeys(request.getContent());
 
-        OutboxEvent outbox = outboxRepository.save(
-                OutboxEvent.create(
-                        OutboxEventType.POST_UPDATED,
-                        DataSerializer.serialize(
-                                new PostUpdatedOutboxEvent(post.getId(), userId, keys)
-                        )
-                )
-        );
+        String eventKey = POST_UPDATED + post.getId() + ":" + post.getUpdatedAt();
 
-        eventPublisher.publishEvent(new OutboxMessageEvent(outbox.getId()));
+        outboxPublisher.publish(
+                OutboxEventType.POST_UPDATED,
+                DataSerializer.serialize(
+                        new PostUpdatedOutboxEvent(post.getId(), userId, keys)
+                ),
+                eventKey
+        );
 
         return PostDetailResponse.from(post, getNickname(userId));
     }

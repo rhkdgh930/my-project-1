@@ -16,9 +16,7 @@ public class UserBatchScheduler {
 
     @Scheduled(cron = "0 29 1 * * *")
     public void runDormantBatch() {
-
         BatchTraceHelper.start();
-
         try {
             log.info("[BATCH][DormantUserScheduler][START]");
 
@@ -33,9 +31,7 @@ public class UserBatchScheduler {
 
     @Scheduled(cron = "0 30 1 * * *")
     public void runWithdrawalBatch() {
-
         BatchTraceHelper.start();
-
         try {
             log.info("[BATCH][WithdrawalCleanupScheduler][START]");
 

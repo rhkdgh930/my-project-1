@@ -1,19 +1,9 @@
 package com.example.my_project_1.user.batch;
 
-import com.example.my_project_1.auth.service.RedisUserContextService;
-import com.example.my_project_1.common.utils.DataSerializer;
-import com.example.my_project_1.outbox.domain.OutboxEvent;
-import com.example.my_project_1.outbox.domain.OutboxEventType;
-import com.example.my_project_1.outbox.listener.OutboxMessageEvent;
-import com.example.my_project_1.outbox.repository.OutboxRepository;
 import com.example.my_project_1.user.domain.User;
-import com.example.my_project_1.user.event.DormancyNotifyOutboxEvent;
-import com.example.my_project_1.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
