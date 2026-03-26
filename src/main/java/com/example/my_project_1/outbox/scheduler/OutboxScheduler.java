@@ -7,6 +7,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -14,6 +15,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class OutboxScheduler {
     private static final int CHUNK_SIZE = 100;
+
+    private final Clock clock;
     private final OutboxRepository outboxRepository;
     private final OutboxProcessor outboxProcessor;
 
@@ -21,7 +24,7 @@ public class OutboxScheduler {
     public void run() {
         List<Long> ids =
                 outboxRepository.findProcessableIds(
-                        LocalDateTime.now(),
+                        LocalDateTime.now(clock),
                         PageRequest.ofSize(CHUNK_SIZE)
                 );
         ids.forEach(outboxProcessor::process);

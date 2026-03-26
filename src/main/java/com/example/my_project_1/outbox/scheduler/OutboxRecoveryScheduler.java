@@ -7,6 +7,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.time.LocalDateTime;
 
 @Slf4j
@@ -14,13 +15,15 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 public class OutboxRecoveryScheduler {
 
+    private final Clock clock;
     private final OutboxRepository outboxRepository;
 
     @Transactional
     @Scheduled(fixedDelay = 10_000)
     public void recover() {
 
-        LocalDateTime threshold = LocalDateTime.now().minusMinutes(5);
+        LocalDateTime now = LocalDateTime.now(clock);
+        LocalDateTime threshold = now.minusMinutes(5);
 
         int recovered = outboxRepository.recoverStuckEvents(threshold);
 
