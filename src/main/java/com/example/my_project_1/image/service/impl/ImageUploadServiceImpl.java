@@ -21,9 +21,10 @@ public class ImageUploadServiceImpl implements ImageUploadService {
         validate(file);
 
         String storageKey = imageStorage.upload(file);
-        Image image = Image.createPending(uploaderId, storageKey);
-        imageRepository.save(image);
 
+        imageRepository.save(
+                Image.createPending(uploaderId, storageKey)
+        );
         return storageKey;
     }
 

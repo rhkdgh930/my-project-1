@@ -9,30 +9,46 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Objects;
 import java.util.UUID;
 
-@Slf4j
 @Component
+@Slf4j
 public class LocalFileStorage implements ImageStorage {
 
     private static final String UPLOAD_DIR = "uploads/";
+    private static final String BASE_URL = "/images/";
 
     @Override
     public String upload(MultipartFile file) {
         try {
-            String originalFilename = file.getOriginalFilename();
-            String ext = getExtension(originalFilename);
+            String ext = getExtension(Objects.requireNonNull(file.getOriginalFilename()));
+            String storageKey = UUID.randomUUID() + "." + ext;
 
-            String filename = UUID.randomUUID() + "." + ext;
-            Path path = Paths.get(UPLOAD_DIR, filename);
+            Path path = Paths.get(UPLOAD_DIR, storageKey);
 
             Files.createDirectories(path.getParent());
             Files.write(path, file.getBytes());
 
-            return "/images/" + filename;
+            return storageKey;
         } catch (IOException e) {
             throw new IllegalStateException("이미지 업로드 실패", e);
         }
+    }
+
+    @Override
+    public void delete(String storageKey) {
+        try {
+            Path path = Paths.get(UPLOAD_DIR, storageKey);
+            Files.deleteIfExists(path);
+        } catch (IOException e) {
+            log.warn("[IMAGE][DELETE_FAIL] key={}", storageKey, e);
+        }
+    }
+
+    @Override
+    public String getUrl(String storageKey) {
+        return BASE_URL + storageKey;
     }
 
     private String getExtension(String filename) {
@@ -41,16 +57,5 @@ public class LocalFileStorage implements ImageStorage {
             throw new IllegalArgumentException("확장자가 없는 파일입니다.");
         }
         return filename.substring(dotIndex + 1);
-    }
-
-    @Override
-    public void delete(String imageUrl) {
-        try {
-            String filename = imageUrl.replace("/images/", "");
-            Path path = Paths.get(UPLOAD_DIR + filename);
-            Files.deleteIfExists(path);
-        } catch (IOException e) {
-            log.warn("이미지 삭제 실패", e);
-        }
     }
 }

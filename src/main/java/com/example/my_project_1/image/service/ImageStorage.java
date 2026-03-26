@@ -6,4 +6,6 @@ public interface ImageStorage {
     String upload(MultipartFile file);
 
     void delete(String storageKey);
+
+    String getUrl(String storageKey);
 }
