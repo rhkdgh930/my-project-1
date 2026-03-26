@@ -1,6 +1,7 @@
 package com.example.my_project_1.image.controller;
 
 import com.example.my_project_1.auth.userdetails.UserDetailsImpl;
+import com.example.my_project_1.image.service.ImageStorage;
 import com.example.my_project_1.image.service.ImageUploadService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -19,6 +20,7 @@ import java.util.Map;
 public class ImageController {
 
     private final ImageUploadService imageUploadService;
+    private final ImageStorage imageStorage;
 
     @PostMapping
     public ResponseEntity<?> upload(
@@ -27,6 +29,11 @@ public class ImageController {
     ) {
         Long uploaderId = userDetails.getUserId();
         String storageKey = imageUploadService.upload(file, uploaderId);
-        return ResponseEntity.ok(Map.of("storageKey", storageKey));
+        String url = imageStorage.getUrl(storageKey);
+
+        return ResponseEntity.ok(Map.of(
+                "storageKey", storageKey,
+                "url", url
+        ));
     }
 }

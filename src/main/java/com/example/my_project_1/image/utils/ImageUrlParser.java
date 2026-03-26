@@ -7,6 +7,8 @@ import java.util.regex.Pattern;
 
 public final class ImageUrlParser {
 
+    private static final String PREFIX = "/images/";
+
     private static final Pattern IMAGE_PATTERN =
             Pattern.compile("!\\[[^\\]]*\\]\\((.*?)\\)");
 
@@ -19,7 +21,9 @@ public final class ImageUrlParser {
         List<String> urls = new ArrayList<>();
         Matcher matcher = IMAGE_PATTERN.matcher(content);
         while (matcher.find()) {
-            urls.add(matcher.group(1));
+            urls.add(
+                    matcher.group(1).replace(PREFIX, "")
+            );
         }
         return urls.stream().distinct().toList();
     }

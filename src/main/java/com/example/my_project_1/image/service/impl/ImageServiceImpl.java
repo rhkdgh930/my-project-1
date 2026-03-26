@@ -32,6 +32,10 @@ public class ImageServiceImpl implements ImageService {
         List<Image> images =
                 imageRepository.findAllByStorageKeyInAndUploaderId(storageKeys, uploaderId);
 
+        if (images.size() != storageKeys.size()) {
+            throw new IllegalArgumentException("존재하지 않거나 권한 없는 이미지 포함");
+        }
+
         images.stream()
                 .filter(Image::isAttachable)
                 .forEach(img -> img.attach(ownerId, ownerType));

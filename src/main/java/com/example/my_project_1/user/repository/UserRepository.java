@@ -26,14 +26,14 @@ public interface UserRepository extends JpaRepository<User, Long> {
     List<User> findAllByUserStatus(UserStatus userStatus);
 
     @Query("""
-                SELECT u.id
+                SELECT u
                 FROM User u
                 WHERE u.id > :lastId
-                AND u.userStatus = :status
-                AND u.lastLoginAt <= :threshold
+                  AND u.userStatus = :status
+                  AND u.lastLoginAt <= :threshold
                 ORDER BY u.id ASC
             """)
-    List<Long> findDormantUserIds(
+    List<User> findDormantUsers(
             @Param("lastId") Long lastId,
             @Param("status") UserStatus status,
             @Param("threshold") LocalDateTime threshold,
@@ -41,14 +41,14 @@ public interface UserRepository extends JpaRepository<User, Long> {
     );
 
     @Query("""
-                SELECT u.id
+                SELECT u
                 FROM User u
                 WHERE u.id > :lastId
-                AND u.userStatus = :status
-                AND u.withdrawal.requestedAt <= :threshold
+                  AND u.userStatus = :status
+                  AND u.withdrawal.requestedAt <= :threshold
                 ORDER BY u.id ASC
             """)
-    List<Long> findWithdrawalUserIds(
+    List<User> findWithdrawalUsers(
             @Param("lastId") Long lastId,
             @Param("status") UserStatus status,
             @Param("threshold") LocalDateTime threshold,

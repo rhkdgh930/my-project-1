@@ -1,5 +1,6 @@
 package com.example.my_project_1.user.batch;
 
+import com.example.my_project_1.user.domain.User;
 import com.example.my_project_1.user.domain.UserStatus;
 import com.example.my_project_1.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -29,7 +30,6 @@ public class DormantUserJob {
         stopWatch.start();
 
         LocalDateTime now = LocalDateTime.now(clock);
-
         LocalDateTime notifyThreshold = now.minusMonths(11);
         LocalDateTime dormantThreshold = now.minusMonths(12);
 
@@ -46,41 +46,27 @@ public class DormantUserJob {
 
         while (true) {
 
-            List<Long> userIds =
-                    userRepository.findDormantUserIds(
+            List<User> users =
+                    userRepository.findDormantUsers(
                             lastId,
                             UserStatus.ACTIVE,
                             notifyThreshold,
                             PageRequest.ofSize(CHUNK_SIZE)
                     );
 
-            if (userIds.isEmpty()) {
-                break;
-            }
+            if (users.isEmpty()) break;
 
             try {
 
-                processor.processDormancyChunk(
-                        userIds,
-                        dormantThreshold
-                );
+                processor.processDormancyChunk(users, dormantThreshold);
 
-                processedCount += userIds.size();
+                processedCount += users.size();
 
             } catch (Exception e) {
-
-                log.error(
-                        "[BATCH][DormantUserJob][CHUNK_FAIL] startUserId={} endUserId={} chunkSize={}",
-                        userIds.get(0),
-                        userIds.get(userIds.size() - 1),
-                        userIds.size(),
-                        e
-                );
-
                 failedChunkCount++;
             }
 
-            lastId = userIds.get(userIds.size() - 1);
+            lastId = users.get(users.size() - 1).getId();
         }
 
         stopWatch.stop();
