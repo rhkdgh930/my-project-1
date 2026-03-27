@@ -6,6 +6,7 @@ import com.example.my_project_1.common.exception.CustomException;
 import com.example.my_project_1.common.exception.ErrorCode;
 import com.example.my_project_1.user.domain.AccountStatus;
 import com.example.my_project_1.user.domain.User;
+import com.example.my_project_1.user.domain.UserStatus;
 import com.example.my_project_1.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -71,8 +72,16 @@ public class RedisUserContextService {
     }
 
     public void validateActiveUser(CachedUserContext ctx) {
-        if (ctx.isDeleted()) {
+        if (ctx.isDeleted() || ctx.getUserStatus() == UserStatus.WITHDRAWN) {
             throw new JwtAuthenticationException(ErrorCode.USER_NOT_FOUND);
+        }
+
+        if (ctx.getUserStatus() == UserStatus.WITHDRAWN_REQUESTED) {
+            throw new JwtAuthenticationException(ErrorCode.WITHDRAWAL_PENDING);
+        }
+
+        if (ctx.getUserStatus() == UserStatus.DORMANT) {
+            throw new JwtAuthenticationException(ErrorCode.USER_DORMANT);
         }
 
         if (ctx.getAccountStatus() == AccountStatus.SUSPENDED) {
