@@ -100,7 +100,7 @@ public class AuthServiceImpl implements AuthService {
         user.cancelWithdrawal(LocalDateTime.now(clock));
 
         // Redis 캐시 제거
-        eventPublisher.publishEvent(UserAccountChangedEvent.profileUpdated(user.getId()));
+        eventPublisher.publishEvent(UserAccountChangedEvent.withdrawalRestored(user.getId()));
 
         // 토큰 생성
         String accessToken = jwtProvider.createAccessToken(user.getId(), user.getRole().name());

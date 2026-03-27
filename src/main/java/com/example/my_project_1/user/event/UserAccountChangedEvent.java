@@ -8,13 +8,30 @@ import lombok.Getter;
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class UserAccountChangedEvent {
     private final Long userId;
-    private final boolean isSecurityCritical;
+    private final UserAccountChangedType type;
 
     public static UserAccountChangedEvent profileUpdated(Long userId) {
-        return new UserAccountChangedEvent(userId, false);
+        return new UserAccountChangedEvent(userId, UserAccountChangedType.PROFILE_UPDATED);
+    }
+
+    public static UserAccountChangedEvent dormantReleased(Long userId) {
+        return new UserAccountChangedEvent(userId, UserAccountChangedType.DORMANT_RELEASED);
+    }
+
+    public static UserAccountChangedEvent dormantRequest(Long userId) {
+        return new UserAccountChangedEvent(userId, UserAccountChangedType.DORMANT_REQUEST);
+    }
+
+    public static UserAccountChangedEvent withdrawalRestored(Long userId) {
+        return new UserAccountChangedEvent(userId, UserAccountChangedType.WITHDRAWAL_RESTORED);
+    }
+
+    public static UserAccountChangedEvent withdrawalRequest(Long userId) {
+        return new UserAccountChangedEvent(userId, UserAccountChangedType.WITHDRAWAL_REQUEST);
     }
 
     public static UserAccountChangedEvent securityStateChanged(Long userId) {
-        return new UserAccountChangedEvent(userId, true);
+        return new UserAccountChangedEvent(userId, UserAccountChangedType.SECURITY_CHANGED);
     }
+
 }

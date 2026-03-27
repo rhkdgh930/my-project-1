@@ -3,6 +3,7 @@ package com.example.my_project_1.user.event.listener;
 import com.example.my_project_1.auth.service.RedisTokenService;
 import com.example.my_project_1.auth.service.RedisUserContextService;
 import com.example.my_project_1.user.event.UserAccountChangedEvent;
+import com.example.my_project_1.user.event.UserAccountChangedType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -22,21 +23,26 @@ public class UserAccountChangedEventListener {
     public void handleUserAccountChanged(UserAccountChangedEvent event) {
 
         Long userId = event.getUserId();
-        log.info(
-                "[EVENT][UserAccountChangedEventListener][USER_ACCOUNT_CHANGED] userId={} securityCritical={}",
-                userId,
-                event.isSecurityCritical()
-        );
-        try {
-            redisUserContextService.evict(userId);
+        UserAccountChangedType type = event.getType();
 
-            if (event.isSecurityCritical()) {
+        log.info(
+                "[EVENT][UserAccountChangedEventListener] userId={} type={}",
+                userId,
+                type
+        );
+
+        try {
+            if (type.shouldEvictCache()) {
+                redisUserContextService.evict(userId);
+            }
+
+            if (type.shouldInvalidateToken()) {
                 redisTokenService.deleteRefreshTokenHash(userId);
             }
 
         } catch (Exception e) {
             log.error(
-                    "[CACHE][RedisUserContextService][EVICT_FAIL] userId={}",
+                    "[CACHE][UserAccountChangedEventListener][FAIL] userId={}",
                     userId,
                     e
             );
