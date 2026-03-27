@@ -179,11 +179,16 @@ public class User extends BaseEntity {
         this.userStatus = UserStatus.WITHDRAWN;
     }
 
-    public void checkAndReleaseSuspension(LocalDateTime now) {
-        if (this.accountStatus == AccountStatus.SUSPENDED && this.suspension != null && !this.suspension.isActive(now)) {
-            this.accountStatus = AccountStatus.NORMAL;
-            this.suspension = null;
+    //관리자 복구 기능
+    public void unSuspend() {
+        requireAccountPresent();
+
+        if (this.accountStatus != AccountStatus.SUSPENDED) {
+            throw new CustomException(ErrorCode.INVALID_USER_STATUS);
         }
+
+        this.accountStatus = AccountStatus.NORMAL;
+        this.suspension = null;
     }
 
     public void suspend(SuspensionType type, SuspensionReason reason, Duration duration, LocalDateTime now) {

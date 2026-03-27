@@ -48,6 +48,20 @@ public class AdminUserController {
     }
 
     @Operation(
+            summary = "유저 차단 해제",
+            description = "관리자가 특정 유저의 차단을 즉시 해제합니다."
+    )
+    @PostMapping("/{userId}/unsuspend")
+    public ResponseEntity<Void> unSuspendUser(
+            @Parameter(description = "차단을 복구할 유저 ID")
+            @PathVariable Long userId) {
+
+        adminCommandService.unSuspendUser(userId);
+
+        return ResponseEntity.noContent().build();
+    }
+
+    @Operation(
             summary = "전체 유저 조회",
             description = "관리자가 시스템에 등록된 모든 유저를 조회합니다."
     )

@@ -34,4 +34,13 @@ public class AdminUserCommandServiceImpl implements AdminUserCommandService {
 
         eventPublisher.publishEvent(UserAccountChangedEvent.securityStateChanged(userId));
     }
+
+    @Override
+    public void unSuspendUser(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        user.unSuspend();
+        eventPublisher.publishEvent(UserAccountChangedEvent.securityStateChanged(userId));
+    }
 }
