@@ -24,7 +24,7 @@ public class AdminUserCommandServiceImpl implements AdminUserCommandService {
     private final Clock clock;
 
     private final UserRepository userRepository;
-    private final ApplicationEventPublisher eventPublisher;
+    private final UserAccountChangeOutboxPublisher userAccountChangeOutboxPublisher;
 
     @Override
     public void suspendUser(Long userId, SuspensionType type, SuspensionReason reason, Duration duration) {
@@ -32,7 +32,7 @@ public class AdminUserCommandServiceImpl implements AdminUserCommandService {
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
         user.suspend(type, reason, duration, LocalDateTime.now(clock));
 
-        eventPublisher.publishEvent(UserAccountChangedEvent.securityStateChanged(userId));
+        userAccountChangeOutboxPublisher.publish(userId, UserAccountChangedType.SECURITY_CHANGED);
     }
 
     @Override
@@ -41,6 +41,6 @@ public class AdminUserCommandServiceImpl implements AdminUserCommandService {
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         user.unSuspend();
-        eventPublisher.publishEvent(UserAccountChangedEvent.securityStateChanged(userId));
+        userAccountChangeOutboxPublisher.publish(userId, UserAccountChangedType.SECURITY_CHANGED);
     }
 }
