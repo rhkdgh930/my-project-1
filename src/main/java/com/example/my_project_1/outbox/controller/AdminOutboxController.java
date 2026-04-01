@@ -2,6 +2,7 @@ package com.example.my_project_1.outbox.controller;
 
 import com.example.my_project_1.outbox.domain.OutboxEvent;
 import com.example.my_project_1.outbox.repository.OutboxRepository;
+import com.example.my_project_1.outbox.service.AdminOutboxService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,14 +21,11 @@ import java.time.LocalDateTime;
 public class AdminOutboxController {
 
     private final Clock clock;
-    private final OutboxRepository outboxRepository;
+    private final AdminOutboxService adminOutboxService;
 
     @Transactional
     @PostMapping("/{id}/retry")
     public void retry(@PathVariable Long id) {
-        OutboxEvent event = outboxRepository.findById(id)
-                .orElseThrow();
-
-        event.resetForRetry(LocalDateTime.now(clock));
+        adminOutboxService.retry(id);
     }
 }
