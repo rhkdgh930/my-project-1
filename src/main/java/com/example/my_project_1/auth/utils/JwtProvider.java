@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Date;
 import java.util.Map;
@@ -23,10 +24,11 @@ public class JwtProvider {
 
     @PostConstruct
     void init() {
-        if (properties.getSecret().length() < 32) {
+        byte[] keyBytes = properties.getSecret().getBytes(StandardCharsets.UTF_8);
+        if (keyBytes.length < 32) {
             throw new IllegalStateException("jwt secret must be at least 256bits");
         }
-        this.key = Keys.hmacShaKeyFor(properties.getSecret().getBytes());
+        this.key = Keys.hmacShaKeyFor(keyBytes);
     }
 
     public String createAccessToken(Long userId, String role) {
