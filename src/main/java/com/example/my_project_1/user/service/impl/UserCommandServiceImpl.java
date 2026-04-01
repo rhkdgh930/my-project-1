@@ -3,11 +3,13 @@ package com.example.my_project_1.user.service.impl;
 import com.example.my_project_1.auth.service.*;
 import com.example.my_project_1.common.exception.CustomException;
 import com.example.my_project_1.common.exception.ErrorCode;
+import com.example.my_project_1.outbox.service.UserAccountChangeOutboxPublisher;
 import com.example.my_project_1.user.domain.Email;
 import com.example.my_project_1.user.domain.User;
 import com.example.my_project_1.user.event.EmailVerificationEvent;
 import com.example.my_project_1.user.event.PasswordResetEvent;
-import com.example.my_project_1.user.event.UserAccountChangedEvent;
+import com.example.my_project_1.user.event.UserAccountChangedOutboxEvent;
+import com.example.my_project_1.user.event.UserAccountChangedType;
 import com.example.my_project_1.user.repository.UserRepository;
 import com.example.my_project_1.user.service.UserCommandService;
 import com.example.my_project_1.user.service.request.*;
@@ -38,6 +40,7 @@ public class UserCommandServiceImpl implements UserCommandService {
     private final RedisEmailVerificationService redisEmailVerificationService;
     private final RedisPasswordResetTokenService redisPasswordResetTokenService;
     private final ApplicationEventPublisher eventPublisher;
+    private final UserAccountChangeOutboxPublisher userAccountChangeOutboxPublisher;
 
     @Value("${app.frontend-url}")
     private String frontendUrl;
@@ -46,7 +49,6 @@ public class UserCommandServiceImpl implements UserCommandService {
     public void sendVerificationCode(String emailValue) {
         Email email = Email.from(emailValue);
         validateDuplicateEmail(email);
-
         eventPublisher.publishEvent(new EmailVerificationEvent(email.getValue()));
     }
 
@@ -57,7 +59,6 @@ public class UserCommandServiceImpl implements UserCommandService {
 
     @Override
     public UserSignUpResponse signUp(UserSignUpRequest request) {
-
         redisEmailVerificationService.checkIsVerified(request.getEmail());
 
         Email email = Email.from(request.getEmail());
@@ -94,7 +95,7 @@ public class UserCommandServiceImpl implements UserCommandService {
                 request.getProfileImageUrl()
         );
 
-        eventPublisher.publishEvent(UserAccountChangedEvent.profileUpdated(userId));
+        userAccountChangeOutboxPublisher.publish(userId, UserAccountChangedType.PROFILE_UPDATED);
 
         return UserProfileResponse.from(user);
     }
@@ -110,8 +111,7 @@ public class UserCommandServiceImpl implements UserCommandService {
 
         user.requestWithdrawal(LocalDateTime.now(clock));
 
-        eventPublisher.publishEvent(UserAccountChangedEvent.securityStateChanged(userId));
-
+        userAccountChangeOutboxPublisher.publish(userId, UserAccountChangedType.SECURITY_CHANGED);
         return UserWithdrawResponse.from(user);
     }
 
@@ -130,7 +130,7 @@ public class UserCommandServiceImpl implements UserCommandService {
 
         user.updatePassword(passwordEncoder.encode(request.getNewPassword()));
 
-        eventPublisher.publishEvent(UserAccountChangedEvent.securityStateChanged(userId));
+        userAccountChangeOutboxPublisher.publish(userId, UserAccountChangedType.SECURITY_CHANGED);
     }
 
     /***
@@ -158,7 +158,7 @@ public class UserCommandServiceImpl implements UserCommandService {
 
         user.updatePassword(passwordEncoder.encode(request.getNewPassword()));
 
-        eventPublisher.publishEvent(UserAccountChangedEvent.securityStateChanged(user.getId()));
+        userAccountChangeOutboxPublisher.publish(user.getId(), UserAccountChangedType.SECURITY_CHANGED);
 
         redisPasswordResetTokenService.deleteToken(request.getToken());
     }

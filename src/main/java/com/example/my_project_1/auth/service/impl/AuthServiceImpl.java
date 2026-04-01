@@ -10,14 +10,14 @@ import com.example.my_project_1.auth.service.response.TokenResponse;
 import com.example.my_project_1.auth.utils.JwtProvider;
 import com.example.my_project_1.common.exception.CustomException;
 import com.example.my_project_1.common.exception.ErrorCode;
+import com.example.my_project_1.outbox.service.UserAccountChangeOutboxPublisher;
 import com.example.my_project_1.user.domain.Email;
 import com.example.my_project_1.user.domain.User;
-import com.example.my_project_1.user.event.UserAccountChangedEvent;
+import com.example.my_project_1.user.event.UserAccountChangedType;
 import com.example.my_project_1.user.repository.UserRepository;
 import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,7 +38,7 @@ public class AuthServiceImpl implements AuthService {
     private final RedisTokenService redisTokenService;
     private final RedisUserContextService userContextService;
     private final UserRepository userRepository;
-    private final ApplicationEventPublisher eventPublisher;
+    private final UserAccountChangeOutboxPublisher userAccountChangeOutboxPublisher;
 
     @Transactional
     @Override
@@ -99,9 +99,7 @@ public class AuthServiceImpl implements AuthService {
         // 🔥 도메인 로직
         user.cancelWithdrawal(LocalDateTime.now(clock));
 
-        // Redis 캐시 제거
-        eventPublisher.publishEvent(UserAccountChangedEvent.withdrawalRestored(user.getId()));
-
+        userAccountChangeOutboxPublisher.publish(user.getId(), UserAccountChangedType.WITHDRAWAL_RESTORED);
         // 토큰 생성
         String accessToken = jwtProvider.createAccessToken(user.getId(), user.getRole().name());
         String refreshToken = jwtProvider.createRefreshToken(user.getId());

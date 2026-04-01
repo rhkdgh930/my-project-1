@@ -35,12 +35,10 @@ public class WithdrawalCleanupJob {
         LocalDateTime threshold = now.minusDays(7);
 
         Long lastId = 0L;
-
         int processedCount = 0;
         int failedChunkCount = 0;
 
         while (true) {
-
             List<User> users =
                     userRepository.findWithdrawalUsers(
                             lastId,
@@ -52,9 +50,7 @@ public class WithdrawalCleanupJob {
             if (users.isEmpty()) break;
 
             try {
-
                 processor.processWithdrawalChunk(users);
-
                 processedCount += users.size();
 
             } catch (Exception e) {

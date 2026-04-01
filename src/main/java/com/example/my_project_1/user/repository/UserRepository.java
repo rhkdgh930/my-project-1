@@ -20,10 +20,16 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     Optional<User> findByEmail(Email email);
 
-    @Query(value = "SELECT * FROM users", nativeQuery = true)
-    List<User> findAllRaw();
-
-    List<User> findAllByUserStatus(UserStatus userStatus);
+    @Query("""
+        SELECT u
+        FROM User u
+        WHERE u.id > :lastId
+        ORDER BY u.id ASC
+        """)
+    List<User> findNextUsers(
+            @Param("lastId") Long lastId,
+            Pageable pageable
+    );
 
     @Query("""
                 SELECT u

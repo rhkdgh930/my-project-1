@@ -2,7 +2,7 @@ package com.example.my_project_1.user.event.listener;
 
 import com.example.my_project_1.auth.service.RedisTokenService;
 import com.example.my_project_1.auth.service.RedisUserContextService;
-import com.example.my_project_1.user.event.UserAccountChangedEvent;
+import com.example.my_project_1.user.event.UserAccountChangedOutboxEvent;
 import com.example.my_project_1.user.event.UserAccountChangedType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,7 +20,7 @@ public class UserAccountChangedEventListener {
 
     @Async("asyncTaskExecutor")
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void handleUserAccountChanged(UserAccountChangedEvent event) {
+    public void handleUserAccountChanged(UserAccountChangedOutboxEvent event) {
 
         Long userId = event.getUserId();
         UserAccountChangedType type = event.getType();

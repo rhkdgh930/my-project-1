@@ -3,8 +3,8 @@ package com.example.my_project_1.user.event;
 public enum UserAccountChangedType {
 
     PROFILE_UPDATED(false, false),
-    DORMANT_RELEASED(true, false),
     DORMANT_REQUEST(true, true),
+    DORMANT_RELEASED(true, false),
     WITHDRAWAL_REQUEST(true,true),
     WITHDRAWAL_RESTORED(true, false),
     SECURITY_CHANGED(true, true); // 비번 변경, 차단, 탈퇴 완료 등
