@@ -3,5 +3,6 @@ package com.example.my_project_1.outbox.domain;
 public enum OutboxEventType {
     POST_CREATED,
     POST_UPDATED,
-    DORMANCY_NOTIFY
+    DORMANCY_NOTIFY,
+    USER_ACCOUNT_CHANGED
 }

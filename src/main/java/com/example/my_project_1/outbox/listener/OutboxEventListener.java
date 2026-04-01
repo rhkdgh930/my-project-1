@@ -18,7 +18,6 @@ public class OutboxEventListener {
     @Async("asyncTaskExecutor")
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handle(OutboxSavedEvent event) {
-
         try {
             outboxProcessor.process(event.getOutboxId());
         } catch (Exception e) {

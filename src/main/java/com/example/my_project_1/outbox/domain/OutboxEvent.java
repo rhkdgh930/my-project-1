@@ -26,23 +26,30 @@ public class OutboxEvent {
     private Long id;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "event_type", nullable = false)
     private OutboxEventType eventType;
 
     @Lob
+    @Column(nullable = false)
     private String payload;
 
     @Column(name = "event_key", nullable = false)
     private String eventKey;
 
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private OutboxStatus status;
 
-    private int retryCount;
+    @Column(nullable = false)
+    private LocalDateTime createdAt;
+
+    private LocalDateTime lastTriedAt;
+
+    private LocalDateTime nextRetryAt;
+
     private String lastError;
 
-    private LocalDateTime createdAt;
-    private LocalDateTime lastTriedAt;
-    private LocalDateTime nextRetryAt;
+    private int retryCount;
 
     public static OutboxEvent create(OutboxEventType type, String payload, String eventKey, LocalDateTime now) {
         return OutboxEvent.builder()
@@ -63,13 +70,13 @@ public class OutboxEvent {
     public void markFail(Exception e, LocalDateTime now) {
         this.retryCount++;
         this.lastTriedAt = now;
-        this.lastError = e.getMessage();
+        this.lastError = (e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName());
 
         long delay = Math.min(60, (long) Math.pow(2, retryCount));
         long jitter = ThreadLocalRandom.current().nextLong(0, 5);
 
         if (retryCount >= 5) {
-            this.status = OutboxStatus.DEAD;
+            markDead("MAX_RETRY_EXCEEDED", now);
         } else {
             this.status = OutboxStatus.FAILED;
             this.nextRetryAt = now.plusSeconds(delay + jitter);
@@ -80,6 +87,7 @@ public class OutboxEvent {
         this.status = OutboxStatus.DEAD;
         this.lastError = reason;
         this.lastTriedAt = now;
+        this.nextRetryAt = null;
     }
 
     public void resetForRetry(LocalDateTime now) {
@@ -87,11 +95,13 @@ public class OutboxEvent {
         this.nextRetryAt = now;
         this.retryCount = 0;
         this.lastError = null;
+        this.lastTriedAt = null;
     }
 
     @Builder
     private OutboxEvent(OutboxEventType type, String payload, String eventKey, LocalDateTime now) {
         Assert.notNull(type, "이벤트 타입은 필수입니다.");
+        Assert.hasText(payload, "payload는 필수입니다.");
         Assert.hasText(eventKey, "이벤트 키는 필수입니다.");
         Assert.notNull(now, "시간 입력은 필수입니다.");
 
