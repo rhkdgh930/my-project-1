@@ -45,7 +45,9 @@ public class JwtLoginFailureHandler implements AuthenticationFailureHandler {
             data = putWithdrawalPendingData(pendingEx, email);
         } else {
 
-            loginFail(email);
+            if (exception instanceof BadCredentialsException || exception instanceof UsernameNotFoundException) {
+                loginFail(email);
+            }
             if (exception instanceof LoginFailException) {
                 errorCode = ErrorCode.TOO_MANY_LOGIN_FAIL;
             } else if (exception instanceof WithdrawalCompletedException) {

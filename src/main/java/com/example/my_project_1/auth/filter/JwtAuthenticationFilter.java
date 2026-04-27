@@ -24,6 +24,8 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.time.Clock;
+import java.time.LocalDateTime;
 
 @Component
 @RequiredArgsConstructor
@@ -37,13 +39,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
-        try {
-            String token = resolveToken(request);
-            if (!StringUtils.hasText(token)) {
-                filterChain.doFilter(request, response);
-                return;
-            }
+        String token = resolveToken(request);
+        if (!StringUtils.hasText(token)) {
+            filterChain.doFilter(request, response);
+            return;
+        }
 
+        try {
             Claims claims = jwtProvider.parseClaimsSafely(token);
             jwtProvider.assertAccessToken(claims);
 
@@ -56,7 +58,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             redisUserContextService.validateActiveUser(ctx);
 
             setAuthentication(ctx);
-
             filterChain.doFilter(request, response);
 
         } catch (JwtAuthenticationException e) {
