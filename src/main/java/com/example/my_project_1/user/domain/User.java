@@ -113,7 +113,7 @@ public class User extends BaseEntity {
 
     public void updateProfile(String introduce, String profileImageUrl) {
         requireFullAccess();
-        this.profileDetail = ProfileDetail.update(introduce, profileImageUrl);
+        this.profileDetail = ProfileDetail.update(this.profileDetail, introduce, profileImageUrl);
     }
 
     public void updateNickname(String nickname) {
@@ -189,10 +189,13 @@ public class User extends BaseEntity {
         if (this.userStatus != UserStatus.WITHDRAWN_REQUESTED) {
             throw new CustomException(ErrorCode.INVALID_USER_STATUS);
         }
-        if (this.withdrawal != null && this.withdrawal.canRestore(now)) {
-            this.userStatus = UserStatus.ACTIVE;
-            this.withdrawal = null;
+
+        if (this.withdrawal == null || !this.withdrawal.canRestore(now)) {
+            throw new CustomException(ErrorCode.WITHDRAWAL_COMPLETED);
         }
+
+        this.userStatus = UserStatus.ACTIVE;
+        this.withdrawal = null;
     }
 
     public void completeWithdrawal() {
