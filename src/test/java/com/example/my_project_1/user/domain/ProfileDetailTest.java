@@ -33,7 +33,7 @@ class ProfileDetailTest {
         assertThat(profile.getProfileImageUrl()).isEqualTo(DEFAULT_IMG_URL);
         assertThat(profile.getIntroduce()).isEqualTo(DEFAULT_INTRODUCE);
 
-        ProfileDetail updated = ProfileDetail.update(UPDATE_INTRODUCE, UPDATE_IMG_URL);
+        ProfileDetail updated = ProfileDetail.update(profile, UPDATE_INTRODUCE, UPDATE_IMG_URL);
         assertThat(updated.getProfileImageUrl()).isEqualTo(UPDATE_IMG_URL);
         assertThat(updated.getIntroduce()).isEqualTo(UPDATE_INTRODUCE);
 
