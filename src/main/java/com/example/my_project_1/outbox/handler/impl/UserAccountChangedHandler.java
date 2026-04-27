@@ -36,12 +36,21 @@ public class UserAccountChangedHandler implements OutboxHandler {
         Long userId = event.getUserId();
         UserAccountChangedType type = event.getType();
 
-        if (type.shouldEvictCache()) {
-            redisUserContextService.evict(userId);
-        }
+        try {
+            if (type.shouldEvictCache()) {
+                redisUserContextService.evict(userId);
+            }
 
-        if (type.shouldInvalidateToken()) {
-            redisTokenService.deleteRefreshTokenHash(userId);
+            if (type.shouldInvalidateToken()) {
+                redisTokenService.deleteRefreshTokenHash(userId);
+            }
+
+        } catch (Exception e) {
+            log.error(
+                    "[OUTBOX][USER_ACCOUNT_CHANGED][FAIL] userId={}",
+                    userId,
+                    e
+            );
         }
 
         log.debug("[OUTBOX][USER_ACCOUNT_CHANGED][SUCCESS] userId={} type={}", userId, type);
