@@ -3,13 +3,13 @@ package com.example.my_project_1.user.service.impl;
 import com.example.my_project_1.auth.service.*;
 import com.example.my_project_1.common.exception.CustomException;
 import com.example.my_project_1.common.exception.ErrorCode;
+import com.example.my_project_1.common.utils.DataSerializer;
+import com.example.my_project_1.outbox.domain.OutboxEventType;
+import com.example.my_project_1.outbox.service.OutboxPublisher;
 import com.example.my_project_1.outbox.service.UserAccountChangeOutboxPublisher;
 import com.example.my_project_1.user.domain.Email;
 import com.example.my_project_1.user.domain.User;
-import com.example.my_project_1.user.event.EmailVerificationEvent;
-import com.example.my_project_1.user.event.PasswordResetEvent;
-import com.example.my_project_1.user.event.UserAccountChangedOutboxEvent;
-import com.example.my_project_1.user.event.UserAccountChangedType;
+import com.example.my_project_1.user.event.*;
 import com.example.my_project_1.user.repository.UserRepository;
 import com.example.my_project_1.user.service.UserCommandService;
 import com.example.my_project_1.user.service.request.*;
@@ -26,6 +26,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 
 @Slf4j
 @Transactional
@@ -39,7 +41,8 @@ public class UserCommandServiceImpl implements UserCommandService {
     private final PasswordEncoder passwordEncoder;
     private final RedisEmailVerificationService redisEmailVerificationService;
     private final RedisPasswordResetTokenService redisPasswordResetTokenService;
-    private final ApplicationEventPublisher eventPublisher;
+
+    private final OutboxPublisher outboxPublisher;
     private final UserAccountChangeOutboxPublisher userAccountChangeOutboxPublisher;
 
     @Value("${app.frontend-url}")
@@ -49,7 +52,16 @@ public class UserCommandServiceImpl implements UserCommandService {
     public void sendVerificationCode(String emailValue) {
         Email email = Email.from(emailValue);
         validateDuplicateEmail(email);
-        eventPublisher.publishEvent(new EmailVerificationEvent(email.getValue()));
+
+        String code = generateVerificationCode();
+
+        outboxPublisher.publish(
+                OutboxEventType.EMAIL_VERIFICATION,
+                DataSerializer.serialize(
+                        new EmailVerificationOutboxEvent(email.getValue(), code)
+                ),
+                "EMAIL_VERIFICATION:%s:%s".formatted(email.getValue(), UUID.randomUUID())
+        );
     }
 
     @Override
@@ -141,11 +153,16 @@ public class UserCommandServiceImpl implements UserCommandService {
         Email email = Email.from(emailValue);
 
         userRepository.findByEmail(email).ifPresent(user -> {
-            String rawToken = redisPasswordResetTokenService.createAndSaveToken(emailValue);
-            String link = frontendUrl + "/password-reset?token=" + rawToken;
+            String rawToken = UUID.randomUUID().toString();
+            String resetLink = frontendUrl + "/password-reset?token=" + rawToken;
 
-            log.info("link = {}", link);
-            eventPublisher.publishEvent(new PasswordResetEvent(emailValue, link));
+            outboxPublisher.publish(
+                    OutboxEventType.PASSWORD_RESET,
+                    DataSerializer.serialize(
+                            new PasswordResetOutboxEvent(emailValue, rawToken, resetLink)
+                    ),
+                    "PASSWORD_RESET:%s:%s".formatted(emailValue, UUID.randomUUID())
+            );
         });
     }
 
@@ -157,9 +174,12 @@ public class UserCommandServiceImpl implements UserCommandService {
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         user.updatePassword(passwordEncoder.encode(request.getNewPassword()));
-
         userAccountChangeOutboxPublisher.publish(user.getId(), UserAccountChangedType.SECURITY_CHANGED);
 
         redisPasswordResetTokenService.deleteToken(request.getToken());
+    }
+
+    private String generateVerificationCode() {
+        return String.valueOf(ThreadLocalRandom.current().nextInt(100000, 1000000));
     }
 }
