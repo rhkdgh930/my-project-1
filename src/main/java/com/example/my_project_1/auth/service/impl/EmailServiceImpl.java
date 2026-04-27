@@ -5,6 +5,7 @@ import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.mail.MailException;
 import org.springframework.mail.MailSendException;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -94,16 +95,10 @@ public class EmailServiceImpl implements EmailService {
             helper.setSubject(title);
             helper.setText(content, true);
             javaMailSender.send(message);
-            log.info(
-                    "[SERVICE][EmailService][SEND_SUCCESS] to={}",
-                    to
-            );
-        } catch (MessagingException e) {
-            log.error(
-                    "[SERVICE][EmailService][SEND_FAIL] to={}",
-                    to,
-                    e
-            );
+
+            log.info("[SERVICE][EmailService][SEND_SUCCESS] to={}", to);
+        } catch (MessagingException | MailException e) {
+            log.error("[SERVICE][EmailService][SEND_FAIL] to={}", to, e);
             throw new MailSendException("email send failed", e);
         }
     }
