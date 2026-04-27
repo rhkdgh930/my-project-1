@@ -19,6 +19,9 @@ public class CookieUtils {
     public static void deleteCookie(HttpServletResponse response, String name) {
         ResponseCookie cookie = ResponseCookie.from(name, "")
                 .path("/")
+                .secure(false)
+                .sameSite("Lax")
+                .httpOnly(true)
                 .maxAge(0)
                 .build();
         response.addHeader("Set-Cookie", cookie.toString());

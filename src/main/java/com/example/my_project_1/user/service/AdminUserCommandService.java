@@ -7,4 +7,6 @@ import java.time.Duration;
 
 public interface AdminUserCommandService {
     void suspendUser(Long userId, SuspensionType type, SuspensionReason reason, Duration duration);
+
+    void unSuspendUser(Long userId);
 }

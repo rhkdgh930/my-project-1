@@ -7,6 +7,7 @@ import com.example.my_project_1.auth.service.RedisTokenService;
 import com.example.my_project_1.auth.service.RedisUserContextService;
 import com.example.my_project_1.auth.userdetails.UserDetailsImpl;
 import com.example.my_project_1.auth.utils.JwtProvider;
+import com.example.my_project_1.common.exception.CustomException;
 import com.example.my_project_1.common.exception.ErrorCode;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
@@ -23,6 +24,8 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.time.Clock;
+import java.time.LocalDateTime;
 
 @Component
 @RequiredArgsConstructor
@@ -36,13 +39,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
-        try {
-            String token = resolveToken(request);
-            if (!StringUtils.hasText(token)) {
-                filterChain.doFilter(request, response);
-                return;
-            }
+        String token = resolveToken(request);
+        if (!StringUtils.hasText(token)) {
+            filterChain.doFilter(request, response);
+            return;
+        }
 
+        try {
             Claims claims = jwtProvider.parseClaimsSafely(token);
             jwtProvider.assertAccessToken(claims);
 
@@ -55,13 +58,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             redisUserContextService.validateActiveUser(ctx);
 
             setAuthentication(ctx);
-
             filterChain.doFilter(request, response);
 
         } catch (JwtAuthenticationException e) {
             SecurityContextHolder.clearContext();
             authenticationEntryPoint.commence(request, response, e);
-            return;
+        } catch (CustomException e) {
+            SecurityContextHolder.clearContext();
+            authenticationEntryPoint.commence(request, response, new JwtAuthenticationException(e.getErrorCode()));
+        } catch (Exception e) {
+            SecurityContextHolder.clearContext();
+            authenticationEntryPoint.commence(request, response, new JwtAuthenticationException(ErrorCode.AUTHENTICATION_FAILED));
         }
     }
 

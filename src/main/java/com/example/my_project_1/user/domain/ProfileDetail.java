@@ -29,10 +29,10 @@ public class ProfileDetail {
                 .build();
     }
 
-    public static ProfileDetail update(String introduce, String profileImageUrl) {
+    public static ProfileDetail update(ProfileDetail current, String introduce, String profileImageUrl) {
         return ProfileDetail.builder()
-                .introduce(introduce)
-                .profileImageUrl(profileImageUrl)
+                .introduce(introduce != null ? introduce : current.getIntroduce())
+                .profileImageUrl(profileImageUrl != null ? profileImageUrl : current.getProfileImageUrl())
                 .build();
     }
 

@@ -7,6 +7,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -18,6 +19,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
     private final UserRepository userRepository;
 
     @Override
+    @Transactional
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
         User user = userRepository.findByEmail(Email.from(email))
                 .orElseThrow(() ->
@@ -25,6 +27,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
                 );
 
         LocalDateTime now = LocalDateTime.now(clock);
+        user.checkAndReleaseSuspension(now);
 
         UserWithdrawal withdrawal = user.getWithdrawal();
 

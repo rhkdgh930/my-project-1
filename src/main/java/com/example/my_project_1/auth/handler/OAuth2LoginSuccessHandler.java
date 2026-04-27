@@ -1,11 +1,10 @@
 package com.example.my_project_1.auth.handler;
 
-import com.example.my_project_1.auth.cache.CachedUserContext;
 import com.example.my_project_1.auth.service.RedisTokenService;
-import com.example.my_project_1.auth.service.RedisUserContextService;
 import com.example.my_project_1.auth.userdetails.UserDetailsImpl;
-import com.example.my_project_1.auth.utils.JwtProvider;
 import com.example.my_project_1.auth.utils.CookieUtils;
+import com.example.my_project_1.auth.utils.JwtProvider;
+import com.example.my_project_1.user.service.UserLoginService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -22,15 +21,14 @@ import java.io.IOException;
 public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
     private final JwtProvider jwtProvider;
     private final RedisTokenService redisTokenService;
-    private final RedisUserContextService redisUserContextService;
+    private final UserLoginService userLoginService;
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException {
         UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
         Long userId = userDetails.getUserId();
 
-        CachedUserContext ctx = redisUserContextService.getUserContext(userId);
-        redisUserContextService.validateActiveUser(ctx);
+        userLoginService.processLogin(userId);
 
         // 1. JWT 토큰 생성
         String accessToken = jwtProvider.createAccessToken(userId, userDetails.getRole());

@@ -18,7 +18,7 @@ public class UrlUtils {
             //OAuth
             "/api/auth/test",
             "/login/oauth2/code/google",
-            "oauth2/authorization/google",
+            "/oauth2/authorization/google",
 
             //user
             "/api/users/signup",

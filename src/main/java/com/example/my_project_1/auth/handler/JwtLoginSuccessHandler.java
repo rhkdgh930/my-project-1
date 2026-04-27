@@ -1,15 +1,12 @@
 package com.example.my_project_1.auth.handler;
 
-import com.example.my_project_1.auth.cache.CachedUserContext;
 import com.example.my_project_1.auth.service.RedisLoginAttemptService;
 import com.example.my_project_1.auth.service.RedisTokenService;
-import com.example.my_project_1.auth.service.RedisUserContextService;
 import com.example.my_project_1.auth.service.response.TokenResponse;
 import com.example.my_project_1.auth.userdetails.UserDetailsImpl;
-import com.example.my_project_1.auth.utils.JwtProvider;
 import com.example.my_project_1.auth.utils.CookieUtils;
+import com.example.my_project_1.auth.utils.JwtProvider;
 import com.example.my_project_1.common.utils.DataSerializer;
-import com.example.my_project_1.user.domain.UserStatus;
 import com.example.my_project_1.user.service.UserLoginService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -20,8 +17,6 @@ import org.springframework.security.web.authentication.AuthenticationSuccessHand
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
 
 @Component
 @RequiredArgsConstructor
@@ -29,7 +24,6 @@ public class JwtLoginSuccessHandler implements AuthenticationSuccessHandler {
 
     private final JwtProvider jwtProvider;
     private final RedisTokenService redisTokenService;
-    private final RedisUserContextService redisUserContextService;
     private final RedisLoginAttemptService loginAttemptService;
     private final UserLoginService userLoginService;
 
@@ -44,10 +38,7 @@ public class JwtLoginSuccessHandler implements AuthenticationSuccessHandler {
         String email = principal.getEmail();
 
         loginSuccess(email);
-        userLoginService.updateLastLogin(userId);
-
-        CachedUserContext ctx = redisUserContextService.getUserContext(userId);
-        redisUserContextService.validateActiveUser(ctx);
+        userLoginService.processLogin(userId);
 
         String accessToken =
                 jwtProvider.createAccessToken(userId, principal.getRole());

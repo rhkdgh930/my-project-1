@@ -113,7 +113,7 @@ public class User extends BaseEntity {
 
     public void updateProfile(String introduce, String profileImageUrl) {
         requireFullAccess();
-        this.profileDetail = ProfileDetail.update(introduce, profileImageUrl);
+        this.profileDetail = ProfileDetail.update(this.profileDetail, introduce, profileImageUrl);
     }
 
     public void updateNickname(String nickname) {
@@ -144,8 +144,16 @@ public class User extends BaseEntity {
         this.withdrawal = UserWithdrawal.request(now);
     }
 
-    public void updateLastLogin(LocalDateTime now) {
+    public boolean recordSuccessfulLogin(LocalDateTime now) {
         requireAccountManageable();
+        Assert.notNull(now, "시간은 필수입니다.");
+
+        boolean releasedDormant = activateIfDormant();
+        updateLastLogin(now);
+        return releasedDormant;
+    }
+
+    private void updateLastLogin(LocalDateTime now) {
         Assert.notNull(now, "시간은 필수입니다.");
         if (this.lastLoginAt != null && this.lastLoginAt.toLocalDate().isEqual(now.toLocalDate())) return;
         this.lastLoginAt = now;
@@ -155,35 +163,59 @@ public class User extends BaseEntity {
     // [Group C] 특수 상태 전환 액션 (System / Admin / Lifecycle)
     // =========================================================
 
-    public void activateFromDormant(LocalDateTime now) {
-        if (this.userStatus != UserStatus.DORMANT) {
-            throw new CustomException(ErrorCode.INVALID_USER_STATUS);
+    private boolean activateIfDormant() {
+        if (this.userStatus == UserStatus.DORMANT) {
+            this.userStatus = UserStatus.ACTIVE;
+            return true;
         }
-        this.userStatus = UserStatus.ACTIVE;
-        this.updateLastLogin(now);
+        return false;
+    }
+
+    //로그인시 자동 복구 기능
+    public void checkAndReleaseSuspension(LocalDateTime now) {
+        requireAccountPresent();
+        Assert.notNull(now, "시간은 필수입니다.");
+
+        if (this.accountStatus == AccountStatus.SUSPENDED
+                && this.suspension != null
+                && !this.suspension.isActive(now)) {
+
+            this.accountStatus = AccountStatus.NORMAL;
+            this.suspension = null;
+        }
     }
 
     public void cancelWithdrawal(LocalDateTime now) {
         if (this.userStatus != UserStatus.WITHDRAWN_REQUESTED) {
             throw new CustomException(ErrorCode.INVALID_USER_STATUS);
         }
-        if (this.withdrawal != null && this.withdrawal.canRestore(now)) {
-            this.userStatus = UserStatus.ACTIVE;
-            this.withdrawal = null;
+
+        if (this.withdrawal == null || !this.withdrawal.canRestore(now)) {
+            throw new CustomException(ErrorCode.WITHDRAWAL_COMPLETED);
         }
+
+        this.userStatus = UserStatus.ACTIVE;
+        this.withdrawal = null;
     }
 
     public void completeWithdrawal() {
-        if (this.userStatus != UserStatus.WITHDRAWN_REQUESTED) throw new CustomException(ErrorCode.INVALID_USER_STATUS);
+        if (this.userStatus != UserStatus.WITHDRAWN_REQUESTED) {
+            throw new CustomException(ErrorCode.INVALID_USER_STATUS);
+        }
         maskPersonalData();
         this.userStatus = UserStatus.WITHDRAWN;
     }
 
-    public void checkAndReleaseSuspension(LocalDateTime now) {
-        if (this.accountStatus == AccountStatus.SUSPENDED && this.suspension != null && !this.suspension.isActive(now)) {
-            this.accountStatus = AccountStatus.NORMAL;
-            this.suspension = null;
+    //관리자 복구 기능
+    public void unSuspend() {
+        requireAccountPresent();
+
+        if (this.accountStatus != AccountStatus.SUSPENDED) {
+            throw new CustomException(ErrorCode.INVALID_USER_STATUS);
         }
+
+        this.accountStatus = AccountStatus.NORMAL;
+        this.suspension = null;
     }
 
     public void suspend(SuspensionType type, SuspensionReason reason, Duration duration, LocalDateTime now) {

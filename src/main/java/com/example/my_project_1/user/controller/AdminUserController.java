@@ -1,5 +1,6 @@
 package com.example.my_project_1.user.controller;
 
+import com.example.my_project_1.common.utils.PageResponse;
 import com.example.my_project_1.user.service.AdminUserCommandService;
 import com.example.my_project_1.user.service.AdminUserQueryService;
 import com.example.my_project_1.user.service.request.UserSuspensionRequest;
@@ -8,6 +9,8 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -48,14 +51,30 @@ public class AdminUserController {
     }
 
     @Operation(
-            summary = "전체 유저 조회",
-            description = "관리자가 시스템에 등록된 모든 유저를 조회합니다."
+            summary = "유저 차단 해제",
+            description = "관리자가 특정 유저의 차단을 즉시 해제합니다."
     )
-    @GetMapping
-    public ResponseEntity<List<UserDetailResponse>> readAll() {
+    @PostMapping("/{userId}/unsuspend")
+    public ResponseEntity<Void> unSuspendUser(
+            @Parameter(description = "차단을 복구할 유저 ID")
+            @PathVariable Long userId) {
 
-        List<UserDetailResponse> responses = adminQueryService.findAll();
-        return ResponseEntity.ok(responses);
+        adminCommandService.unSuspendUser(userId);
+
+        return ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "관리자용 유저 목록(Page)")
+    @GetMapping
+    public ResponseEntity<PageResponse<UserDetailResponse>> readPage(@PageableDefault(size = 20) Pageable pageable) {
+        return ResponseEntity.ok(adminQueryService.findPage(pageable));
+    }
+
+    @Operation(summary = "관리자용 유저 목록(Cursor)")
+    @GetMapping("/cursor")
+    public ResponseEntity<List<UserDetailResponse>> readCursor(@RequestParam Long lastId,
+                                                               @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(adminQueryService.findNext(lastId, size));
     }
 
     @GetMapping("/test")
@@ -63,5 +82,4 @@ public class AdminUserController {
         return ResponseEntity.ok(userDetails);
     }
 
-    //todo 차단 복구 로직 만들어야 함
 }

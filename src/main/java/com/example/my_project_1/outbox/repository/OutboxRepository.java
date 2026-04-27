@@ -13,28 +13,41 @@ import java.util.List;
 public interface OutboxRepository extends JpaRepository<OutboxEvent, Long> {
 
     @Query("""
-                SELECT o.id FROM OutboxEvent o
-                WHERE o.status IN ('PENDING', 'FAILED')
-                  AND o.nextRetryAt <= :now
-                ORDER BY o.id ASC
+            SELECT o.id
+            FROM OutboxEvent o
+            WHERE o.status IN ('PENDING', 'FAILED')
+              AND o.nextRetryAt <= :now
+              ORDER BY o.nextRetryAt ASC, o.id ASC
             """)
-    List<Long> findProcessableIds(LocalDateTime now, Pageable pageable);
+    List<Long> findProcessableIds(@Param("now") LocalDateTime now, Pageable pageable);
 
-    @Modifying(clearAutomatically = true)
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
-                UPDATE OutboxEvent o
-                SET o.status = 'PROCESSING'
-                WHERE o.id = :id
-                  AND o.status IN ('PENDING', 'FAILED')
+            UPDATE OutboxEvent o
+            SET o.status = 'PROCESSING',
+                o.lastTriedAt = :now
+            WHERE o.id = :id
+              AND o.status IN ('PENDING', 'FAILED')
+              AND o.nextRetryAt <= :now
             """)
-    int claim(@Param("id") Long id);
+    int claim(@Param("id") Long id, @Param("now") LocalDateTime now);
 
     @Modifying
     @Query("""
-                UPDATE OutboxEvent o
-                SET o.status = 'FAILED'
-                WHERE o.status = 'PROCESSING'
-                  AND o.lastTriedAt < :threshold
+            UPDATE OutboxEvent o
+            SET o.status = 'FAILED',
+                o.nextRetryAt = :now
+            WHERE o.status = 'PROCESSING'
+              AND o.lastTriedAt < :threshold
             """)
-    int recoverStuckEvents(@Param("threshold") LocalDateTime threshold);
+    int recoverStuckEvents(@Param("threshold") LocalDateTime threshold,
+                           @Param("now") LocalDateTime now);
+
+    @Modifying
+    @Query("""
+            DELETE FROM OutboxEvent o
+            WHERE o.status = 'SUCCESS'
+              AND o.createdAt < :threshold
+            """)
+    int deleteSuccessBefore(@Param("threshold") LocalDateTime threshold);
 }

@@ -13,22 +13,19 @@ import java.time.LocalDateTime;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class OutboxRecoveryScheduler {
+public class OutboxCleanupScheduler {
 
     private final Clock clock;
     private final OutboxRepository outboxRepository;
 
     @Transactional
-    @Scheduled(fixedDelay = 10_000)
-    public void recover() {
+    @Scheduled(cron = "0 15 3 * * *")
+    public void cleanupSuccessEvents() {
+        LocalDateTime threshold = LocalDateTime.now(clock).minusDays(7);
+        int deleted = outboxRepository.deleteSuccessBefore(threshold);
 
-        LocalDateTime now = LocalDateTime.now(clock);
-        LocalDateTime threshold = now.minusMinutes(5);
-
-        int recovered = outboxRepository.recoverStuckEvents(threshold, now);
-
-        if (recovered > 0) {
-            log.warn("[OUTBOX][RECOVER] recovered={}", recovered);
+        if (deleted > 0) {
+            log.info("[OUTBOX][CLEANUP] deleted={}", deleted);
         }
     }
 }
