@@ -3,6 +3,7 @@ package com.example.my_project_1.outbox.controller;
 import com.example.my_project_1.outbox.domain.OutboxEvent;
 import com.example.my_project_1.outbox.repository.OutboxRepository;
 import com.example.my_project_1.outbox.service.AdminOutboxService;
+import com.example.my_project_1.outbox.service.OutboxProcessor;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,15 +18,15 @@ import java.time.LocalDateTime;
 @RestController
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
-@RequestMapping("/admin/outbox")
+@RequestMapping("/api/admin/outbox")
 public class AdminOutboxController {
 
-    private final Clock clock;
     private final AdminOutboxService adminOutboxService;
+    private final OutboxProcessor outboxProcessor;
 
-    @Transactional
     @PostMapping("/{id}/retry")
     public void retry(@PathVariable Long id) {
         adminOutboxService.retry(id);
+        outboxProcessor.process(id);
     }
 }

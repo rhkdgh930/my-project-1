@@ -17,7 +17,7 @@ public interface OutboxRepository extends JpaRepository<OutboxEvent, Long> {
             FROM OutboxEvent o
             WHERE o.status IN ('PENDING', 'FAILED')
               AND o.nextRetryAt <= :now
-              ORDER BY o.id ASC
+              ORDER BY o.nextRetryAt ASC, o.id ASC
             """)
     List<Long> findProcessableIds(@Param("now") LocalDateTime now, Pageable pageable);
 
