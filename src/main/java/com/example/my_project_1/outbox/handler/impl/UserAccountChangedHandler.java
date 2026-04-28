@@ -29,7 +29,7 @@ public class UserAccountChangedHandler implements OutboxHandler {
         UserAccountChangedOutboxEvent event =
                 DataSerializer.deserialize(payload, UserAccountChangedOutboxEvent.class);
 
-        if (event == null || event.getType() == null) {
+        if (event == null || event.getUserId() == null || event.getType() == null) {
             throw new IllegalArgumentException("Invalid USER_ACCOUNT_CHANGED payload");
         }
 

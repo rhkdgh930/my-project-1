@@ -27,10 +27,16 @@ public class PostUpdatedHandler implements OutboxHandler {
         PostUpdatedOutboxEvent event =
                 DataSerializer.deserialize(payload, PostUpdatedOutboxEvent.class);
 
+        if (event == null || event.getPostId() == null || event.getUserId() == null) {
+            throw new IllegalArgumentException("Invalid POST_UPDATED payload");
+        }
+
+        int imageCount = event.getStorageKeys() == null ? 0 : event.getStorageKeys().size();
+
         log.debug(
                 "[EVENT][PostUpdatedHandler][SYNC_IMAGES] postId={} imageCount={}",
                 event.getPostId(),
-                event.getStorageKeys().size()
+                imageCount
         );
 
         imageService.syncImages(

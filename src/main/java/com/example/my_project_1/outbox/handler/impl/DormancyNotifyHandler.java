@@ -26,6 +26,10 @@ public class DormancyNotifyHandler implements OutboxHandler {
         DormancyNotifyOutboxEvent event =
                 DataSerializer.deserialize(payload, DormancyNotifyOutboxEvent.class);
 
+        if (event == null || event.getUserId() == null || event.getEmail() == null || event.getNickname() == null) {
+            throw new IllegalArgumentException("Invalid DORMANCY_NOTIFY payload");
+        }
+
         emailService.sendDormancyWarning(
                 event.getEmail(),
                 event.getNickname()

@@ -27,10 +27,16 @@ public class PostCreatedHandler implements OutboxHandler {
         PostCreatedOutboxEvent event =
                 DataSerializer.deserialize(payload, PostCreatedOutboxEvent.class);
 
+        if (event == null || event.getPostId() == null || event.getUserId() == null) {
+            throw new IllegalArgumentException("Invalid POST_CREATED payload");
+        }
+
+        int imageCount = event.getStorageKeys() == null ? 0 : event.getStorageKeys().size();
+
         log.debug(
                 "[EVENT][PostCreatedHandler][ATTACH_IMAGES] postId={} imageCount={}",
                 event.getPostId(),
-                event.getStorageKeys().size()
+                imageCount
         );
 
         imageService.attachImages(
