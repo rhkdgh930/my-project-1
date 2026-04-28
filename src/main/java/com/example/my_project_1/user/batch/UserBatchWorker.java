@@ -1,12 +1,17 @@
 package com.example.my_project_1.user.batch;
 
 import com.example.my_project_1.common.utils.DataSerializer;
+import com.example.my_project_1.common.exception.CustomException;
+import com.example.my_project_1.common.exception.ErrorCode;
 import com.example.my_project_1.outbox.domain.OutboxEventType;
 import com.example.my_project_1.outbox.service.OutboxPublisher;
 import com.example.my_project_1.outbox.service.UserAccountChangeOutboxPublisher;
 import com.example.my_project_1.user.domain.User;
+import com.example.my_project_1.user.domain.UserStatus;
+import com.example.my_project_1.user.domain.UserWithdrawal;
 import com.example.my_project_1.user.event.DormancyNotifyOutboxEvent;
 import com.example.my_project_1.user.event.UserAccountChangedType;
+import com.example.my_project_1.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,10 +28,17 @@ public class UserBatchWorker {
 
     private final OutboxPublisher outboxPublisher;
     private final UserAccountChangeOutboxPublisher userAccountChangeOutboxPublisher;
+    private final UserRepository userRepository;
 
     @Transactional
-    public void processSingleUserWithDormancy(User user, LocalDateTime threshold) {
-        if (user.getLastLoginAt().isBefore(threshold)) {
+    public void processSingleUserWithDormancy(Long userId, LocalDateTime notifyThreshold, LocalDateTime dormantThreshold) {
+        User user = findUser(userId);
+
+        if (!user.isActive() || user.getLastLoginAt().isAfter(notifyThreshold)) {
+            return;
+        }
+
+        if (user.getLastLoginAt().isBefore(dormantThreshold)) {
             user.markDormant();
             userAccountChangeOutboxPublisher.publish(user.getId(), UserAccountChangedType.DORMANT_REQUEST);
             return;
@@ -49,8 +61,24 @@ public class UserBatchWorker {
     }
 
     @Transactional
-    public void processSingleWithdrawal(User user) {
+    public void processSingleWithdrawal(Long userId, LocalDateTime threshold) {
+        User user = findUser(userId);
+
+        if (user.getUserStatus() != UserStatus.WITHDRAWN_REQUESTED) {
+            return;
+        }
+
+        UserWithdrawal withdrawal = user.getWithdrawal();
+        if (withdrawal == null || withdrawal.getRequestedAt() == null || withdrawal.getRequestedAt().isAfter(threshold)) {
+            return;
+        }
+
         user.completeWithdrawal();
         userAccountChangeOutboxPublisher.publish(user.getId(), UserAccountChangedType.WITHDRAWAL_REQUEST);
+    }
+
+    private User findUser(Long userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
     }
 }

@@ -15,10 +15,10 @@ public class UserBatchProcessor {
 
     private final UserBatchWorker worker;
 
-    public void processDormancyChunk(List<User> users, LocalDateTime threshold) {
+    public void processDormancyChunk(List<User> users, LocalDateTime notifyThreshold, LocalDateTime dormantThreshold) {
         for (User user : users) {
             try {
-                worker.processSingleUserWithDormancy(user, threshold);
+                worker.processSingleUserWithDormancy(user.getId(), notifyThreshold, dormantThreshold);
             } catch (Exception e) {
                 log.error("[BATCH][Dormancy][USER_FAIL] userId={}",
                         user.getId(), e);
@@ -26,10 +26,10 @@ public class UserBatchProcessor {
         }
     }
 
-    public void processWithdrawalChunk(List<User> users) {
+    public void processWithdrawalChunk(List<User> users, LocalDateTime threshold) {
         for (User user : users) {
             try {
-                worker.processSingleWithdrawal(user);
+                worker.processSingleWithdrawal(user.getId(), threshold);
             } catch (Exception e) {
                 log.error("[BATCH][Withdrawal][USER_FAIL] userId={}",
                         user.getId(), e);

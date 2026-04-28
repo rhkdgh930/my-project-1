@@ -58,7 +58,7 @@ public class DormantUserJob {
 
             try {
 
-                processor.processDormancyChunk(users, dormantThreshold);
+                processor.processDormancyChunk(users, notifyThreshold, dormantThreshold);
 
                 processedCount += users.size();
 

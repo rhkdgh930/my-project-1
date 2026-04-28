@@ -50,7 +50,7 @@ public class WithdrawalCleanupJob {
             if (users.isEmpty()) break;
 
             try {
-                processor.processWithdrawalChunk(users);
+                processor.processWithdrawalChunk(users, threshold);
                 processedCount += users.size();
 
             } catch (Exception e) {
