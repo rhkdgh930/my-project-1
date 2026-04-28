@@ -73,6 +73,7 @@ public class User extends BaseEntity {
     @Column(nullable = false)
     private boolean isEmailVerified;
 
+    @Column(nullable = false)
     private LocalDateTime lastLoginAt;
 
     public static User signUp(Email email, String encodedPassword, String nickname, LocalDateTime now) {
