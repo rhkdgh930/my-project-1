@@ -227,3 +227,16 @@ Outbox 변경 시 다음 테스트를 고려한다.
 - Outbox 상태 전이를 handler에 분산
 - business transaction 안에서 handler 직접 실행
 - scheduler fallback 제거
+
+---
+
+## Retry 가능 여부 기준
+
+모든 실패가 retry 대상은 아니다.
+
+Codex는 handler 실패를 다룰 때 가능하면 다음을 구분해야 한다.
+
+- Retryable failure: 일시적 네트워크 오류, 외부 서비스 장애, Redis 일시 장애
+- Non-retryable failure: payload invalid, handler not found, 잘못된 event type, 필수 데이터 누락
+
+Non-retryable failure는 무한 retry하지 말고 DEAD 처리를 검토한다.

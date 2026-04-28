@@ -211,3 +211,25 @@ Auth 변경 시 다음 검증을 고려한다.
 - SecurityConfig 전체 rewrite
 - OAuth2 흐름 전체 교체
 - public auth API path 변경
+
+---
+
+## Auth 구조 변경 기준
+
+Auth 구조 변경은 보안 영향이 크므로, 중간 규모 이상의 구조 변경은 바로 적용하지 않는다.
+
+다음 변경은 반드시 먼저 제안만 해야 한다.
+
+- Filter 기반 로그인에서 Controller 기반 로그인으로 변경
+- Refresh Token 저장 전략 변경
+- Redis user context cache 제거 또는 대체
+- OAuth2 success flow 전체 변경
+- SecurityConfig 대규모 재작성
+
+이 경우 Codex는 먼저 다음을 설명해야 한다.
+
+1. 현재 구조의 문제
+2. 대안 구조
+3. 보안 영향
+4. migration plan
+5. 필요한 테스트
