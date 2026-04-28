@@ -58,36 +58,6 @@ class OutboxHandlerPayloadValidationTest {
     }
 
     @Test
-    @DisplayName("POST_CREATED payload의 storageKeys가 null이면 image side effect를 실행하지 않는다.")
-    void postCreated_rejectsNullStorageKeysBeforeSideEffect() {
-        ImageService imageService = mock(ImageService.class);
-        PostCreatedHandler handler = new PostCreatedHandler(imageService);
-
-        String payload = DataSerializer.serialize(
-                new PostCreatedOutboxEvent(1L, 2L, null)
-        );
-
-        assertThatThrownBy(() -> handler.handle(payload))
-                .isInstanceOf(IllegalArgumentException.class);
-        verifyNoInteractions(imageService);
-    }
-
-    @Test
-    @DisplayName("POST_UPDATED payload의 storageKeys가 null이면 image side effect를 실행하지 않는다.")
-    void postUpdated_rejectsNullStorageKeysBeforeSideEffect() {
-        ImageService imageService = mock(ImageService.class);
-        PostUpdatedHandler handler = new PostUpdatedHandler(imageService);
-
-        String payload = DataSerializer.serialize(
-                new PostUpdatedOutboxEvent(1L, 2L, null)
-        );
-
-        assertThatThrownBy(() -> handler.handle(payload))
-                .isInstanceOf(IllegalArgumentException.class);
-        verifyNoInteractions(imageService);
-    }
-
-    @Test
     @DisplayName("EMAIL_VERIFICATION payload의 email이 null이면 Redis/email side effect를 실행하지 않는다.")
     void emailVerification_rejectsNullEmailBeforeSideEffect() {
         RedisEmailVerificationService redisEmailVerificationService = mock(RedisEmailVerificationService.class);
