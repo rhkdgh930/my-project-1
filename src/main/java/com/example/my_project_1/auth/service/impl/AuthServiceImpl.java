@@ -45,15 +45,18 @@ public class AuthServiceImpl implements AuthService {
     public TokenResponse reissue(String refreshToken) {
         String requestHash = redisTokenService.getHash(refreshToken);
 
-        TokenResponse cachedResponse = redisTokenService.getReissueHistory(requestHash);
-        if (cachedResponse != null) {
-            return cachedResponse;
-        }
-
         Claims claims = jwtProvider.parseClaimsSafely(refreshToken);
         jwtProvider.assertRefreshToken(claims);
 
         Long userId = Long.valueOf(claims.getSubject());
+
+        CachedUserContext ctx = userContextService.getUserContext(userId);
+        userContextService.validateActiveUser(ctx);
+
+        TokenResponse cachedResponse = redisTokenService.getReissueHistory(requestHash);
+        if (cachedResponse != null) {
+            return cachedResponse;
+        }
 
         String savedRTHash = redisTokenService.getRefreshTokenHash(userId);
 
@@ -61,8 +64,6 @@ public class AuthServiceImpl implements AuthService {
             redisTokenService.deleteRefreshTokenHash(userId);
             throw new CustomException(ErrorCode.INVALID_REFRESH_TOKEN);
         }
-
-        CachedUserContext ctx = userContextService.getUserContext(userId);
 
         String newAccessToken =
                 jwtProvider.createAccessToken(
