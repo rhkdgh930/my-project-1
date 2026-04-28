@@ -3,9 +3,6 @@ package com.example.my_project_1.user.service.impl;
 import com.example.my_project_1.auth.service.*;
 import com.example.my_project_1.common.exception.CustomException;
 import com.example.my_project_1.common.exception.ErrorCode;
-import com.example.my_project_1.common.utils.DataSerializer;
-import com.example.my_project_1.outbox.domain.OutboxEventType;
-import com.example.my_project_1.outbox.service.OutboxPublisher;
 import com.example.my_project_1.outbox.service.UserAccountChangeOutboxPublisher;
 import com.example.my_project_1.user.domain.Email;
 import com.example.my_project_1.user.domain.User;
@@ -42,7 +39,6 @@ public class UserCommandServiceImpl implements UserCommandService {
     private final RedisEmailVerificationService redisEmailVerificationService;
     private final RedisPasswordResetTokenService redisPasswordResetTokenService;
 
-    private final OutboxPublisher outboxPublisher;
     private final UserAccountChangeOutboxPublisher userAccountChangeOutboxPublisher;
     private final ApplicationEventPublisher eventPublisher;
 
@@ -56,13 +52,8 @@ public class UserCommandServiceImpl implements UserCommandService {
 
         String code = generateVerificationCode();
 
-        outboxPublisher.publish(
-                OutboxEventType.EMAIL_VERIFICATION,
-                DataSerializer.serialize(
-                        new EmailVerificationOutboxEvent(email.getValue(), code)
-                ),
-                "EMAIL_VERIFICATION:%s:%s".formatted(email.getValue(), UUID.randomUUID())
-        );
+        redisEmailVerificationService.saveCode(email.getValue(), code);
+        eventPublisher.publishEvent(new EmailVerificationMailRequestedEvent(email.getValue(), code));
     }
 
     @Override

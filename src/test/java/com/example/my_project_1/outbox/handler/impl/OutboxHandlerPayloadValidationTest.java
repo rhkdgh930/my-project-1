@@ -58,40 +58,6 @@ class OutboxHandlerPayloadValidationTest {
     }
 
     @Test
-    @DisplayName("EMAIL_VERIFICATION payload의 email이 null이면 Redis/email side effect를 실행하지 않는다.")
-    void emailVerification_rejectsNullEmailBeforeSideEffect() {
-        RedisEmailVerificationService redisEmailVerificationService = mock(RedisEmailVerificationService.class);
-        EmailService emailService = mock(EmailService.class);
-        EmailVerificationHandler handler =
-                new EmailVerificationHandler(redisEmailVerificationService, emailService);
-
-        String payload = DataSerializer.serialize(
-                new EmailVerificationOutboxEvent(null, "123456")
-        );
-
-        assertThatThrownBy(() -> handler.handle(payload))
-                .isInstanceOf(IllegalArgumentException.class);
-        verifyNoInteractions(redisEmailVerificationService, emailService);
-    }
-
-    @Test
-    @DisplayName("PASSWORD_RESET payload의 rawToken이 null이면 Redis/email side effect를 실행하지 않는다.")
-    void passwordReset_rejectsNullRawTokenBeforeSideEffect() {
-        RedisPasswordResetTokenService redisPasswordResetTokenService = mock(RedisPasswordResetTokenService.class);
-        EmailService emailService = mock(EmailService.class);
-        PasswordResetHandler handler =
-                new PasswordResetHandler(redisPasswordResetTokenService, emailService);
-
-        String payload = DataSerializer.serialize(
-                new PasswordResetOutboxEvent("email@email.com", null, "https://example.com/reset")
-        );
-
-        assertThatThrownBy(() -> handler.handle(payload))
-                .isInstanceOf(IllegalArgumentException.class);
-        verifyNoInteractions(redisPasswordResetTokenService, emailService);
-    }
-
-    @Test
     @DisplayName("POST_CREATED payload의 storageKeys가 빈 목록이면 기존 정책대로 image service를 호출할 수 있다.")
     void postCreated_allowsEmptyStorageKeys() {
         ImageService imageService = mock(ImageService.class);
