@@ -44,6 +44,7 @@ public class UserCommandServiceImpl implements UserCommandService {
 
     private final OutboxPublisher outboxPublisher;
     private final UserAccountChangeOutboxPublisher userAccountChangeOutboxPublisher;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Value("${app.frontend-url}")
     private String frontendUrl;
@@ -156,13 +157,8 @@ public class UserCommandServiceImpl implements UserCommandService {
             String rawToken = UUID.randomUUID().toString();
             String resetLink = frontendUrl + "/password-reset?token=" + rawToken;
 
-            outboxPublisher.publish(
-                    OutboxEventType.PASSWORD_RESET,
-                    DataSerializer.serialize(
-                            new PasswordResetOutboxEvent(emailValue, rawToken, resetLink)
-                    ),
-                    "PASSWORD_RESET:%s:%s".formatted(emailValue, UUID.randomUUID())
-            );
+            redisPasswordResetTokenService.saveToken(rawToken, emailValue);
+            eventPublisher.publishEvent(new PasswordResetMailRequestedEvent(emailValue, rawToken, resetLink));
         });
     }
 
