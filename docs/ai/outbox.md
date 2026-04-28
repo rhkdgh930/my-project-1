@@ -240,3 +240,27 @@ Codex는 handler 실패를 다룰 때 가능하면 다음을 구분해야 한다
 - Non-retryable failure: payload invalid, handler not found, 잘못된 event type, 필수 데이터 누락
 
 Non-retryable failure는 무한 retry하지 말고 DEAD 처리를 검토한다.
+
+## Secret Payload Policy
+
+Outbox payload에는 raw token, password reset token, verification code, one-time code,
+session credential, authorization credential을 저장하지 않는다.
+
+짧은 TTL을 가진 인증성 secret은 Outbox durable retry 대상보다 secret minimization을 우선한다.
+
+다음 조건을 모두 만족하면 Outbox 사용을 재검토한다.
+
+- payload에 secret 또는 bearer credential이 포함된다.
+- secret TTL이 짧다.
+- 사용자가 재요청할 수 있다.
+- retry 지연 후 실행되면 보안 또는 UX 의미가 약해진다.
+
+Password reset link와 email verification code는 기본적으로 persistent Outbox payload에 저장하지 않는다.
+필요하면 synchronous 처리, encrypted payload, reference-based secret store 중 하나를 명시적으로 선택한다.
+
+Outbox에 남기는 side effect는 다음 조건을 만족해야 한다.
+
+- retry가 의미 있다.
+- handler가 idempotent하다.
+- payload가 장기 보관되어도 보안상 허용 가능하다.
+- 늦게 처리되어도 비즈니스 의미가 유지된다.
