@@ -45,7 +45,6 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
 
 
         String targetUrl = UriComponentsBuilder.fromUriString("http://localhost:8080/api/auth/test") // 프론트 대신 백엔드로
-                .queryParam("accessToken", accessToken)
                 .build().toUriString();
 
         response.sendRedirect(targetUrl);
