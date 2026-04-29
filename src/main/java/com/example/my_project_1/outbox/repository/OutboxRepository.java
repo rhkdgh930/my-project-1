@@ -12,6 +12,8 @@ import java.util.List;
 
 public interface OutboxRepository extends JpaRepository<OutboxEvent, Long> {
 
+    boolean existsByEventKey(String eventKey);
+
     @Query("""
             SELECT o.id
             FROM OutboxEvent o
@@ -36,12 +38,14 @@ public interface OutboxRepository extends JpaRepository<OutboxEvent, Long> {
     @Query("""
             UPDATE OutboxEvent o
             SET o.status = 'FAILED',
-                o.nextRetryAt = :now
+                o.nextRetryAt = :now,
+                o.lastError = :lastErrorMessage
             WHERE o.status = 'PROCESSING'
               AND o.lastTriedAt < :threshold
             """)
     int recoverStuckEvents(@Param("threshold") LocalDateTime threshold,
-                           @Param("now") LocalDateTime now);
+                           @Param("now") LocalDateTime now,
+                           @Param("lastErrorMessage") String lastErrorMessage);
 
     @Modifying
     @Query("""

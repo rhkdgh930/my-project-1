@@ -1,6 +1,7 @@
 package com.example.my_project_1.user.batch;
 
 import com.example.my_project_1.outbox.domain.OutboxEventType;
+import com.example.my_project_1.outbox.repository.OutboxRepository;
 import com.example.my_project_1.outbox.service.OutboxPublisher;
 import com.example.my_project_1.outbox.service.UserAccountChangeOutboxPublisher;
 import com.example.my_project_1.user.domain.Email;
@@ -10,6 +11,7 @@ import com.example.my_project_1.user.event.UserAccountChangedType;
 import com.example.my_project_1.user.repository.UserRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.Clock;
@@ -17,27 +19,24 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
 class UserBatchWorkerTest {
 
     private final Clock clock = Clock.systemDefaultZone();
+
     private final OutboxPublisher outboxPublisher = mock(OutboxPublisher.class);
     private final UserAccountChangeOutboxPublisher userAccountChangeOutboxPublisher =
             mock(UserAccountChangeOutboxPublisher.class);
     private final UserRepository userRepository = mock(UserRepository.class);
+    private final OutboxRepository outboxRepository = mock(OutboxRepository.class);
+
     private final UserBatchWorker worker = new UserBatchWorker(
-            clock,
             outboxPublisher,
             userAccountChangeOutboxPublisher,
-            userRepository
+            userRepository,
+            outboxRepository
     );
 
     @Test
@@ -55,9 +54,8 @@ class UserBatchWorkerTest {
         assertThat(user.getUserStatus()).isEqualTo(UserStatus.DORMANT);
         verify(userAccountChangeOutboxPublisher)
                 .publish(userId, UserAccountChangedType.DORMANT_REQUEST);
-        verify(outboxPublisher, never()).publish(org.mockito.ArgumentMatchers.any(),
-                org.mockito.ArgumentMatchers.anyString(),
-                org.mockito.ArgumentMatchers.anyString());
+        verify(outboxPublisher, never()).publish(any(), anyString(), anyString());
+        verifyNoInteractions(outboxRepository);
     }
 
     @Test
@@ -65,19 +63,81 @@ class UserBatchWorkerTest {
     void processSingleUserWithDormancy_publishesDormancyNotifyWhenEligible() {
         Long userId = 1L;
         LocalDateTime now = LocalDateTime.now(clock);
-        User user = user(userId, now.minusMonths(11).minusDays(1));
+        LocalDateTime lastLoginAt = now.minusMonths(11).minusDays(1);
+        User user = user(userId, lastLoginAt);
+
+        String expectedEventKey = "DORMANCY_NOTIFY:%d:%s".formatted(
+                userId,
+                lastLoginAt.toLocalDate()
+        );
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(outboxRepository.existsByEventKey(expectedEventKey)).thenReturn(false);
 
         worker.processSingleUserWithDormancy(userId, now.minusMonths(11), now.minusMonths(12));
 
         assertThat(user.getUserStatus()).isEqualTo(UserStatus.ACTIVE);
+
+        verify(outboxRepository).existsByEventKey(expectedEventKey);
         verify(outboxPublisher).publish(
                 eq(OutboxEventType.DORMANCY_NOTIFY),
                 anyString(),
-                org.mockito.ArgumentMatchers.startsWith("DORMANCY_NOTIFY:" + userId + ":")
+                eq(expectedEventKey)
         );
         verify(userAccountChangeOutboxPublisher, never()).publish(anyLong(), any());
+    }
+
+    @Test
+    @DisplayName("같은 휴면 사이클의 DORMANCY_NOTIFY eventKey가 이미 있으면 Outbox event를 발행하지 않는다.")
+    void processSingleUserWithDormancy_skipsWhenDormancyNotifyEventAlreadyExists() {
+        Long userId = 1L;
+        LocalDateTime now = LocalDateTime.now(clock);
+        LocalDateTime lastLoginAt = now.minusMonths(11).minusDays(1);
+        User user = user(userId, lastLoginAt);
+
+        String expectedEventKey = "DORMANCY_NOTIFY:%d:%s".formatted(
+                userId,
+                lastLoginAt.toLocalDate()
+        );
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(outboxRepository.existsByEventKey(expectedEventKey)).thenReturn(true);
+
+        worker.processSingleUserWithDormancy(userId, now.minusMonths(11), now.minusMonths(12));
+
+        assertThat(user.getUserStatus()).isEqualTo(UserStatus.ACTIVE);
+
+        verify(outboxRepository).existsByEventKey(expectedEventKey);
+        verify(outboxPublisher, never()).publish(any(), anyString(), anyString());
+        verify(userAccountChangeOutboxPublisher, never()).publish(anyLong(), any());
+    }
+
+    @Test
+    @DisplayName("휴면 알림 eventKey는 userId와 lastLoginAt 날짜를 기준으로 생성한다.")
+    void processSingleUserWithDormancy_usesLastLoginDateBasedEventKey() {
+        Long userId = 1L;
+        LocalDateTime now = LocalDateTime.now(clock);
+        LocalDateTime lastLoginAt = LocalDateTime.of(2025, 5, 29, 10, 0);
+        User user = user(userId, lastLoginAt);
+
+        LocalDateTime notifyThreshold = LocalDateTime.of(2025, 5, 30, 0, 0);
+        LocalDateTime dormantThreshold = LocalDateTime.of(2025, 4, 30, 0, 0);
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(outboxRepository.existsByEventKey("DORMANCY_NOTIFY:1:2025-05-29"))
+                .thenReturn(false);
+
+        worker.processSingleUserWithDormancy(userId, notifyThreshold, dormantThreshold);
+
+        ArgumentCaptor<String> eventKeyCaptor = ArgumentCaptor.forClass(String.class);
+
+        verify(outboxPublisher).publish(
+                eq(OutboxEventType.DORMANCY_NOTIFY),
+                anyString(),
+                eventKeyCaptor.capture()
+        );
+
+        assertThat(eventKeyCaptor.getValue()).isEqualTo("DORMANCY_NOTIFY:1:2025-05-29");
     }
 
     @Test
@@ -88,12 +148,22 @@ class UserBatchWorkerTest {
         LocalDateTime notifyThreshold = now.minusMonths(11);
         User user = user(userId, notifyThreshold);
 
+        String expectedEventKey = "DORMANCY_NOTIFY:%d:%s".formatted(
+                userId,
+                notifyThreshold.toLocalDate()
+        );
+
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(outboxRepository.existsByEventKey(expectedEventKey)).thenReturn(false);
 
         worker.processSingleUserWithDormancy(userId, notifyThreshold, now.minusMonths(12));
 
         assertThat(user.getUserStatus()).isEqualTo(UserStatus.ACTIVE);
-        verify(outboxPublisher).publish(eq(OutboxEventType.DORMANCY_NOTIFY), anyString(), anyString());
+        verify(outboxPublisher).publish(
+                eq(OutboxEventType.DORMANCY_NOTIFY),
+                anyString(),
+                eq(expectedEventKey)
+        );
         verify(userAccountChangeOutboxPublisher, never()).publish(anyLong(), any());
     }
 
@@ -105,12 +175,22 @@ class UserBatchWorkerTest {
         LocalDateTime dormantThreshold = now.minusMonths(12);
         User user = user(userId, dormantThreshold);
 
+        String expectedEventKey = "DORMANCY_NOTIFY:%d:%s".formatted(
+                userId,
+                dormantThreshold.toLocalDate()
+        );
+
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(outboxRepository.existsByEventKey(expectedEventKey)).thenReturn(false);
 
         worker.processSingleUserWithDormancy(userId, now.minusMonths(11), dormantThreshold);
 
         assertThat(user.getUserStatus()).isEqualTo(UserStatus.ACTIVE);
-        verify(outboxPublisher).publish(eq(OutboxEventType.DORMANCY_NOTIFY), anyString(), anyString());
+        verify(outboxPublisher).publish(
+                eq(OutboxEventType.DORMANCY_NOTIFY),
+                anyString(),
+                eq(expectedEventKey)
+        );
         verify(userAccountChangeOutboxPublisher, never()).publish(anyLong(), any());
     }
 
@@ -126,11 +206,9 @@ class UserBatchWorkerTest {
         worker.processSingleUserWithDormancy(userId, now.minusMonths(11), now.minusMonths(12));
 
         assertThat(user.getUserStatus()).isEqualTo(UserStatus.ACTIVE);
-        verify(userAccountChangeOutboxPublisher, never())
-                .publish(org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.any());
-        verify(outboxPublisher, never()).publish(org.mockito.ArgumentMatchers.any(),
-                org.mockito.ArgumentMatchers.anyString(),
-                org.mockito.ArgumentMatchers.anyString());
+        verify(userAccountChangeOutboxPublisher, never()).publish(anyLong(), any());
+        verify(outboxPublisher, never()).publish(any(), anyString(), anyString());
+        verifyNoInteractions(outboxRepository);
     }
 
     @Test
@@ -148,6 +226,7 @@ class UserBatchWorkerTest {
         assertThat(user.getUserStatus()).isEqualTo(UserStatus.WITHDRAWN_REQUESTED);
         verify(userAccountChangeOutboxPublisher, never()).publish(anyLong(), any());
         verify(outboxPublisher, never()).publish(any(), anyString(), anyString());
+        verifyNoInteractions(outboxRepository);
     }
 
     @Test
@@ -199,8 +278,7 @@ class UserBatchWorkerTest {
         worker.processSingleWithdrawal(userId, now.minusDays(7));
 
         assertThat(user.getUserStatus()).isEqualTo(UserStatus.WITHDRAWN_REQUESTED);
-        verify(userAccountChangeOutboxPublisher, never())
-                .publish(org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.any());
+        verify(userAccountChangeOutboxPublisher, never()).publish(anyLong(), any());
     }
 
     @Test
@@ -209,6 +287,7 @@ class UserBatchWorkerTest {
         Long userId = 1L;
         LocalDateTime now = LocalDateTime.now(clock);
         User user = user(userId, now);
+
         ReflectionTestUtils.setField(user, "userStatus", UserStatus.WITHDRAWN_REQUESTED);
         ReflectionTestUtils.setField(user, "withdrawal", null);
 

@@ -1,9 +1,10 @@
 package com.example.my_project_1.user.batch;
 
-import com.example.my_project_1.common.utils.DataSerializer;
 import com.example.my_project_1.common.exception.CustomException;
 import com.example.my_project_1.common.exception.ErrorCode;
+import com.example.my_project_1.common.utils.DataSerializer;
 import com.example.my_project_1.outbox.domain.OutboxEventType;
+import com.example.my_project_1.outbox.repository.OutboxRepository;
 import com.example.my_project_1.outbox.service.OutboxPublisher;
 import com.example.my_project_1.outbox.service.UserAccountChangeOutboxPublisher;
 import com.example.my_project_1.user.domain.User;
@@ -16,36 +17,45 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Clock;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
 public class UserBatchWorker {
-    private final Clock clock;
-    private static final String DORMANCY_NOTIFY = "DORMANCY_NOTIFY:";
+    private static final String DORMANCY_NOTIFY = "DORMANCY_NOTIFY";
 
     private final OutboxPublisher outboxPublisher;
     private final UserAccountChangeOutboxPublisher userAccountChangeOutboxPublisher;
     private final UserRepository userRepository;
+    private final OutboxRepository outboxRepository;
 
     @Transactional
     public void processSingleUserWithDormancy(Long userId, LocalDateTime notifyThreshold, LocalDateTime dormantThreshold) {
         User user = findUser(userId);
+        LocalDateTime lastLoginAt = user.getLastLoginAt();
 
-        if (!user.isActive() || user.getLastLoginAt().isAfter(notifyThreshold)) {
+        if (!user.isActive() || lastLoginAt == null || lastLoginAt.isAfter(notifyThreshold)) {
             return;
         }
 
-        if (user.getLastLoginAt().isBefore(dormantThreshold)) {
+        if (lastLoginAt.isBefore(dormantThreshold)) {
             user.markDormant();
             userAccountChangeOutboxPublisher.publish(user.getId(), UserAccountChangedType.DORMANT_REQUEST);
             return;
         }
-        String eventKey = getEventKey(user);
 
-        outboxPublisher.publish(OutboxEventType.DORMANCY_NOTIFY,
+        publishDormancyNotifyIfNotExists(user);
+    }
+
+    private void publishDormancyNotifyIfNotExists(User user) {
+        String eventKey = getDormancyNotifyEventKey(user);
+
+        if (outboxRepository.existsByEventKey(eventKey)) {
+            return;
+        }
+
+        outboxPublisher.publish(
+                OutboxEventType.DORMANCY_NOTIFY,
                 DataSerializer.serialize(
                         new DormancyNotifyOutboxEvent(
                                 user.getId(),
@@ -53,11 +63,16 @@ public class UserBatchWorker {
                                 user.getNickname()
                         )
                 ),
-                eventKey);
+                eventKey
+        );
     }
 
-    private String getEventKey(User user) {
-        return DORMANCY_NOTIFY + user.getId() + ":" + LocalDate.now(clock);
+    private String getDormancyNotifyEventKey(User user) {
+        return "%s:%d:%s".formatted(
+                DORMANCY_NOTIFY,
+                user.getId(),
+                user.getLastLoginAt().toLocalDate()
+        );
     }
 
     @Transactional
