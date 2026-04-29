@@ -155,15 +155,13 @@ public class UserCommandServiceImpl implements UserCommandService {
 
     @Override
     public void resetPassword(PasswordResetRequest request) {
-        String emailValue = redisPasswordResetTokenService.validateAndGetEmail(request.getToken());
+        String emailValue = redisPasswordResetTokenService.consumeToken(request.getToken());
 
         User user = userRepository.findByEmail(Email.from(emailValue))
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         user.updatePassword(passwordEncoder.encode(request.getNewPassword()));
         userAccountChangeOutboxPublisher.publish(user.getId(), UserAccountChangedType.SECURITY_CHANGED);
-
-        redisPasswordResetTokenService.deleteToken(request.getToken());
     }
 
     private String generateVerificationCode() {

@@ -7,7 +7,9 @@ import com.example.my_project_1.user.domain.Email;
 import com.example.my_project_1.user.domain.User;
 import com.example.my_project_1.user.event.EmailVerificationMailRequestedEvent;
 import com.example.my_project_1.user.event.PasswordResetMailRequestedEvent;
+import com.example.my_project_1.user.event.UserAccountChangedType;
 import com.example.my_project_1.user.repository.UserRepository;
+import com.example.my_project_1.user.service.request.PasswordResetRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -24,6 +26,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -40,19 +43,20 @@ class UserCommandServiceImplTest {
     );
 
     private UserRepository userRepository;
+    private PasswordEncoder passwordEncoder;
     private RedisEmailVerificationService redisEmailVerificationService;
     private RedisPasswordResetTokenService redisPasswordResetTokenService;
+    private UserAccountChangeOutboxPublisher userAccountChangeOutboxPublisher;
     private ApplicationEventPublisher eventPublisher;
     private UserCommandServiceImpl userCommandService;
 
     @BeforeEach
     void setUp() {
         userRepository = mock(UserRepository.class);
-        PasswordEncoder passwordEncoder = mock(PasswordEncoder.class);
+        passwordEncoder = mock(PasswordEncoder.class);
         redisEmailVerificationService = mock(RedisEmailVerificationService.class);
         redisPasswordResetTokenService = mock(RedisPasswordResetTokenService.class);
-        UserAccountChangeOutboxPublisher userAccountChangeOutboxPublisher =
-                mock(UserAccountChangeOutboxPublisher.class);
+        userAccountChangeOutboxPublisher = mock(UserAccountChangeOutboxPublisher.class);
         eventPublisher = mock(ApplicationEventPublisher.class);
 
         userCommandService = new UserCommandServiceImpl(
@@ -118,6 +122,31 @@ class UserCommandServiceImplTest {
         userCommandService.requestPasswordReset(EMAIL);
 
         verifyNoInteractions(redisPasswordResetTokenService, eventPublisher);
+    }
+
+    @Test
+    @DisplayName("비밀번호 재설정은 Redis token을 원자 소비한 뒤 비밀번호를 변경하고 token을 다시 삭제하지 않는다.")
+    void resetPassword_consumesTokenAndDoesNotDeleteTokenAgain() {
+        String rawToken = "reset-token";
+        String newPassword = "newPassword123!";
+        String encodedPassword = "encodedNewPassword";
+        User user = activeUser();
+        ReflectionTestUtils.setField(user, "id", 1L);
+        PasswordResetRequest request = new PasswordResetRequest();
+        ReflectionTestUtils.setField(request, "token", rawToken);
+        ReflectionTestUtils.setField(request, "newPassword", newPassword);
+
+        when(redisPasswordResetTokenService.consumeToken(rawToken)).thenReturn(EMAIL);
+        when(userRepository.findByEmail(Email.from(EMAIL))).thenReturn(Optional.of(user));
+        when(passwordEncoder.encode(newPassword)).thenReturn(encodedPassword);
+
+        userCommandService.resetPassword(request);
+
+        verify(redisPasswordResetTokenService).consumeToken(rawToken);
+        verify(redisPasswordResetTokenService, never()).validateAndGetEmail(rawToken);
+        verify(redisPasswordResetTokenService, never()).deleteToken(rawToken);
+        verify(userAccountChangeOutboxPublisher).publish(1L, UserAccountChangedType.SECURITY_CHANGED);
+        assertThat(user.getPassword()).isEqualTo(encodedPassword);
     }
 
     private User activeUser() {

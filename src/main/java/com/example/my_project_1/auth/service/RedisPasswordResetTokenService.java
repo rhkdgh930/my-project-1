@@ -37,6 +37,17 @@ public class RedisPasswordResetTokenService {
         return email;
     }
 
+    public String consumeToken(String rawToken) {
+        String hashedToken = hash(rawToken);
+        String email = redisTemplate.opsForValue().getAndDelete(key(hashedToken));
+
+        if (email == null) {
+            throw new CustomException(ErrorCode.INVALID_EMAIL_TOKEN);
+        }
+
+        return email;
+    }
+
     public void deleteToken(String rawToken) {
         String hashedToken = hash(rawToken);
         redisTemplate.delete(key(hashedToken));
