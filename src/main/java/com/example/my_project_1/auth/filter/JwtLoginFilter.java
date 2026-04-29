@@ -36,6 +36,10 @@ public class JwtLoginFilter extends UsernamePasswordAuthenticationFilter {
                                                 HttpServletResponse response) {
         try {
             LoginRequest loginRequest = DataSerializer.deserialize(request.getInputStream(), LoginRequest.class);
+            if (loginRequest == null) {
+                throw new AuthenticationServiceException("로그인 요청이 비어 있습니다.");
+            }
+
             String email = loginRequest.getEmail();
             request.setAttribute("email", email);
 
@@ -49,7 +53,7 @@ public class JwtLoginFilter extends UsernamePasswordAuthenticationFilter {
                     loginRequest.getPassword()
             );
             return getAuthenticationManager().authenticate(authToken);
-        } catch (IOException e) {
+        } catch (IOException | IllegalStateException e) {
             throw new AuthenticationServiceException("로그인 요청 파싱 실패", e);
         }
     }
