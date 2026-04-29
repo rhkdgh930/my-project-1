@@ -58,22 +58,31 @@ public class RedisTokenService {
             long newRefreshTokenTtl,
             TokenResponse newTokenResponse
     ) {
-        String newRtHash = hash(newRefreshToken);
-        String responseValue = DataSerializer.serialize(newTokenResponse);
-        DefaultRedisScript<Long> script =
-                new DefaultRedisScript<>(ROTATE_REFRESH_TOKEN_SCRIPT, Long.class);
+        try {
+            String newRtHash = hash(newRefreshToken);
+            String responseValue = DataSerializer.serialize(newTokenResponse);
+            DefaultRedisScript<Long> script =
+                    new DefaultRedisScript<>(ROTATE_REFRESH_TOKEN_SCRIPT, Long.class);
 
-        Long result = redisTemplate.execute(
-                script,
-                List.of(RT_KEY.formatted(userId), HISTORY_KEY.formatted(oldRtHash)),
-                oldRtHash,
-                newRtHash,
-                String.valueOf(newRefreshTokenTtl),
-                String.valueOf(REISSUE_HISTORY_TTL_SECONDS),
-                responseValue
-        );
+            Long result = redisTemplate.execute(
+                    script,
+                    List.of(RT_KEY.formatted(userId), HISTORY_KEY.formatted(oldRtHash)),
+                    oldRtHash,
+                    newRtHash,
+                    String.valueOf(newRefreshTokenTtl),
+                    String.valueOf(REISSUE_HISTORY_TTL_SECONDS),
+                    responseValue
+            );
 
-        return ROTATED.equals(result);
+            return ROTATED.equals(result);
+        } catch (Exception e) {
+            log.error(
+                    "[CACHE][RedisTokenService][ROTATE_REFRESH_TOKEN_FAIL] userId={}",
+                    userId,
+                    e
+            );
+            throw new JwtAuthenticationException(ErrorCode.AUTHENTICATION_FAILED);
+        }
     }
 
     public void blacklistAccessToken(String accessToken, long ttl) {
@@ -91,7 +100,9 @@ public class RedisTokenService {
 
     public boolean isBlacklisted(String accessToken) {
         try {
-            return redisTemplate.hasKey(BL_KEY.formatted(hash(accessToken)));
+            return Boolean.TRUE.equals(
+                    redisTemplate.hasKey(BL_KEY.formatted(hash(accessToken)))
+            );
         } catch (Exception e) {
             log.error(
                     "[CACHE][RedisTokenService][REDIS_ACCESS_FAIL] operation=isBlacklisted",
