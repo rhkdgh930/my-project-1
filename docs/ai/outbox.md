@@ -190,6 +190,9 @@ Handler 기본 규칙:
 - 같은 logical event가 중복되면 안 되는 경우 deterministic key를 사용한다.
 - 매번 새 event가 필요하면 UUID를 사용할 수 있다.
 - eventKey 변경은 중복 처리 정책 변경이므로 신중하게 한다.
+- eventKey는 중복 발행 방지용이다.
+  중복 발생 시 무시할지 실패시킬지는 이벤트 타입 정책에 따라 결정한다.
+  무조건 catch해서 무시하지 않는다.
 
 개선 제안 가능:
 
