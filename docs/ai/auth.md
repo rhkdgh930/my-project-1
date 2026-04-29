@@ -233,3 +233,14 @@ Auth 구조 변경은 보안 영향이 크므로, 중간 규모 이상의 구조
 3. 보안 영향
 4. migration plan
 5. 필요한 테스트
+
+## Password Reset Token Policy
+
+Password reset token은 one-time credential이다.
+
+- Redis에는 raw token을 저장하지 않는다.
+- hash(rawToken) 기반 key만 사용한다.
+- resetPassword 시 token은 원자적으로 consume되어야 한다.
+- Redis GETDEL 또는 동등한 원자 연산을 사용한다.
+- consume 이후 DB 처리 실패가 발생해도 token은 복구하지 않는다.
+- 사용자는 password reset을 다시 요청해야 한다.
