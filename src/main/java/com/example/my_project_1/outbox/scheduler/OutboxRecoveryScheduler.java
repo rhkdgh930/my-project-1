@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 @Component
 @RequiredArgsConstructor
 public class OutboxRecoveryScheduler {
+    private static final String ERROR_MESSAGE = "PROCESSING_TIMEOUT";
 
     private final Clock clock;
     private final OutboxRepository outboxRepository;
@@ -25,7 +26,7 @@ public class OutboxRecoveryScheduler {
         LocalDateTime now = LocalDateTime.now(clock);
         LocalDateTime threshold = now.minusMinutes(5);
 
-        int recovered = outboxRepository.recoverStuckEvents(threshold, now);
+        int recovered = outboxRepository.recoverStuckEvents(threshold, now, ERROR_MESSAGE);
 
         if (recovered > 0) {
             log.warn("[OUTBOX][RECOVER] recovered={}", recovered);
