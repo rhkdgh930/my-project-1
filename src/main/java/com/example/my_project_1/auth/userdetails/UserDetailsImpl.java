@@ -1,6 +1,7 @@
 package com.example.my_project_1.auth.userdetails;
 
 
+import com.example.my_project_1.auth.cache.CachedUserContext;
 import com.example.my_project_1.user.domain.AccountStatus;
 import com.example.my_project_1.user.domain.SuspensionReason;
 import com.example.my_project_1.user.domain.UserStatus;
@@ -91,6 +92,12 @@ public class UserDetailsImpl implements UserDetails, OAuth2User {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
+        if ("ADMIN".equals(role)) {
+            return List.of(
+                    new SimpleGrantedAuthority("ROLE_ADMIN"),
+                    new SimpleGrantedAuthority("ROLE_USER")
+            );
+        }
         return List.of(new SimpleGrantedAuthority("ROLE_" + role));
     }
 
