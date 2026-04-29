@@ -6,7 +6,7 @@ import com.example.my_project_1.auth.handler.*;
 import com.example.my_project_1.auth.oauth.CustomOAuth2UserService;
 import com.example.my_project_1.auth.provider.CustomAuthenticationProvider;
 import com.example.my_project_1.auth.service.RedisLoginAttemptService;
-import com.example.my_project_1.auth.utils.UrlUtils;
+import com.example.my_project_1.auth.utils.PublicEndpoints;
 import com.example.my_project_1.common.logging.HttpLoggingFilter;
 import com.example.my_project_1.common.logging.SecurityUserMdcFilter;
 import com.example.my_project_1.common.logging.TraceIdFilter;
@@ -69,7 +69,7 @@ public class SecurityConfig {
                 )
 
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(UrlUtils.PERMITTED).permitAll()
+                        .requestMatchers(PublicEndpoints.PERMITTED).permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/users/**").authenticated()
                         .anyRequest().authenticated()

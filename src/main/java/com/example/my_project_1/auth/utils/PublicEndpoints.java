@@ -1,6 +1,6 @@
 package com.example.my_project_1.auth.utils;
 
-public class UrlUtils {
+public class PublicEndpoints {
     public static final String[] PERMITTED = {
 
             //swagger
