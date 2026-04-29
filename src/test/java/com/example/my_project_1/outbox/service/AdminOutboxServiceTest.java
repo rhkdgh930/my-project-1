@@ -58,6 +58,8 @@ class AdminOutboxServiceTest {
         assertThat(event.getStatus()).isEqualTo(OutboxStatus.PENDING);
         assertThat(event.getRetryCount()).isZero();
         assertThat(event.getLastError()).isNull();
+        assertThat(event.getLastTriedAt()).isNull();
+        assertThat(event.getNextRetryAt()).isEqualTo(LocalDateTime.now(clock));
     }
 
     @Test
