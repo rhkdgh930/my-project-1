@@ -56,7 +56,8 @@ public class EmailServiceImpl implements EmailService {
         log.error(
                 "[SERVICE][EmailService][RETRY_EXHAUSTED] to={} errorType={}",
                 toEmail,
-                e.getClass().getSimpleName()
+                e.getClass().getSimpleName(),
+                e
         );
 
         throw e;
