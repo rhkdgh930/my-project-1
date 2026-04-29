@@ -73,21 +73,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     private void setAuthentication(CachedUserContext ctx) {
-        UserDetailsImpl userDetails =
-                new UserDetailsImpl(
-                        ctx.getUserId(),
-                        ctx.getEmail(),
-                        null,
-                        ctx.getRole().name(),
-                        ctx.getAccountStatus(),
-                        ctx.getUserStatus(),
-                        ctx.getReason(),
-                        ctx.getSuspendedUntil(),
-                        ctx.getScheduledDeletionAt(),
-                        ctx.getRemainingDays(),
-                        ctx.isCanRestore(),
-                        ctx.isDeleted()
-                );
+        UserDetailsImpl userDetails = UserDetailsImpl.from(ctx);
 
         Authentication authentication =
                 new UsernamePasswordAuthenticationToken(

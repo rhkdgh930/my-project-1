@@ -35,6 +35,23 @@ public class UserDetailsImpl implements UserDetails, OAuth2User {
 
     private Map<String, Object> attributes;
 
+    public static UserDetailsImpl from(CachedUserContext ctx) {
+        return new UserDetailsImpl(
+                ctx.getUserId(),
+                ctx.getEmail(),
+                null,
+                ctx.getRole().name(),
+                ctx.getAccountStatus(),
+                ctx.getUserStatus(),
+                ctx.getReason(),
+                ctx.getSuspendedUntil(),
+                ctx.getScheduledDeletionAt(),
+                ctx.getRemainingDays(),
+                ctx.isCanRestore(),
+                ctx.isDeleted()
+        );
+    }
+
     public UserDetailsImpl(Long userId, String email, String password, String role, AccountStatus accountStatus, UserStatus userStatus,
                            SuspensionReason reason, LocalDateTime suspendedUntil,
                            LocalDateTime scheduledDeletionAt, Long remainingDays, boolean canRestore, boolean deleted) {
