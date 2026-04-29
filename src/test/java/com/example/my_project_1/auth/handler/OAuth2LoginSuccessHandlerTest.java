@@ -34,6 +34,26 @@ class OAuth2LoginSuccessHandlerTest {
         Long userId = 1L;
         String accessToken = "access-token";
         String refreshToken = "refresh-token";
+        Authentication authentication = getAuthentication(userId);
+
+        when(jwtProvider.createAccessToken(userId, "USER")).thenReturn(accessToken);
+        when(jwtProvider.createRefreshToken(userId)).thenReturn(refreshToken);
+        when(jwtProvider.getRemainingValidityMillis(refreshToken)).thenReturn(3_600_000L);
+
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        handler.onAuthenticationSuccess(new MockHttpServletRequest(), response, authentication);
+
+        assertThat(response.getRedirectedUrl()).doesNotContain("accessToken");
+        assertThat(response.getRedirectedUrl()).doesNotContain(accessToken);
+        List<String> cookies = response.getHeaders("Set-Cookie");
+        assertThat(cookies).anyMatch(cookie -> cookie.contains("accessToken=" + accessToken));
+        assertThat(cookies).anyMatch(cookie -> cookie.contains("refreshToken=" + refreshToken));
+        verify(userLoginService).processLogin(userId);
+        verify(redisTokenService).saveRefreshTokenHash(userId, refreshToken, 3_600_000L);
+    }
+
+    private static Authentication getAuthentication(Long userId) {
         UserDetailsImpl principal = new UserDetailsImpl(
                 userId,
                 "email@email.com",
@@ -53,21 +73,6 @@ class OAuth2LoginSuccessHandlerTest {
                 null,
                 principal.getAuthorities()
         );
-
-        when(jwtProvider.createAccessToken(userId, "USER")).thenReturn(accessToken);
-        when(jwtProvider.createRefreshToken(userId)).thenReturn(refreshToken);
-        when(jwtProvider.getRemainingValidityMillis(refreshToken)).thenReturn(3_600_000L);
-
-        MockHttpServletResponse response = new MockHttpServletResponse();
-
-        handler.onAuthenticationSuccess(new MockHttpServletRequest(), response, authentication);
-
-        assertThat(response.getRedirectedUrl()).doesNotContain("accessToken");
-        assertThat(response.getRedirectedUrl()).doesNotContain(accessToken);
-        List<String> cookies = response.getHeaders("Set-Cookie");
-        assertThat(cookies).anyMatch(cookie -> cookie.contains("accessToken=" + accessToken));
-        assertThat(cookies).anyMatch(cookie -> cookie.contains("refreshToken=" + refreshToken));
-        verify(userLoginService).processLogin(userId);
-        verify(redisTokenService).saveRefreshTokenHash(userId, refreshToken, 3_600_000L);
+        return authentication;
     }
 }
