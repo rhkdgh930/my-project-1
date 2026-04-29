@@ -18,7 +18,7 @@ public class EmailVerificationMailEventListener {
     private final EmailService emailService;
     private final RedisEmailVerificationService redisEmailVerificationService;
 
-    @Async("asyncTaskExecutor")
+    @Async("mailExecutor")
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void sendVerificationMail(EmailVerificationMailRequestedEvent event) {
         try {

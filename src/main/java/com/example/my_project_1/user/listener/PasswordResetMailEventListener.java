@@ -18,7 +18,7 @@ public class PasswordResetMailEventListener {
     private final EmailService emailService;
     private final RedisPasswordResetTokenService redisPasswordResetTokenService;
 
-    @Async("asyncTaskExecutor")
+    @Async("mailExecutor")
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void sendPasswordResetMail(PasswordResetMailRequestedEvent event) {
         try {
