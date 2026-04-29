@@ -1,17 +1,12 @@
 package com.example.my_project_1.outbox.handler.impl;
 
 import com.example.my_project_1.auth.service.EmailService;
-import com.example.my_project_1.auth.service.RedisEmailVerificationService;
-import com.example.my_project_1.auth.service.RedisPasswordResetTokenService;
 import com.example.my_project_1.auth.service.RedisTokenService;
 import com.example.my_project_1.auth.service.RedisUserContextService;
 import com.example.my_project_1.common.utils.DataSerializer;
 import com.example.my_project_1.image.service.ImageService;
 import com.example.my_project_1.post.event.PostCreatedOutboxEvent;
-import com.example.my_project_1.post.event.PostUpdatedOutboxEvent;
 import com.example.my_project_1.user.event.DormancyNotifyOutboxEvent;
-import com.example.my_project_1.user.event.EmailVerificationOutboxEvent;
-import com.example.my_project_1.user.event.PasswordResetOutboxEvent;
 import com.example.my_project_1.user.event.UserAccountChangedOutboxEvent;
 import com.example.my_project_1.user.event.UserAccountChangedType;
 import org.junit.jupiter.api.DisplayName;
