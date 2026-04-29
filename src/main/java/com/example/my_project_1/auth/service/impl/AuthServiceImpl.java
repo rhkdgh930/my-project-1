@@ -58,13 +58,6 @@ public class AuthServiceImpl implements AuthService {
             return cachedResponse;
         }
 
-        String savedRTHash = redisTokenService.getRefreshTokenHash(userId);
-
-        if (savedRTHash == null || !savedRTHash.equals(requestHash)) {
-            redisTokenService.deleteRefreshTokenHash(userId);
-            throw new CustomException(ErrorCode.INVALID_REFRESH_TOKEN);
-        }
-
         String newAccessToken =
                 jwtProvider.createAccessToken(
                         userId,
@@ -74,16 +67,26 @@ public class AuthServiceImpl implements AuthService {
         String newRefreshToken =
                 jwtProvider.createRefreshToken(userId);
 
-        redisTokenService.saveRefreshTokenHash(
+        TokenResponse response = new TokenResponse(newAccessToken, newRefreshToken);
+        boolean rotated = redisTokenService.rotateRefreshToken(
                 userId,
+                requestHash,
                 newRefreshToken,
-                jwtProvider.getRemainingValidityMillis(newRefreshToken)
+                jwtProvider.getRemainingValidityMillis(newRefreshToken),
+                response
         );
 
-        TokenResponse response = new TokenResponse(newAccessToken, newRefreshToken);
-        redisTokenService.saveReissueHistory(requestHash, response);
+        if (rotated) {
+            return response;
+        }
 
-        return new TokenResponse(newAccessToken, newRefreshToken);
+        TokenResponse cachedResponseAfterRotationFail = redisTokenService.getReissueHistory(requestHash);
+        if (cachedResponseAfterRotationFail != null) {
+            return cachedResponseAfterRotationFail;
+        }
+
+        redisTokenService.deleteRefreshTokenHash(userId);
+        throw new CustomException(ErrorCode.INVALID_REFRESH_TOKEN);
     }
 
     @Transactional

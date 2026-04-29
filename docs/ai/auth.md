@@ -244,3 +244,37 @@ Password reset token은 one-time credential이다.
 - Redis GETDEL 또는 동등한 원자 연산을 사용한다.
 - consume 이후 DB 처리 실패가 발생해도 token은 복구하지 않는다.
 - 사용자는 password reset을 다시 요청해야 한다.
+
+## Refresh Token Reissue Policy
+
+Refresh token reissue는 Redis Lua script 기반 원자 rotation을 사용한다.
+
+기본 원칙:
+
+- Redis의 current refresh token 저장소에는 raw refresh token을 저장하지 않는다.
+- `auth::rt::{userId}`에는 refresh token hash만 저장한다.
+- 요청 refresh token hash가 Redis의 current refresh token hash와 일치할 때만 새 refresh token hash로 교체한다.
+- rotation 성공과 reissue history 저장은 하나의 Redis Lua script 안에서 원자적으로 처리한다.
+- rotation 실패 후 reissue history가 있으면 cached response를 반환할 수 있다.
+- rotation 실패 후 reissue history가 없으면 invalid refresh token으로 처리한다.
+
+### Reissue History Tradeoff
+
+중복 reissue 요청을 처리하기 위해 짧은 TTL의 reissue history를 저장할 수 있다.
+
+- reissue history는 old refresh token hash를 key로 사용한다.
+- value는 cached `TokenResponse`이다.
+- 이 cached response에는 새 refresh token이 포함될 수 있다.
+- TTL은 매우 짧게 유지한다.
+- 이 값은 refresh token state가 아니라 duplicate request response cache이다.
+- 운영 환경에서는 Redis 접근 권한과 dump/log 정책을 엄격히 관리한다.
+
+### Redis Cluster 주의사항
+
+현재 Lua script는 current refresh token key와 reissue history key를 함께 접근한다.
+
+Redis Cluster 환경에서는 Lua script가 접근하는 모든 key가 같은 hash slot에 있어야 한다.
+
+- 단일 Redis 또는 Sentinel 환경에서는 문제가 없다.
+- Redis Cluster를 사용할 경우 key hash tag 설계를 검토해야 한다.
+- Cluster 대응 전에는 이 구조를 그대로 배포하지 않는다.
