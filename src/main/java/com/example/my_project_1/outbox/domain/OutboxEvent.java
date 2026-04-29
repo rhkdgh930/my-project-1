@@ -21,6 +21,9 @@ import java.util.concurrent.ThreadLocalRandom;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class OutboxEvent {
 
+    private static final int LAST_ERROR_MAX_LENGTH = 1000;
+    private static final int MAX_RETRY_COUNT = 5;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -47,6 +50,7 @@ public class OutboxEvent {
 
     private LocalDateTime nextRetryAt;
 
+    @Column(length = 1000)
     private String lastError;
 
     private int retryCount;
@@ -70,24 +74,40 @@ public class OutboxEvent {
     public void markFail(Exception e, LocalDateTime now) {
         this.retryCount++;
         this.lastTriedAt = now;
-        this.lastError = (e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName());
+
+        String message = e.getMessage() != null
+                ? e.getMessage()
+                : e.getClass().getSimpleName();
+
+        this.lastError = truncate(message);
 
         long delay = Math.min(60, (long) Math.pow(2, retryCount));
         long jitter = ThreadLocalRandom.current().nextLong(0, 5);
 
-        if (retryCount >= 5) {
+        if (retryCount >= MAX_RETRY_COUNT) {
             markDead("MAX_RETRY_EXCEEDED", now);
-        } else {
-            this.status = OutboxStatus.FAILED;
-            this.nextRetryAt = now.plusSeconds(delay + jitter);
+            return;
         }
+
+        this.status = OutboxStatus.FAILED;
+        this.nextRetryAt = now.plusSeconds(delay + jitter);
     }
 
     public void markDead(String reason, LocalDateTime now) {
         this.status = OutboxStatus.DEAD;
-        this.lastError = reason;
+        this.lastError = truncate(reason);
         this.lastTriedAt = now;
         this.nextRetryAt = null;
+    }
+
+    private String truncate(String value) {
+        if (value == null) {
+            return null;
+        }
+
+        return value.length() > LAST_ERROR_MAX_LENGTH
+                ? value.substring(0, LAST_ERROR_MAX_LENGTH)
+                : value;
     }
 
     public void resetForRetry(LocalDateTime now) {
