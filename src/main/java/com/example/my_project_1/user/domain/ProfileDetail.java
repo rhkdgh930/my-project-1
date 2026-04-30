@@ -14,7 +14,7 @@ import org.hibernate.validator.constraints.URL;
 public class ProfileDetail {
 
     private static final String DEFAULT_INTRODUCE = "자기소개를 입력해주세요.";
-    private static final String DEFAULT_IMG_URL = "uploads/default.png";
+    private static final String DEFAULT_IMG_URL = "http://localhost:8080/images/default.png";
 
     @Size(max = 500)
     private String introduce;

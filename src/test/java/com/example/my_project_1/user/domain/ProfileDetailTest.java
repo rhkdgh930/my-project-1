@@ -9,10 +9,10 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class ProfileDetailTest {
     private static final String DEFAULT_INTRODUCE = "자기소개를 입력해주세요.";
-    private static final String DEFAULT_IMG_URL = "uploads/default.png";
+    private static final String DEFAULT_IMG_URL = "http://localhost:8080/images/default.png";
 
     private static final String UPDATE_INTRODUCE = "수정된 자기소개를 입력해주세요.";
-    private static final String UPDATE_IMG_URL = "new/uploads/default.png";
+    private static final String UPDATE_IMG_URL = "http://localhost:8080/new/images/default.png";
 
     @DisplayName("프로필 생성에 성공합니다.")
     @Test
