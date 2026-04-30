@@ -1,5 +1,7 @@
 package com.example.my_project_1.user.service.request;
 
+import com.example.my_project_1.common.exception.CustomException;
+import com.example.my_project_1.common.exception.ErrorCode;
 import com.example.my_project_1.user.domain.SuspensionReason;
 import com.example.my_project_1.user.domain.SuspensionType;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -23,8 +25,13 @@ public class UserSuspensionRequest {
 
     public Duration getDuration() {
         if (type == SuspensionType.PERMANENT) {
-            return Duration.ZERO;
+            return null;
         }
-        return Duration.ofDays(days != null ? days : 0);
+
+        if (days == null) {
+            throw new CustomException(ErrorCode.INVALID_INPUT_VALUE);
+        }
+
+        return Duration.ofDays(days);
     }
 }

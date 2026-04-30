@@ -6,6 +6,7 @@ import jakarta.persistence.Enumerated;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.springframework.util.Assert;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -25,11 +26,20 @@ public class UserSuspension {
     private LocalDateTime suspendedUntil;
 
     public static UserSuspension create(SuspensionType type, SuspensionReason reason, LocalDateTime now, Duration duration) {
+        Assert.notNull(type, "차단 유형은 필수입니다.");
+        Assert.notNull(reason, "차단 사유는 필수입니다.");
+        Assert.notNull(now, "차단 시작 시간은 필수입니다.");
+
+        if (type == SuspensionType.TEMPORARY) {
+            Assert.notNull(duration, "일시 차단 기간은 필수입니다.");
+            Assert.isTrue(!duration.isZero() && !duration.isNegative(), "일시 차단 기간은 0보다 커야 합니다.");
+        }
+
         UserSuspension suspension = new UserSuspension();
         suspension.type = type;
         suspension.reason = reason;
         suspension.suspendedAt = now;
-        suspension.suspendedUntil = (type == SuspensionType.PERMANENT) ? null : now.plus(duration);
+        suspension.suspendedUntil = type == SuspensionType.PERMANENT ? null : now.plus(duration);
         return suspension;
     }
 

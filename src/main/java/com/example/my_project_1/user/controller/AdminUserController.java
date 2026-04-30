@@ -8,6 +8,7 @@ import com.example.my_project_1.user.service.response.UserDetailResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
@@ -37,7 +38,7 @@ public class AdminUserController {
     public ResponseEntity<Void> suspendUser(
             @Parameter(description = "차단할 유저 ID")
             @PathVariable Long userId,
-            @RequestBody UserSuspensionRequest request
+            @Valid @RequestBody UserSuspensionRequest request
     ) {
 
         adminCommandService.suspendUser(

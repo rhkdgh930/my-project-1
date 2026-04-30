@@ -48,6 +48,6 @@ public class UserWithdrawal {
 
     public boolean shouldDelete(LocalDateTime now) {
         if (!isPending()) return false;
-        return now.isAfter(getScheduledDeletionAt());
+        return !now.isBefore(getScheduledDeletionAt());
     }
 }
