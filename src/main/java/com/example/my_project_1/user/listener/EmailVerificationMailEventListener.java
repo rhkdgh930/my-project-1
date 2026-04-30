@@ -28,7 +28,8 @@ public class EmailVerificationMailEventListener {
             log.error(
                     "[USER][EMAIL_VERIFICATION_MAIL][SEND_FAIL] email={} errorType={}",
                     event.getEmail(),
-                    e.getClass().getSimpleName()
+                    e.getClass().getSimpleName(),
+                    e
             );
         }
     }
