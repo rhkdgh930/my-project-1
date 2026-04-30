@@ -288,7 +288,7 @@ public class User extends BaseEntity {
 
     private void maskPersonalData() {
         String uuid = UUID.randomUUID().toString().substring(0, 8);
-        this.email = Email.from("deleted_" + uuid + "_" + this.email.getValue());
+        this.email = Email.from("deleted_" + uuid + "@deleted.local");
         this.nickname = "알수없음_" + uuid;
         this.password = "WITHDRAWN";
     }

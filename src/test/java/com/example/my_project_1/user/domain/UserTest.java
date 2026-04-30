@@ -152,6 +152,26 @@ class UserTest {
         assertThat(user.isActive()).isTrue();
     }
 
+    @Test
+    @DisplayName("complete withdrawal masks email irreversibly without soft delete")
+    void completeWithdrawal_masksEmailIrreversiblyWithoutSoftDelete() {
+        User user = getVerifiedUser();
+        LocalDateTime now = LocalDateTime.now();
+
+        user.requestWithdrawal(now);
+        user.completeWithdrawal();
+
+        String maskedEmail = user.getEmail().getValue();
+
+        assertThat(maskedEmail).startsWith("deleted_");
+        assertThat(maskedEmail).endsWith("@deleted.local");
+        assertThat(maskedEmail).doesNotContain(EMAIL);
+        assertThat(maskedEmail).doesNotContain("email.com");
+        assertThat(maskedEmail).doesNotContain("email@email");
+        assertThat(user.getUserStatus()).isEqualTo(UserStatus.WITHDRAWN);
+        assertThat(user.isDeleted()).isFalse();
+    }
+
     private static User getVerifiedUser() {
         UserSignUpRequest request = createUserSignUpRequest();
         String encodedPassword = request.getPassword();
