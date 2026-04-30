@@ -160,6 +160,10 @@ public class UserCommandServiceImpl implements UserCommandService {
         User user = userRepository.findByEmail(Email.from(emailValue))
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
+        if (passwordEncoder.matches(request.getNewPassword(), user.getPassword())) {
+            throw new CustomException(ErrorCode.SAME_PASSWORD);
+        }
+
         user.updatePassword(passwordEncoder.encode(request.getNewPassword()));
         userAccountChangeOutboxPublisher.publish(user.getId(), UserAccountChangedType.SECURITY_CHANGED);
     }
