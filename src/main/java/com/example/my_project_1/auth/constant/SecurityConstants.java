@@ -4,5 +4,8 @@ public final class SecurityConstants {
     public static final String AUTHORIZATION = "Authorization";
     public static final String BEARER = "Bearer ";
     public static final String REFRESH_TOKEN = "Refresh-Token";
+    public static final String REFRESH_TOKEN_COOKIE = "refreshToken";
 
+    private SecurityConstants() {
+    }
 }

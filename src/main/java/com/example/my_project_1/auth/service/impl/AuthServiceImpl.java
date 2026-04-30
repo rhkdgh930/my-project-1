@@ -21,6 +21,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -119,10 +120,17 @@ public class AuthServiceImpl implements AuthService {
 
     @Transactional
     @Override
-    public void logout(String accessToken) {
+    public void logout(String accessToken, String refreshToken) {
+        blacklistAccessTokenIfValid(accessToken);
+        deleteRefreshTokenIfPresent(refreshToken);
+    }
+
+    private void blacklistAccessTokenIfValid(String accessToken) {
         Claims claims;
+
         try {
             claims = jwtProvider.parseClaimsSafely(accessToken);
+            jwtProvider.assertAccessToken(claims);
         } catch (JwtAuthenticationException e) {
             if (e.getErrorCode() == ErrorCode.EXPIRED_ACCESS_TOKEN) {
                 return;
@@ -130,13 +138,21 @@ public class AuthServiceImpl implements AuthService {
             throw e;
         }
 
-        Long userId = Long.valueOf(claims.getSubject());
-
-        redisTokenService.deleteRefreshTokenHash(userId);
-
-        long ttl = jwtProvider.getRemainingValidityMillis(accessToken);
+        long ttl = jwtProvider.getRemainingValidityMillis(claims);
         if (ttl > 0) {
             redisTokenService.blacklistAccessToken(accessToken, ttl);
         }
+    }
+
+    private void deleteRefreshTokenIfPresent(String refreshToken) {
+        if (!StringUtils.hasText(refreshToken)) {
+            return;
+        }
+
+        Claims claims = jwtProvider.parseClaimsSafely(refreshToken);
+        jwtProvider.assertRefreshToken(claims);
+
+        Long userId = Long.valueOf(claims.getSubject());
+        redisTokenService.deleteRefreshTokenHash(userId);
     }
 }

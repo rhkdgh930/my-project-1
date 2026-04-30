@@ -50,7 +50,7 @@ public class OutboxEvent {
 
     private LocalDateTime nextRetryAt;
 
-    @Column(length = 1000)
+    @Column(length = LAST_ERROR_MAX_LENGTH)
     private String lastError;
 
     private int retryCount;
