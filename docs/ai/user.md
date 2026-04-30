@@ -298,3 +298,9 @@ User의 일반 회원 탈퇴는 JPA delete로 처리하지 않는다.
 
 탈퇴 완료 유저의 기존 게시글/댓글은 자동 삭제하지 않는다.
 일반 사용자에게는 작성자를 “탈퇴한 사용자”로 표시한다.
+
+### User Lifecycle Deletion Rules
+
+- User 엔티티에는 Hibernate `@SQLDelete` / `@SQLRestriction`을 사용하지 않는다.
+- User 기본 조회는 `deletedAt` 필터가 아니라 `UserStatus` / `AccountStatus` 정책으로 해석한다.
+- 탈퇴 완료 사용자는 row를 유지하고, `UserStatus.WITHDRAWN` + 개인정보 비가역 마스킹으로 표현한다.
