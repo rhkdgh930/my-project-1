@@ -284,3 +284,17 @@ User 변경 시 다음 테스트를 고려한다.
 - soft delete 제거
 - User service 전체 rewrite
 - Auth 도메인 내부로 User 도메인 흡수
+
+## User Deletion Policy
+
+User의 일반 회원 탈퇴는 JPA delete로 처리하지 않는다.
+
+- 탈퇴 요청: `UserStatus.WITHDRAWN_REQUESTED`
+- 탈퇴 확정: `UserStatus.WITHDRAWN` + 개인정보 비가역 마스킹
+- 탈퇴 확정 시 `deletedAt`은 세팅하지 않는다.
+- 탈퇴 완료 유저 row는 게시글/댓글 작성자 표시, 감사, 재가입 정책 처리를 위해 유지한다.
+- `userRepository.delete(user)`는 일반 탈퇴 플로우에서 사용하지 않는다.
+- `deletedAt`은 운영상 강제 숨김 또는 특수 삭제 용도다.
+
+탈퇴 완료 유저의 기존 게시글/댓글은 자동 삭제하지 않는다.
+일반 사용자에게는 작성자를 “탈퇴한 사용자”로 표시한다.
