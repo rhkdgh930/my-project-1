@@ -89,7 +89,7 @@ public class UserController {
             summary = "회원 탈퇴 요청",
             description = "회원 탈퇴를 요청합니다. 실제 삭제는 7일 후 배치 작업에서 처리됩니다."
     )
-    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('USER')")
     @DeleteMapping("/me")
     public ResponseEntity<UserWithdrawResponse> withdraw(
             @AuthenticationPrincipal UserDetailsImpl userDetails,
@@ -104,7 +104,7 @@ public class UserController {
             summary = "비밀번호 변경",
             description = "현재 비밀번호 확인 후 새로운 비밀번호로 변경합니다."
     )
-    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('USER')")
     @PatchMapping("/me/password")
     public ResponseEntity<Void> updatePassword(
             @AuthenticationPrincipal UserDetailsImpl userDetails,
