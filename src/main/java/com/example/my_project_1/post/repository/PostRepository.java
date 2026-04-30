@@ -6,6 +6,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
@@ -22,7 +23,21 @@ public interface PostRepository extends JpaRepository<Post, Long> {
             """)
     void updateCounts(Long postId, long view, long like);
 
-    Optional<Post> findByIdAndDeletedAtIsNull(Long postId);
+    @Query("""
+            select p
+            from Post p
+            where p.id = :postId
+              and p.deletedAt is null
+              and p.board.deletedAt is null
+            """)
+    Optional<Post> findActiveById(@Param("postId") Long postId);
 
-    Page<Post> findAllByBoardIdAndDeletedAtIsNull(Long boardId, Pageable pageable);
+    @Query("""
+            select p
+            from Post p
+            where p.board.id = :boardId
+              and p.deletedAt is null
+              and p.board.deletedAt is null
+            """)
+    Page<Post> findAllActiveByBoardId(@Param("boardId") Long boardId, Pageable pageable);
 }

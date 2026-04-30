@@ -32,7 +32,7 @@ public class PostQueryServiceImpl implements PostQueryService {
     @Override
     public PageResponse<PostListResponse> getPosts(Long boardId, Pageable pageable) {
         // 1. DB에서 해당 게시판의 게시글만 페이징 조회 (Deleted=False)
-        Page<Post> page = postRepository.findAllByBoardIdAndDeletedAtIsNull(boardId, pageable);
+        Page<Post> page = postRepository.findAllActiveByBoardId(boardId, pageable);
 
         if (page.isEmpty()) {
             return PageResponse.of(Page.empty(pageable));
@@ -69,12 +69,14 @@ public class PostQueryServiceImpl implements PostQueryService {
 
     @Override
     public PostDetailResponse getPostDetail(Long boardId, Long postId) {
-        Post post = postRepository.findByIdAndDeletedAtIsNull(postId)
+        Post post = postRepository.findActiveById(postId)
                 .orElseThrow(() -> new CustomException(ErrorCode.POST_NOT_FOUND));
 
         if (!post.getBoard().getId().equals(boardId)) {
             throw new CustomException(ErrorCode.INVALID_BOARD_POST_RELATION);
         }
+
+        postRedisService.increaseView(postId);
 
         Map<Long, UserSummary> userMap = userClient.findUsersByIds(List.of(post.getUserId()));
         UserSummary user = userMap.get(post.getUserId());

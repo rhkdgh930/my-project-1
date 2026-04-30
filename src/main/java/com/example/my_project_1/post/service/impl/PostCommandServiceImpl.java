@@ -68,7 +68,7 @@ public class PostCommandServiceImpl implements PostCommandService {
     @Override
     public PostDetailResponse update(Long boardId, Long postId, Long userId, PostUpdateRequest request) {
 
-        Post post = postRepository.findByIdAndDeletedAtIsNull(postId)
+        Post post = postRepository.findActiveById(postId)
                 .orElseThrow(() -> new CustomException(ErrorCode.POST_NOT_FOUND));
 
         if (!post.getBoard().getId().equals(boardId)) {
@@ -99,7 +99,7 @@ public class PostCommandServiceImpl implements PostCommandService {
 
     @Override
     public boolean like(Long boardId, Long postId, Long userId) {
-        Post post = postRepository.findByIdAndDeletedAtIsNull(postId)
+        Post post = postRepository.findActiveById(postId)
                 .orElseThrow(() -> new CustomException(ErrorCode.POST_NOT_FOUND));
 
         if (!post.getBoard().getId().equals(boardId)) {
