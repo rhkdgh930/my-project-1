@@ -13,6 +13,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.util.StringUtils;
 
 import java.io.IOException;
 
@@ -36,8 +37,10 @@ public class JwtLoginFilter extends UsernamePasswordAuthenticationFilter {
                                                 HttpServletResponse response) {
         try {
             LoginRequest loginRequest = DataSerializer.deserialize(request.getInputStream(), LoginRequest.class);
-            if (loginRequest == null) {
-                throw new AuthenticationServiceException("로그인 요청이 비어 있습니다.");
+            if (loginRequest == null
+                    || !StringUtils.hasText(loginRequest.getEmail())
+                    || !StringUtils.hasText(loginRequest.getPassword())) {
+                throw new AuthenticationServiceException("이메일과 비밀번호는 필수입니다.");
             }
 
             String email = loginRequest.getEmail();
