@@ -11,12 +11,15 @@ public class CommentResponse {
     private final Long id;
     private final Long authorId;
     private final String content;
+    private final boolean deleted;
     private final List<CommentResponse> replies = new ArrayList<>();
 
     private CommentResponse(Comment comment) {
+        boolean deleted = comment.isDeleted();
         this.id = comment.getId();
-        this.authorId = comment.getUserId();
-        this.content = comment.getContent();
+        this.authorId = deleted ? null : comment.getUserId();
+        this.content = deleted ? Comment.DELETED_CONTENT : comment.getContent();
+        this.deleted = deleted;
     }
 
     public static CommentResponse from(Comment comment) {

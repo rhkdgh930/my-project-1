@@ -1,19 +1,25 @@
 package com.example.my_project_1.comment.domain;
 
 import com.example.my_project_1.common.entity.BaseEntity;
+import com.example.my_project_1.common.exception.CustomException;
+import com.example.my_project_1.common.exception.ErrorCode;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.SQLDelete;
 
-@SQLDelete(sql = "UPDATE comment SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?")
+import java.time.LocalDateTime;
+
+import static org.springframework.util.Assert.hasText;
+import static org.springframework.util.Assert.notNull;
+
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Entity
 @Table(name = "comment")
 public class Comment extends BaseEntity {
+    public static final String DELETED_CONTENT = "삭제된 댓글입니다.";
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -29,12 +35,10 @@ public class Comment extends BaseEntity {
     private String content;
 
     @Column(name = "parent_id")
-    private Long parentId; // null이면 최상위 댓글
+    private Long parentId;
 
     @Column(nullable = false)
-    private int depth; // 0 = 댓글, 1 = 대댓글
-
-    /* ===== 생성 메서드 ===== */
+    private int depth;
 
     public static Comment createRoot(Long postId, Long userId, String content) {
         return Comment.builder()
@@ -47,8 +51,11 @@ public class Comment extends BaseEntity {
     }
 
     public static Comment createReply(Comment parent, Long userId, String content) {
+        if (parent.isDeleted()) {
+            throw new CustomException(ErrorCode.INVALID_INPUT_VALUE);
+        }
         if (parent.depth >= 1) {
-            throw new IllegalStateException("대댓글에는 답글을 달 수 없습니다.");
+            throw new CustomException(ErrorCode.INVALID_INPUT_VALUE);
         }
         return Comment.builder()
                 .postId(parent.getPostId())
@@ -61,6 +68,11 @@ public class Comment extends BaseEntity {
 
     @Builder
     private Comment(Long postId, Long userId, String content, Long parentId, int depth) {
+        notNull(postId, "게시판 정보는 필수입니다.");
+        notNull(userId, "작성자 ID는 필수입니다.");
+        hasText(content, "내용은 필수입니다.");
+        notNull(depth, "depth는 필수입니다.");
+
         this.postId = postId;
         this.userId = userId;
         this.content = content;
@@ -68,21 +80,30 @@ public class Comment extends BaseEntity {
         this.depth = depth;
     }
 
-    /* ===== 도메인 로직 ===== */
-
     public void updateContent(String content, Long editorId) {
         validateAuthor(editorId);
+        validateNotDeleted();
         this.content = content;
     }
 
-    public void delete(Long requesterId) {
+    public void delete(Long requesterId, LocalDateTime now) {
         validateAuthor(requesterId);
-        this.content = "삭제된 댓글입니다.";
+        if (isDeleted()) {
+            return;
+        }
+        this.content = DELETED_CONTENT;
+        super.softDelete(now);
     }
 
     private void validateAuthor(Long userId) {
         if (!this.userId.equals(userId)) {
-            throw new IllegalStateException("작성자만 수정/삭제할 수 있습니다.");
+            throw new CustomException(ErrorCode.ACCESS_DENIED);
+        }
+    }
+
+    private void validateNotDeleted() {
+        if (isDeleted()) {
+            throw new CustomException(ErrorCode.INVALID_INPUT_VALUE);
         }
     }
 }

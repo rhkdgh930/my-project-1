@@ -3,6 +3,9 @@ package com.example.my_project_1.comment.service;
 import com.example.my_project_1.comment.domain.Comment;
 import com.example.my_project_1.comment.repository.CommentRepository;
 import com.example.my_project_1.comment.service.response.CommentResponse;
+import com.example.my_project_1.common.exception.CustomException;
+import com.example.my_project_1.common.exception.ErrorCode;
+import com.example.my_project_1.post.repository.PostRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,10 +20,13 @@ import java.util.Map;
 @Transactional(readOnly = true)
 public class CommentQueryServiceImpl implements CommentQueryService {
     private final CommentRepository commentRepository;
+    private final PostRepository postRepository;
 
     public List<CommentResponse> getComments(Long postId) {
+        validatePost(postId);
+
         List<Comment> comments =
-                commentRepository.findAllByPostIdAndDeletedAtIsNullOrderByIdAsc(postId);
+                commentRepository.findAllByPostIdOrderByIdAsc(postId);
 
         Map<Long, CommentResponse> map = new HashMap<>();
         List<CommentResponse> roots = new ArrayList<>();
@@ -39,5 +45,10 @@ public class CommentQueryServiceImpl implements CommentQueryService {
             }
         }
         return roots;
+    }
+
+    private void validatePost(Long postId) {
+        postRepository.findActiveById(postId)
+                .orElseThrow(() -> new CustomException(ErrorCode.POST_NOT_FOUND));
     }
 }

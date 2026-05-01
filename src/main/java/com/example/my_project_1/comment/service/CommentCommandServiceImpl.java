@@ -2,15 +2,21 @@ package com.example.my_project_1.comment.service;
 
 import com.example.my_project_1.comment.domain.Comment;
 import com.example.my_project_1.comment.repository.CommentRepository;
+import com.example.my_project_1.common.exception.CustomException;
+import com.example.my_project_1.common.exception.ErrorCode;
 import com.example.my_project_1.post.repository.PostRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
+import java.time.LocalDateTime;
+
 @Transactional
 @RequiredArgsConstructor
 @Service
 public class CommentCommandServiceImpl implements CommentCommandService {
+    private final Clock clock;
     private final CommentRepository commentRepository;
     private final PostRepository postRepository;
 
@@ -21,8 +27,8 @@ public class CommentCommandServiceImpl implements CommentCommandService {
     }
 
     public Long writeReply(Long parentId, Long userId, String content) {
-        Comment parent = commentRepository.findByIdAndDeletedAtIsNull(parentId)
-                .orElseThrow(() -> new IllegalArgumentException("부모 댓글이 없습니다."));
+        Comment parent = getComment(parentId);
+        validatePost(parent.getPostId());
 
         Comment reply = Comment.createReply(parent, userId, content);
         return commentRepository.save(reply).getId();
@@ -35,17 +41,16 @@ public class CommentCommandServiceImpl implements CommentCommandService {
 
     public void delete(Long commentId, Long userId) {
         Comment comment = getComment(commentId);
-        comment.delete(userId);
+        comment.delete(userId, LocalDateTime.now(clock));
     }
 
     private Comment getComment(Long id) {
-        return commentRepository.findByIdAndDeletedAtIsNull(id)
-                .orElseThrow(() -> new IllegalArgumentException("댓글이 없습니다."));
+        return commentRepository.findById(id)
+                .orElseThrow(() -> new CustomException(ErrorCode.COMMENT_NOT_FOUND));
     }
 
     private void validatePost(Long postId) {
-        if (!postRepository.existsById(postId)) {
-            throw new IllegalArgumentException("게시글이 존재하지 않습니다.");
-        }
+        postRepository.findActiveById(postId)
+                .orElseThrow(() -> new CustomException(ErrorCode.POST_NOT_FOUND));
     }
 }
