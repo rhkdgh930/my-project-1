@@ -6,13 +6,14 @@ import com.example.my_project_1.auth.handler.*;
 import com.example.my_project_1.auth.oauth.CustomOAuth2UserService;
 import com.example.my_project_1.auth.provider.CustomAuthenticationProvider;
 import com.example.my_project_1.auth.service.RedisLoginAttemptService;
-import com.example.my_project_1.auth.utils.PublicEndpoints;
+import com.example.my_project_1.auth.utils.EndpointAuthorizationRules;
 import com.example.my_project_1.common.logging.HttpLoggingFilter;
 import com.example.my_project_1.common.logging.SecurityUserMdcFilter;
 import com.example.my_project_1.common.logging.TraceIdFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -69,9 +70,10 @@ public class SecurityConfig {
                 )
 
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(PublicEndpoints.PERMITTED).permitAll()
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/api/users/**").authenticated()
+                        .requestMatchers(HttpMethod.GET, EndpointAuthorizationRules.PUBLIC_GET_ONLY).permitAll()
+                        .requestMatchers(EndpointAuthorizationRules.PUBLIC_ANY_METHOD).permitAll()
+                        .requestMatchers(EndpointAuthorizationRules.ADMIN_ONLY).hasRole("ADMIN")
+                        .requestMatchers(EndpointAuthorizationRules.USER_ONLY).authenticated()
                         .anyRequest().authenticated()
                 )
                 .oauth2Login(oauth2 -> oauth2
