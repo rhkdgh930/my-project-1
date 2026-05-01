@@ -36,6 +36,7 @@ public enum ErrorCode {
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 사용자입니다."),
     BOARD_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 게시판 입니다."),
     POST_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 게시물 입니다."),
+    COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 댓글입니다."),
     OUTBOX_EVENT_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 아웃박스 이벤트입니다."),
 
     /* 401 UNAUTHORIZED: 인증 실패 */
