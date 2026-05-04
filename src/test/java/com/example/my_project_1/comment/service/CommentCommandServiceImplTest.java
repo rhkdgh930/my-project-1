@@ -63,7 +63,7 @@ class CommentCommandServiceImplTest {
         when(commentRepository.findById(100L)).thenReturn(Optional.of(parent));
         when(postRepository.findActiveById(1L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> commentCommandService.writeReply(100L, 20L, "reply"))
+        assertThatThrownBy(() -> commentCommandService.writeReply(1L, 100L, 20L, "reply"))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.POST_NOT_FOUND);
@@ -79,11 +79,26 @@ class CommentCommandServiceImplTest {
         when(commentRepository.findById(100L)).thenReturn(Optional.of(parent));
         when(postRepository.findActiveById(1L)).thenReturn(Optional.of(mock(Post.class)));
 
-        assertThatThrownBy(() -> commentCommandService.writeReply(100L, 20L, "reply"))
+        assertThatThrownBy(() -> commentCommandService.writeReply(1L, 100L, 20L, "reply"))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
-                .isEqualTo(ErrorCode.INVALID_INPUT_VALUE);
+                .isEqualTo(ErrorCode.COMMENT_ALREADY_DELETED);
 
+        verify(commentRepository, never()).save(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    @DisplayName("다른 게시글의 댓글에는 대댓글을 작성할 수 없다.")
+    void writeReply_rejectsWhenUrlPostIdDoesNotMatchParentPostId() {
+        Comment parent = comment(2L, 100L, 10L, "parent");
+        when(commentRepository.findById(100L)).thenReturn(Optional.of(parent));
+
+        assertThatThrownBy(() -> commentCommandService.writeReply(1L, 100L, 20L, "reply"))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.INVALID_COMMENT_POST_RELATION);
+
+        verify(postRepository, never()).findActiveById(org.mockito.ArgumentMatchers.anyLong());
         verify(commentRepository, never()).save(org.mockito.ArgumentMatchers.any());
     }
 

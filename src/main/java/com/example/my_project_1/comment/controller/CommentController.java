@@ -5,9 +5,9 @@ import com.example.my_project_1.comment.service.CommentCommandService;
 import com.example.my_project_1.comment.service.CommentQueryService;
 import com.example.my_project_1.comment.service.request.CommentCreateRequest;
 import com.example.my_project_1.comment.service.response.CommentResponse;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -23,7 +23,7 @@ public class CommentController {
     @PostMapping
     public void write(
             @PathVariable Long postId,
-            @RequestBody CommentCreateRequest request,
+            @RequestBody @Valid CommentCreateRequest request,
             @AuthenticationPrincipal UserDetailsImpl userDetails
     ) {
         Long userId = userDetails.getUserId();
@@ -32,12 +32,13 @@ public class CommentController {
 
     @PostMapping("/{commentId}/replies")
     public void reply(
+            @PathVariable Long postId,
             @PathVariable Long commentId,
-            @RequestBody CommentCreateRequest request,
+            @RequestBody @Valid CommentCreateRequest request,
             @AuthenticationPrincipal UserDetailsImpl userDetails
     ) {
         Long userId = userDetails.getUserId();
-        commentCommandService.writeReply(commentId, userId, request.getContent());
+        commentCommandService.writeReply(postId, commentId, userId, request.getContent());
     }
 
     @GetMapping

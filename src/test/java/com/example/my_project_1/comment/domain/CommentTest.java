@@ -49,7 +49,7 @@ class CommentTest {
         assertThatThrownBy(() -> comment.updateContent("updated", 10L))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
-                .isEqualTo(ErrorCode.INVALID_INPUT_VALUE);
+                .isEqualTo(ErrorCode.COMMENT_ALREADY_DELETED);
     }
 
     @Test
@@ -62,6 +62,6 @@ class CommentTest {
         assertThatThrownBy(() -> Comment.createReply(parent, 20L, "reply"))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
-                .isEqualTo(ErrorCode.INVALID_INPUT_VALUE);
+                .isEqualTo(ErrorCode.COMMENT_ALREADY_DELETED);
     }
 }

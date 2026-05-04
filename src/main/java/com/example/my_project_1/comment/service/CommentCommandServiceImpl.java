@@ -26,9 +26,10 @@ public class CommentCommandServiceImpl implements CommentCommandService {
         return commentRepository.save(comment).getId();
     }
 
-    public Long writeReply(Long parentId, Long userId, String content) {
+    public Long writeReply(Long postId, Long parentId, Long userId, String content) {
         Comment parent = getComment(parentId);
-        validatePost(parent.getPostId());
+        validateParentPost(postId, parent);
+        validatePost(postId);
 
         Comment reply = Comment.createReply(parent, userId, content);
         return commentRepository.save(reply).getId();
@@ -52,5 +53,11 @@ public class CommentCommandServiceImpl implements CommentCommandService {
     private void validatePost(Long postId) {
         postRepository.findActiveById(postId)
                 .orElseThrow(() -> new CustomException(ErrorCode.POST_NOT_FOUND));
+    }
+
+    private void validateParentPost(Long postId, Comment parent) {
+        if (!parent.getPostId().equals(postId)) {
+            throw new CustomException(ErrorCode.INVALID_COMMENT_POST_RELATION);
+        }
     }
 }
