@@ -57,8 +57,8 @@ public class PostQueryServiceImpl implements PostQueryService {
             // 직접 빌더/생성자로 매핑
             PostListResponse response = PostListResponse.from(post, nickname);
             response.updateCounts(
-                    postRedisService.getView(post.getId()),
-                    postRedisService.getLike(post.getId())
+                    countOrDefault(postRedisService.getViewOrNull(post.getId()), post.getViewCount()),
+                    countOrDefault(postRedisService.getLikeOrNull(post.getId()), post.getLikeCount())
             );
             return response;
         });
@@ -84,9 +84,13 @@ public class PostQueryServiceImpl implements PostQueryService {
 
         PostDetailResponse response = PostDetailResponse.from(post, nickname);
         response.updateCounts(
-                postRedisService.getView(postId),
-                postRedisService.getLike(postId)
+                countOrDefault(postRedisService.getViewOrNull(postId), post.getViewCount()),
+                countOrDefault(postRedisService.getLikeOrNull(postId), post.getLikeCount())
         );
         return response;
+    }
+
+    private long countOrDefault(Long redisCount, long dbCount) {
+        return redisCount != null ? redisCount : dbCount;
     }
 }

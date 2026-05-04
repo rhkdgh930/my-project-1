@@ -58,14 +58,36 @@ class PostQueryServiceImplTest {
                 .thenReturn(new PageImpl<>(List.of(post), pageable, 1));
         when(userClient.findUsersByIds(List.of(100L)))
                 .thenReturn(Map.of(100L, new UserSummary(100L, "nickname")));
-        when(postRedisService.getView(10L)).thenReturn(3L);
-        when(postRedisService.getLike(10L)).thenReturn(2L);
+        when(postRedisService.getViewOrNull(10L)).thenReturn(3L);
+        when(postRedisService.getLikeOrNull(10L)).thenReturn(2L);
 
         PageResponse<PostListResponse> response = postQueryService.getPosts(boardId, pageable);
 
         assertThat(response.getContent()).hasSize(1);
         assertThat(response.getContent().get(0).getPostId()).isEqualTo(10L);
         verify(postRepository).findAllActiveByBoardId(boardId, pageable);
+    }
+
+    @Test
+    @DisplayName("post list keeps db counts when redis counts are missing")
+    void getPosts_keepsDbCountsWhenRedisCountsAreMissing() {
+        Long boardId = 1L;
+        Pageable pageable = PageRequest.of(0, 10);
+        Post post = post(boardId, 10L, 100L);
+        post.updateCounts(100L, 5L);
+
+        when(postRepository.findAllActiveByBoardId(boardId, pageable))
+                .thenReturn(new PageImpl<>(List.of(post), pageable, 1));
+        when(userClient.findUsersByIds(List.of(100L)))
+                .thenReturn(Map.of(100L, new UserSummary(100L, "nickname")));
+        when(postRedisService.getViewOrNull(10L)).thenReturn(null);
+        when(postRedisService.getLikeOrNull(10L)).thenReturn(null);
+
+        PageResponse<PostListResponse> response = postQueryService.getPosts(boardId, pageable);
+
+        assertThat(response.getContent()).hasSize(1);
+        assertThat(response.getContent().get(0).getViewCount()).isEqualTo(100L);
+        assertThat(response.getContent().get(0).getLikeCount()).isEqualTo(5L);
     }
 
     @Test
@@ -78,8 +100,8 @@ class PostQueryServiceImplTest {
         when(postRepository.findActiveById(postId)).thenReturn(Optional.of(post));
         when(userClient.findUsersByIds(List.of(100L)))
                 .thenReturn(Map.of(100L, new UserSummary(100L, "nickname")));
-        when(postRedisService.getView(postId)).thenReturn(4L);
-        when(postRedisService.getLike(postId)).thenReturn(2L);
+        when(postRedisService.getViewOrNull(postId)).thenReturn(4L);
+        when(postRedisService.getLikeOrNull(postId)).thenReturn(2L);
 
         PostDetailResponse response = postQueryService.getPostDetail(boardId, postId);
 
@@ -88,6 +110,26 @@ class PostQueryServiceImplTest {
         InOrder inOrder = inOrder(postRepository, postRedisService);
         inOrder.verify(postRepository).findActiveById(postId);
         inOrder.verify(postRedisService).increaseView(postId);
+    }
+
+    @Test
+    @DisplayName("post detail uses redis view and db like when redis like is missing")
+    void getPostDetail_usesRedisViewAndDbLikeWhenRedisLikeIsMissing() {
+        Long boardId = 1L;
+        Long postId = 10L;
+        Post post = post(boardId, postId, 100L);
+        post.updateCounts(100L, 5L);
+
+        when(postRepository.findActiveById(postId)).thenReturn(Optional.of(post));
+        when(userClient.findUsersByIds(List.of(100L)))
+                .thenReturn(Map.of(100L, new UserSummary(100L, "nickname")));
+        when(postRedisService.getViewOrNull(postId)).thenReturn(101L);
+        when(postRedisService.getLikeOrNull(postId)).thenReturn(null);
+
+        PostDetailResponse response = postQueryService.getPostDetail(boardId, postId);
+
+        assertThat(response.getViewCount()).isEqualTo(101L);
+        assertThat(response.getLikeCount()).isEqualTo(5L);
     }
 
     @Test

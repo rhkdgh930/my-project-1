@@ -4,8 +4,11 @@ import com.example.my_project_1.board.domain.Board;
 import com.example.my_project_1.board.repository.BoardRepository;
 import com.example.my_project_1.common.exception.CustomException;
 import com.example.my_project_1.common.exception.ErrorCode;
+import com.example.my_project_1.common.utils.DataSerializer;
+import com.example.my_project_1.outbox.domain.OutboxEventType;
 import com.example.my_project_1.outbox.service.OutboxPublisher;
 import com.example.my_project_1.post.domain.Post;
+import com.example.my_project_1.post.event.PostUpdatedOutboxEvent;
 import com.example.my_project_1.post.repository.PostRepository;
 import com.example.my_project_1.post.service.PostRedisService;
 import com.example.my_project_1.post.service.request.PostUpdateRequest;
@@ -15,13 +18,16 @@ import com.example.my_project_1.user.client.UserSummary;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -55,7 +61,7 @@ class PostCommandServiceImplTest {
     }
 
     @Test
-    @DisplayName("게시글 수정은 게시글과 게시판이 모두 삭제되지 않은 active post만 대상으로 한다.")
+    @DisplayName("post update uses active post lookup")
     void update_usesActivePostLookup() {
         Long boardId = 1L;
         Long postId = 10L;
@@ -75,7 +81,55 @@ class PostCommandServiceImplTest {
     }
 
     @Test
-    @DisplayName("active post가 아니면 게시글 수정은 POST_NOT_FOUND로 거부된다.")
+    @DisplayName("post update publishes POST_UPDATED outbox event with uuid key")
+    void update_publishesPostUpdatedOutboxEventWithUuidKey() {
+        Long boardId = 1L;
+        Long postId = 10L;
+        Long userId = 100L;
+        Post post = post(boardId, postId, userId);
+        LocalDateTime oldUpdatedAt = LocalDateTime.of(2026, 1, 2, 3, 4, 5);
+        ReflectionTestUtils.setField(post, "updatedAt", oldUpdatedAt);
+        PostUpdateRequest request = updateRequest(
+                "updated title",
+                "updated content ![image](/images/storage-key-1)"
+        );
+
+        when(postRepository.findActiveById(postId)).thenReturn(Optional.of(post));
+        when(userClient.findUsersByIds(List.of(userId)))
+                .thenReturn(Map.of(userId, new UserSummary(userId, "nickname")));
+
+        postCommandService.update(boardId, postId, userId, request);
+
+        ArgumentCaptor<OutboxEventType> typeCaptor = ArgumentCaptor.forClass(OutboxEventType.class);
+        ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<String> eventKeyCaptor = ArgumentCaptor.forClass(String.class);
+
+        verify(outboxPublisher).publish(
+                typeCaptor.capture(),
+                payloadCaptor.capture(),
+                eventKeyCaptor.capture()
+        );
+
+        String eventKey = eventKeyCaptor.getValue();
+        String[] eventKeyParts = eventKey.split(":");
+        PostUpdatedOutboxEvent payload =
+                DataSerializer.deserialize(payloadCaptor.getValue(), PostUpdatedOutboxEvent.class);
+
+        assertThat(typeCaptor.getValue()).isEqualTo(OutboxEventType.POST_UPDATED);
+        assertThat(eventKeyParts).hasSize(3);
+        assertThat(eventKeyParts[0]).isEqualTo("POST_UPDATED");
+        assertThat(eventKeyParts[1]).isEqualTo(postId.toString());
+        assertThatCode(() -> java.util.UUID.fromString(eventKeyParts[2]))
+                .doesNotThrowAnyException();
+        assertThat(eventKey).doesNotContain(oldUpdatedAt.toString());
+
+        assertThat(payload.getPostId()).isEqualTo(postId);
+        assertThat(payload.getUserId()).isEqualTo(userId);
+        assertThat(payload.getStorageKeys()).containsExactly("storage-key-1");
+    }
+
+    @Test
+    @DisplayName("post update rejects when active post is not found")
     void update_rejectsWhenActivePostNotFound() {
         Long boardId = 1L;
         Long postId = 10L;
@@ -89,11 +143,15 @@ class PostCommandServiceImplTest {
                 .isEqualTo(ErrorCode.POST_NOT_FOUND);
 
         verify(postRepository).findActiveById(postId);
-        verify(outboxPublisher, never()).publish(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString());
+        verify(outboxPublisher, never()).publish(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString()
+        );
     }
 
     @Test
-    @DisplayName("좋아요는 게시글과 게시판이 모두 삭제되지 않은 active post만 대상으로 한다.")
+    @DisplayName("like uses active post lookup")
     void like_usesActivePostLookup() {
         Long boardId = 1L;
         Long postId = 10L;
