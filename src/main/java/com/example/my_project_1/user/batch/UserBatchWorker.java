@@ -3,6 +3,7 @@ package com.example.my_project_1.user.batch;
 import com.example.my_project_1.common.exception.CustomException;
 import com.example.my_project_1.common.exception.ErrorCode;
 import com.example.my_project_1.common.utils.DataSerializer;
+import com.example.my_project_1.outbox.domain.OutboxEventKey;
 import com.example.my_project_1.outbox.domain.OutboxEventType;
 import com.example.my_project_1.outbox.repository.OutboxRepository;
 import com.example.my_project_1.outbox.service.OutboxPublisher;
@@ -22,7 +23,6 @@ import java.time.LocalDateTime;
 @Service
 @RequiredArgsConstructor
 public class UserBatchWorker {
-    private static final String DORMANCY_NOTIFY = "DORMANCY_NOTIFY";
 
     private final OutboxPublisher outboxPublisher;
     private final UserAccountChangeOutboxPublisher userAccountChangeOutboxPublisher;
@@ -48,7 +48,7 @@ public class UserBatchWorker {
     }
 
     private void publishDormancyNotifyIfNotExists(User user) {
-        String eventKey = getDormancyNotifyEventKey(user);
+        String eventKey = OutboxEventKey.dormancyNotify(user.getId(), user.getLastLoginAt().toLocalDate());
 
         if (outboxRepository.existsByEventKey(eventKey)) {
             return;
@@ -64,14 +64,6 @@ public class UserBatchWorker {
                         )
                 ),
                 eventKey
-        );
-    }
-
-    private String getDormancyNotifyEventKey(User user) {
-        return "%s:%d:%s".formatted(
-                DORMANCY_NOTIFY,
-                user.getId(),
-                user.getLastLoginAt().toLocalDate()
         );
     }
 

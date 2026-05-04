@@ -6,6 +6,7 @@ import com.example.my_project_1.common.exception.CustomException;
 import com.example.my_project_1.common.exception.ErrorCode;
 import com.example.my_project_1.common.utils.DataSerializer;
 import com.example.my_project_1.image.utils.ImageUrlParser;
+import com.example.my_project_1.outbox.domain.OutboxEventKey;
 import com.example.my_project_1.outbox.domain.OutboxEventType;
 import com.example.my_project_1.outbox.service.OutboxPublisher;
 import com.example.my_project_1.post.domain.Post;
@@ -30,8 +31,6 @@ import java.util.Map;
 @RequiredArgsConstructor
 @Service
 public class PostCommandServiceImpl implements PostCommandService {
-    private static final String POST_CREATED = "POST_CREATED:";
-    private static final String POST_UPDATED = "POST_UPDATED:";
 
     private final BoardRepository boardRepository;
     private final PostRepository postRepository;
@@ -60,8 +59,9 @@ public class PostCommandServiceImpl implements PostCommandService {
                 DataSerializer.serialize(
                         new PostCreatedOutboxEvent(post.getId(), userId, keys)
                 ),
-                POST_CREATED + post.getId()
+                OutboxEventKey.postCreated(post.getId())
         );
+
         return PostDetailResponse.from(post, getNickname(userId));
     }
 
@@ -84,14 +84,13 @@ public class PostCommandServiceImpl implements PostCommandService {
         List<String> keys =
                 ImageUrlParser.extractStorageKeys(request.getContent());
 
-        String eventKey = POST_UPDATED + post.getId() + ":" + post.getUpdatedAt();
 
         outboxPublisher.publish(
                 OutboxEventType.POST_UPDATED,
                 DataSerializer.serialize(
                         new PostUpdatedOutboxEvent(post.getId(), userId, keys)
                 ),
-                eventKey
+                OutboxEventKey.postUpdated(postId)
         );
 
         return PostDetailResponse.from(post, getNickname(userId));
