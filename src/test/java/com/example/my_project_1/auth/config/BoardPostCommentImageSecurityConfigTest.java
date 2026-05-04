@@ -6,10 +6,13 @@ import com.example.my_project_1.auth.handler.JwtAuthenticationEntryPoint;
 import com.example.my_project_1.auth.handler.JwtLoginFailureHandler;
 import com.example.my_project_1.auth.handler.JwtLoginSuccessHandler;
 import com.example.my_project_1.auth.handler.OAuth2LoginSuccessHandler;
+import com.example.my_project_1.auth.controller.AuthController;
 import com.example.my_project_1.auth.oauth.CustomOAuth2UserService;
+import com.example.my_project_1.auth.service.AuthService;
 import com.example.my_project_1.auth.service.RedisLoginAttemptService;
 import com.example.my_project_1.auth.service.RedisTokenService;
 import com.example.my_project_1.auth.service.RedisUserContextService;
+import com.example.my_project_1.auth.service.response.TokenResponse;
 import com.example.my_project_1.auth.utils.JwtProvider;
 import com.example.my_project_1.board.controller.AdminBoardController;
 import com.example.my_project_1.board.controller.BoardController;
@@ -28,6 +31,8 @@ import com.example.my_project_1.image.service.ImageUploadService;
 import com.example.my_project_1.post.controller.PostController;
 import com.example.my_project_1.post.service.PostCommandService;
 import com.example.my_project_1.post.service.PostQueryService;
+import com.example.my_project_1.user.controller.UserController;
+import com.example.my_project_1.user.service.UserCommandService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,6 +40,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.mapping.JpaMetamodelMappingContext;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -42,6 +48,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
@@ -56,7 +63,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         AdminBoardController.class,
         PostController.class,
         CommentController.class,
-        ImageController.class
+        ImageController.class,
+        AuthController.class,
+        UserController.class
 })
 @Import({
         SecurityConfig.class,
@@ -95,6 +104,12 @@ class BoardPostCommentImageSecurityConfigTest {
 
     @MockitoBean
     private ImageStorage imageStorage;
+
+    @MockitoBean
+    private AuthService authService;
+
+    @MockitoBean
+    private UserCommandService userCommandService;
 
     @MockitoBean
     private JwtProvider jwtProvider;
@@ -182,5 +197,54 @@ class BoardPostCommentImageSecurityConfigTest {
                         .contentType("application/json")
                         .content("{\"name\":\"board\",\"description\":\"description\"}"))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("Auth, User public API는 인증 없이 SecurityConfig를 통과한다.")
+    void authAndUserPublicApis_areNotBlockedBySecurityConfig() throws Exception {
+        TokenResponse tokenResponse = new TokenResponse("access-token", "refresh-token");
+        when(authService.reissue("refresh-token")).thenReturn(tokenResponse);
+        when(jwtProvider.getRemainingValidityMillis("refresh-token")).thenReturn(60_000L);
+
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType("application/json")
+                        .content("{}"))
+                .andExpect(result -> assertThat(result.getResponse().getStatus())
+                        .isNotEqualTo(HttpStatus.UNAUTHORIZED.value()));
+        mockMvc.perform(post("/api/auth/reissue")
+                        .header("Refresh-Token", "refresh-token"))
+                .andExpect(result -> assertThat(result.getResponse().getStatus())
+                        .isNotEqualTo(HttpStatus.UNAUTHORIZED.value()));
+        mockMvc.perform(post("/api/auth/logout"))
+                .andExpect(result -> assertThat(result.getResponse().getStatus())
+                        .isNotEqualTo(HttpStatus.UNAUTHORIZED.value()));
+        mockMvc.perform(post("/api/auth/restore")
+                        .contentType("application/json")
+                        .content("{}"))
+                .andExpect(result -> assertThat(result.getResponse().getStatus())
+                        .isNotEqualTo(HttpStatus.UNAUTHORIZED.value()));
+        mockMvc.perform(post("/api/users/signup")
+                        .contentType("application/json")
+                        .content("{}"))
+                .andExpect(result -> assertThat(result.getResponse().getStatus())
+                        .isNotEqualTo(HttpStatus.UNAUTHORIZED.value()));
+        mockMvc.perform(post("/api/users/emails/verification")
+                        .param("email", "test@example.com"))
+                .andExpect(result -> assertThat(result.getResponse().getStatus())
+                        .isNotEqualTo(HttpStatus.UNAUTHORIZED.value()));
+        mockMvc.perform(post("/api/users/emails/verification/confirm")
+                        .param("email", "test@example.com")
+                        .param("code", "123456"))
+                .andExpect(result -> assertThat(result.getResponse().getStatus())
+                        .isNotEqualTo(HttpStatus.UNAUTHORIZED.value()));
+        mockMvc.perform(post("/api/users/password-reset/request")
+                        .param("email", "test@example.com"))
+                .andExpect(result -> assertThat(result.getResponse().getStatus())
+                        .isNotEqualTo(HttpStatus.UNAUTHORIZED.value()));
+        mockMvc.perform(post("/api/users/password-reset/confirm")
+                        .contentType("application/json")
+                        .content("{}"))
+                .andExpect(result -> assertThat(result.getResponse().getStatus())
+                        .isNotEqualTo(HttpStatus.UNAUTHORIZED.value()));
     }
 }
