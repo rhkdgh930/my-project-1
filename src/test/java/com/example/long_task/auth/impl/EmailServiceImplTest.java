@@ -1,6 +1,7 @@
-package com.example.my_project_1.auth.service.impl;
+package com.example.long_task.auth.impl;
 
 import com.example.my_project_1.auth.service.EmailService;
+import com.example.my_project_1.auth.service.impl.EmailServiceImpl;
 import jakarta.mail.Session;
 import jakarta.mail.internet.MimeMessage;
 import org.junit.jupiter.api.DisplayName;
