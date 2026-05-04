@@ -52,10 +52,10 @@ public class Comment extends BaseEntity {
 
     public static Comment createReply(Comment parent, Long userId, String content) {
         if (parent.isDeleted()) {
-            throw new CustomException(ErrorCode.INVALID_INPUT_VALUE);
+            throw new CustomException(ErrorCode.COMMENT_ALREADY_DELETED);
         }
         if (parent.depth >= 1) {
-            throw new CustomException(ErrorCode.INVALID_INPUT_VALUE);
+            throw new CustomException(ErrorCode.COMMENT_DEPTH_EXCEEDED);
         }
         return Comment.builder()
                 .postId(parent.getPostId())
@@ -103,7 +103,7 @@ public class Comment extends BaseEntity {
 
     private void validateNotDeleted() {
         if (isDeleted()) {
-            throw new CustomException(ErrorCode.INVALID_INPUT_VALUE);
+            throw new CustomException(ErrorCode.COMMENT_ALREADY_DELETED);
         }
     }
 }

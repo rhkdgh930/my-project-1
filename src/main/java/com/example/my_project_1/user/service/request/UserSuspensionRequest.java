@@ -29,7 +29,7 @@ public class UserSuspensionRequest {
         }
 
         if (days == null) {
-            throw new CustomException(ErrorCode.INVALID_INPUT_VALUE);
+            throw new CustomException(ErrorCode.INVALID_SUSPENSION_DURATION);
         }
 
         return Duration.ofDays(days);
