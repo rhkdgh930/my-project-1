@@ -7,6 +7,8 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 import static org.springframework.util.Assert.hasText;
 import static org.springframework.util.Assert.notNull;
 
@@ -35,6 +37,8 @@ public class Image extends BaseEntity {
     @Enumerated(EnumType.STRING)
     private ImageOwnerType ownerType;
 
+    private LocalDateTime detachedAt;
+
     public static Image createPending(Long uploaderId, String storageKey) {
         return Image.builder()
                 .uploaderId(uploaderId)
@@ -60,9 +64,10 @@ public class Image extends BaseEntity {
         this.ownerId = ownerId;
         this.ownerType = ownerType;
         this.imageStatus = ImageStatus.USED;
+        this.detachedAt = null;
     }
 
-    public void detach() {
+    public void detach(LocalDateTime now) {
 
         if (this.imageStatus == ImageStatus.DETACHED) {
             return;
@@ -75,15 +80,17 @@ public class Image extends BaseEntity {
         this.ownerId = null;
         this.ownerType = null;
         this.imageStatus = ImageStatus.DETACHED;
+        this.detachedAt = now;
     }
 
-    public void markDeleted() {
+    public void markDeleted(LocalDateTime now) {
 
         if (this.imageStatus == ImageStatus.DELETED) {
             return;
         }
 
         this.imageStatus = ImageStatus.DELETED;
+        this.deletedAt = now;
     }
 
     public boolean isAttachable() {

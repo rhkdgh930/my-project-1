@@ -9,6 +9,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
+import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -18,6 +20,7 @@ import java.util.Set;
 @Transactional
 public class ImageServiceImpl implements ImageService {
     private final ImageRepository imageRepository;
+    private final Clock clock;
 
     @Override
     public void attachImages(
@@ -54,16 +57,17 @@ public class ImageServiceImpl implements ImageService {
 
         Set<String> newKeySet =
                 new HashSet<>(newKeys != null ? newKeys : List.of());
+        LocalDateTime now = LocalDateTime.now(clock);
 
         existing.stream()
                 .filter(img -> !newKeySet.contains(img.getStorageKey()))
-                .forEach(Image::detach);
+                .forEach(img -> img.detach(now));
 
         attachImages(ownerId, ownerType, newKeys, uploaderId);
     }
 
     @Override
     public void detachAll(Long ownerId, ImageOwnerType ownerType) {
-        imageRepository.bulkDetachAll(ownerId, ownerType);
+        imageRepository.bulkDetachAll(ownerId, ownerType, LocalDateTime.now(clock));
     }
 }
