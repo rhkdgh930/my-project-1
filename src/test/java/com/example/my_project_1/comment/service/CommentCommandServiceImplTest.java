@@ -2,6 +2,7 @@ package com.example.my_project_1.comment.service;
 
 import com.example.my_project_1.comment.domain.Comment;
 import com.example.my_project_1.comment.repository.CommentRepository;
+import com.example.my_project_1.comment.service.impl.CommentCommandServiceImpl;
 import com.example.my_project_1.common.exception.CustomException;
 import com.example.my_project_1.common.exception.ErrorCode;
 import com.example.my_project_1.post.domain.Post;
