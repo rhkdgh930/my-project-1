@@ -36,6 +36,8 @@ import static org.mockito.Mockito.when;
 
 class PostCommandServiceImplTest {
 
+    private static final String IMAGE_STORAGE_KEY = "123e4567-e89b-12d3-a456-426614174000.png";
+
     private BoardRepository boardRepository;
     private PostRepository postRepository;
     private PostRedisService postRedisService;
@@ -91,7 +93,8 @@ class PostCommandServiceImplTest {
         ReflectionTestUtils.setField(post, "updatedAt", oldUpdatedAt);
         PostUpdateRequest request = updateRequest(
                 "updated title",
-                "updated content ![image](/images/storage-key-1)"
+                "updated content ![image](/images/%s) ![external](https://cdn.example.com/images/%s)"
+                        .formatted(IMAGE_STORAGE_KEY, IMAGE_STORAGE_KEY)
         );
 
         when(postRepository.findActiveById(postId)).thenReturn(Optional.of(post));
@@ -125,7 +128,7 @@ class PostCommandServiceImplTest {
 
         assertThat(payload.getPostId()).isEqualTo(postId);
         assertThat(payload.getUserId()).isEqualTo(userId);
-        assertThat(payload.getStorageKeys()).containsExactly("storage-key-1");
+        assertThat(payload.getStorageKeys()).containsExactly(IMAGE_STORAGE_KEY);
     }
 
     @Test
