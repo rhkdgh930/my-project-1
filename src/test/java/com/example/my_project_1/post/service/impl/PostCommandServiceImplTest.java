@@ -8,6 +8,7 @@ import com.example.my_project_1.common.utils.DataSerializer;
 import com.example.my_project_1.outbox.domain.OutboxEventType;
 import com.example.my_project_1.outbox.service.OutboxPublisher;
 import com.example.my_project_1.post.domain.Post;
+import com.example.my_project_1.post.event.PostDeletedOutboxEvent;
 import com.example.my_project_1.post.event.PostUpdatedOutboxEvent;
 import com.example.my_project_1.post.repository.PostRepository;
 import com.example.my_project_1.post.service.PostRedisService;
@@ -23,7 +24,10 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -39,6 +43,10 @@ import static org.mockito.Mockito.when;
 class PostCommandServiceImplTest {
 
     private static final String IMAGE_STORAGE_KEY = "123e4567-e89b-12d3-a456-426614174000.png";
+    private static final Clock CLOCK = Clock.fixed(
+            Instant.parse("2026-05-06T01:02:03Z"),
+            ZoneId.of("Asia/Seoul")
+    );
 
     private BoardRepository boardRepository;
     private PostRepository postRepository;
@@ -60,7 +68,8 @@ class PostCommandServiceImplTest {
                 postRepository,
                 postRedisService,
                 userClient,
-                outboxPublisher
+                outboxPublisher,
+                CLOCK
         );
     }
 
@@ -213,6 +222,128 @@ class PostCommandServiceImplTest {
                 .isEqualTo(ErrorCode.POST_NOT_FOUND);
 
         verify(postRepository).findActiveById(postId);
+        verify(outboxPublisher, never()).publish(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString()
+        );
+    }
+
+    @Test
+    @DisplayName("post delete는 active post를 삭제하고 POST_DELETED outbox event를 발행한다.")
+    void delete_deletesPostAndPublishesPostDeletedOutboxEvent() {
+        Long boardId = 1L;
+        Long postId = 10L;
+        Long userId = 100L;
+        Post post = post(boardId, postId, userId);
+
+        when(postRepository.findActiveById(postId)).thenReturn(Optional.of(post));
+
+        postCommandService.delete(boardId, postId, userId);
+
+        ArgumentCaptor<OutboxEventType> typeCaptor = ArgumentCaptor.forClass(OutboxEventType.class);
+        ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<String> eventKeyCaptor = ArgumentCaptor.forClass(String.class);
+
+        verify(postRepository).findActiveById(postId);
+        verify(outboxPublisher).publish(
+                typeCaptor.capture(),
+                payloadCaptor.capture(),
+                eventKeyCaptor.capture()
+        );
+
+        String eventKey = eventKeyCaptor.getValue();
+        String[] eventKeyParts = eventKey.split(":");
+        PostDeletedOutboxEvent payload =
+                DataSerializer.deserialize(payloadCaptor.getValue(), PostDeletedOutboxEvent.class);
+
+        assertThat(post.getDeletedAt()).isEqualTo(LocalDateTime.now(CLOCK));
+        assertThat(typeCaptor.getValue()).isEqualTo(OutboxEventType.POST_DELETED);
+        assertThat(eventKeyParts).hasSize(3);
+        assertThat(eventKeyParts[0]).isEqualTo("POST_DELETED");
+        assertThat(eventKeyParts[1]).isEqualTo(postId.toString());
+        assertThatCode(() -> java.util.UUID.fromString(eventKeyParts[2]))
+                .doesNotThrowAnyException();
+        assertThat(payload.getPostId()).isEqualTo(postId);
+        assertThat(payload.getUserId()).isEqualTo(userId);
+    }
+
+    @Test
+    @DisplayName("post delete는 active post를 찾지 못하면 POST_NOT_FOUND로 거절한다.")
+    void delete_rejectsWhenActivePostNotFound() {
+        Long boardId = 1L;
+        Long postId = 10L;
+        Long userId = 100L;
+
+        when(postRepository.findActiveById(postId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> postCommandService.delete(boardId, postId, userId))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.POST_NOT_FOUND);
+
+        verify(postRepository).findActiveById(postId);
+        verify(outboxPublisher, never()).publish(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString()
+        );
+    }
+
+    @Test
+    @DisplayName("post delete는 삭제된 board 아래 post도 POST_NOT_FOUND로 거절한다.")
+    void delete_rejectsPostUnderDeletedBoardAsNotFound() {
+        Long boardId = 1L;
+        Long postId = 10L;
+        Long userId = 100L;
+
+        when(postRepository.findActiveById(postId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> postCommandService.delete(boardId, postId, userId))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.POST_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("post delete는 board-post 관계가 다르면 INVALID_BOARD_POST_RELATION으로 거절한다.")
+    void delete_rejectsWhenBoardPostRelationMismatch() {
+        Long boardId = 1L;
+        Long actualBoardId = 2L;
+        Long postId = 10L;
+        Long userId = 100L;
+        Post post = post(actualBoardId, postId, userId);
+
+        when(postRepository.findActiveById(postId)).thenReturn(Optional.of(post));
+
+        assertThatThrownBy(() -> postCommandService.delete(boardId, postId, userId))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.INVALID_BOARD_POST_RELATION);
+
+        verify(outboxPublisher, never()).publish(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString()
+        );
+    }
+
+    @Test
+    @DisplayName("post delete는 작성자가 아니면 ACCESS_DENIED로 거절한다.")
+    void delete_rejectsWhenUserIsNotAuthor() {
+        Long boardId = 1L;
+        Long postId = 10L;
+        Long authorId = 100L;
+        Long requesterId = 200L;
+        Post post = post(boardId, postId, authorId);
+
+        when(postRepository.findActiveById(postId)).thenReturn(Optional.of(post));
+
+        assertThatThrownBy(() -> postCommandService.delete(boardId, postId, requesterId))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.ACCESS_DENIED);
+
         verify(outboxPublisher, never()).publish(
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.anyString(),

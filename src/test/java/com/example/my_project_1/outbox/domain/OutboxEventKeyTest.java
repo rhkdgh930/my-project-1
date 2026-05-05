@@ -39,4 +39,16 @@ class OutboxEventKeyTest {
 
         assertThat(firstKey).isNotEqualTo(secondKey);
     }
+
+    @Test
+    @DisplayName("postDeleted는 post id와 uuid 기반 key를 사용한다.")
+    void postDeleted_usesPostIdAndUuidKey() {
+        String eventKey = OutboxEventKey.postDeleted(10L);
+        String[] parts = eventKey.split(":");
+
+        assertThat(parts).hasSize(3);
+        assertThat(parts[0]).isEqualTo("POST_DELETED");
+        assertThat(parts[1]).isEqualTo("10");
+        assertThat(UUID.fromString(parts[2])).isNotNull();
+    }
 }

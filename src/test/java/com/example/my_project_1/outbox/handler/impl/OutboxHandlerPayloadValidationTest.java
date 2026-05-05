@@ -4,8 +4,10 @@ import com.example.my_project_1.auth.service.EmailService;
 import com.example.my_project_1.auth.service.RedisTokenService;
 import com.example.my_project_1.auth.service.RedisUserContextService;
 import com.example.my_project_1.common.utils.DataSerializer;
+import com.example.my_project_1.image.domain.ImageOwnerType;
 import com.example.my_project_1.image.service.ImageService;
 import com.example.my_project_1.post.event.PostCreatedOutboxEvent;
+import com.example.my_project_1.post.event.PostDeletedOutboxEvent;
 import com.example.my_project_1.user.event.DormancyNotifyOutboxEvent;
 import com.example.my_project_1.user.event.UserAccountChangedOutboxEvent;
 import com.example.my_project_1.user.event.UserAccountChangedType;
@@ -16,6 +18,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 class OutboxHandlerPayloadValidationTest {
@@ -63,5 +66,20 @@ class OutboxHandlerPayloadValidationTest {
         );
 
         handler.handle(payload);
+    }
+
+    @Test
+    @DisplayName("POST_DELETED handler는 빈 목록으로 image sync를 호출해 기존 이미지를 detach 대상으로 만든다.")
+    void postDeleted_syncsImagesWithEmptyStorageKeys() {
+        ImageService imageService = mock(ImageService.class);
+        PostDeletedHandler handler = new PostDeletedHandler(imageService);
+
+        String payload = DataSerializer.serialize(
+                new PostDeletedOutboxEvent(1L, 2L)
+        );
+
+        handler.handle(payload);
+
+        verify(imageService).syncImages(1L, ImageOwnerType.POST, List.of(), 2L);
     }
 }

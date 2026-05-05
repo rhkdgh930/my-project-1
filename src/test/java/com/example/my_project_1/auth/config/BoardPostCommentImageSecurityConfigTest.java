@@ -57,8 +57,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -182,6 +184,8 @@ class BoardPostCommentImageSecurityConfigTest {
                         .contentType("application/json")
                         .content("{\"title\":\"title\",\"content\":\"content\"}"))
                 .andExpect(status().isUnauthorized());
+        mockMvc.perform(delete("/api/boards/1/posts/1"))
+                .andExpect(status().isUnauthorized());
         mockMvc.perform(post("/api/boards/1/posts/1/like"))
                 .andExpect(status().isUnauthorized());
         mockMvc.perform(post("/api/posts/1/comments")
@@ -256,6 +260,22 @@ class BoardPostCommentImageSecurityConfigTest {
                         .content("{}"))
                 .andExpect(result -> assertThat(result.getResponse().getStatus())
                         .isNotEqualTo(HttpStatus.UNAUTHORIZED.value()));
+    }
+
+    @Test
+    @DisplayName("Post delete API는 인증 사용자가 호출하면 204를 반환한다.")
+    void postDeleteApi_returnsNoContentForAuthenticatedUser() throws Exception {
+        UserDetailsImpl userDetails = userDetails();
+
+        mockMvc.perform(delete("/api/boards/1/posts/10")
+                        .with(authentication(new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                                userDetails,
+                                null,
+                                userDetails.getAuthorities()
+                        ))))
+                .andExpect(status().isNoContent());
+
+        verify(postCommandService).delete(1L, 10L, 1L);
     }
 
     @Test
