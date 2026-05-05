@@ -1,8 +1,13 @@
 package com.example.my_project_1.user.service.impl;
 
+import com.example.my_project_1.common.exception.CustomException;
+import com.example.my_project_1.common.exception.ErrorCode;
+import com.example.my_project_1.user.domain.AccountStatus;
 import com.example.my_project_1.user.domain.User;
+import com.example.my_project_1.user.domain.UserStatus;
 import com.example.my_project_1.user.repository.UserRepository;
 import com.example.my_project_1.user.service.UserQueryService;
+import com.example.my_project_1.user.service.response.UserMeResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
@@ -20,5 +25,32 @@ public class UserQueryServiceImpl implements UserQueryService {
                 .orElseThrow(() ->
                         new UsernameNotFoundException("User not found")
                 );
+    }
+
+    @Override
+    public UserMeResponse getMe(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        validateMeReadable(user);
+        return UserMeResponse.from(user);
+    }
+
+    private void validateMeReadable(User user) {
+        if (user.isDeleted() || user.getUserStatus() == UserStatus.WITHDRAWN) {
+            throw new CustomException(ErrorCode.USER_NOT_FOUND);
+        }
+
+        if (user.getUserStatus() == UserStatus.WITHDRAWN_REQUESTED) {
+            throw new CustomException(ErrorCode.WITHDRAWAL_PENDING);
+        }
+
+        if (user.getUserStatus() == UserStatus.DORMANT) {
+            throw new CustomException(ErrorCode.USER_DORMANT);
+        }
+
+        if (user.getAccountStatus() == AccountStatus.SUSPENDED) {
+            throw new CustomException(ErrorCode.USER_SUSPENDED);
+        }
     }
 }

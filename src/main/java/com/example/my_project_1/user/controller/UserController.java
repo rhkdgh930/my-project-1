@@ -2,7 +2,9 @@ package com.example.my_project_1.user.controller;
 
 import com.example.my_project_1.auth.userdetails.UserDetailsImpl;
 import com.example.my_project_1.user.service.UserCommandService;
+import com.example.my_project_1.user.service.UserQueryService;
 import com.example.my_project_1.user.service.request.*;
+import com.example.my_project_1.user.service.response.UserMeResponse;
 import com.example.my_project_1.user.service.response.UserProfileResponse;
 import com.example.my_project_1.user.service.response.UserSignUpResponse;
 import com.example.my_project_1.user.service.response.UserWithdrawResponse;
@@ -27,6 +29,7 @@ import org.springframework.web.bind.annotation.*;
 public class UserController {
 
     private final UserCommandService userCommandService;
+    private final UserQueryService userQueryService;
 
     @Operation(
             summary = "이메일 인증 코드 발송",
@@ -68,6 +71,18 @@ public class UserController {
 
         UserSignUpResponse response = userCommandService.signUp(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @Operation(
+            summary = "내 정보 조회",
+            description = "현재 로그인한 사용자의 기본 계정 및 프로필 정보를 조회합니다."
+    )
+    @GetMapping("/me")
+    public ResponseEntity<UserMeResponse> getMe(
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
+
+        UserMeResponse response = userQueryService.getMe(userDetails.getUserId());
+        return ResponseEntity.ok(response);
     }
 
     @Operation(
