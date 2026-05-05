@@ -18,17 +18,18 @@ import com.example.my_project_1.post.service.PostRedisService;
 import com.example.my_project_1.post.service.request.PostCreateRequest;
 import com.example.my_project_1.post.service.request.PostUpdateRequest;
 import com.example.my_project_1.post.service.response.PostDetailResponse;
+import com.example.my_project_1.user.client.AuthorSummary;
 import com.example.my_project_1.user.client.UserClient;
-import com.example.my_project_1.user.client.UserSummary;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Map;
 
 @Transactional
 @RequiredArgsConstructor
+@Slf4j
 @Service
 public class PostCommandServiceImpl implements PostCommandService {
 
@@ -62,7 +63,7 @@ public class PostCommandServiceImpl implements PostCommandService {
                 OutboxEventKey.postCreated(post.getId())
         );
 
-        return PostDetailResponse.from(post, getNickname(userId));
+        return PostDetailResponse.from(post, getAuthorOrUnknown(userId));
     }
 
     @Override
@@ -93,7 +94,7 @@ public class PostCommandServiceImpl implements PostCommandService {
                 OutboxEventKey.postUpdated(postId)
         );
 
-        return PostDetailResponse.from(post, getNickname(userId));
+        return PostDetailResponse.from(post, getAuthorOrUnknown(userId));
     }
 
     @Override
@@ -108,9 +109,13 @@ public class PostCommandServiceImpl implements PostCommandService {
         return postRedisService.toggleLike(postId, userId);
     }
 
-    private String getNickname(Long userId) {
-        Map<Long, UserSummary> userMap = userClient.findUsersByIds(List.of(userId));
-        UserSummary user = userMap.get(userId);
-        return (user != null) ? user.nickname() : "알 수 없는 사용자";
+    private AuthorSummary getAuthorOrUnknown(Long userId) {
+        try {
+            return userClient.findAuthorsByIds(List.of(userId))
+                    .getOrDefault(userId, AuthorSummary.unknown());
+        } catch (RuntimeException e) {
+            log.warn("[POST_COMMAND][AUTHOR_LOOKUP_FAIL] userId={}", userId, e);
+            return AuthorSummary.unknown();
+        }
     }
 }

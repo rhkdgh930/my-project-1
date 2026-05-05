@@ -18,27 +18,25 @@ public class LocalUserClient implements UserClient {
     private final Clock clock;
     private final UserRepository userRepository;
 
-    private static final String UNKNOWN_USER = "(탈퇴한 사용자)";
-    private static final String SUSPENDED_USER = "(차단된 사용자)";
-
     @Override
-    public Map<Long, UserSummary> findUsersByIds(List<Long> ids) {
+    public Map<Long, AuthorSummary> findAuthorsByIds(List<Long> ids) {
         return userRepository.findAllById(ids).stream()
                 .collect(Collectors.toMap(
                         User::getId,
-                        user -> new UserSummary(user.getId(), resolveDisplayName(user))
+                        this::toAuthorSummary
                 ));
     }
 
-    private String resolveDisplayName(User user) {
+    private AuthorSummary toAuthorSummary(User user) {
         if (user.isWithdrawnCompletely() || user.isDeleted()) {
-            return UNKNOWN_USER;
+            return AuthorSummary.withdrawn();
         }
 
         if (user.isSuspended(LocalDateTime.now(clock))) {
-            return SUSPENDED_USER;
+            return AuthorSummary.suspended(user.getId());
         }
 
-        return user.getNickname();
+        return AuthorSummary.active(user.getId(), user.getNickname());
     }
+
 }
