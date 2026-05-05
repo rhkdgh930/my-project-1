@@ -11,6 +11,7 @@ import com.example.my_project_1.post.service.response.PostListResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -41,6 +42,17 @@ public class PostController {
     ) {
         Long userId = userDetails.getUserId();
         return postCommandService.update(boardId, postId, userId, request);
+    }
+
+    @DeleteMapping("/{postId}")
+    public ResponseEntity<Void> delete(
+            @PathVariable Long boardId,
+            @PathVariable Long postId,
+            @AuthenticationPrincipal UserDetailsImpl userDetails
+    ) {
+        Long userId = userDetails.getUserId();
+        postCommandService.delete(boardId, postId, userId);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping

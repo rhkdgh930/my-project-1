@@ -20,6 +20,10 @@ public final class OutboxEventKey {
         return join(OutboxEventType.POST_UPDATED.name(), postId, UUID.randomUUID());
     }
 
+    public static String postDeleted(Long postId) {
+        return join(OutboxEventType.POST_DELETED.name(), postId, UUID.randomUUID());
+    }
+
     public static String dormancyNotify(Long userId, LocalDate lastLoginDate) {
         return join(OutboxEventType.DORMANCY_NOTIFY.name(), userId, lastLoginDate);
     }

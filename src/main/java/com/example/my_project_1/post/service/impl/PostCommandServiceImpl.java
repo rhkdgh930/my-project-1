@@ -11,6 +11,7 @@ import com.example.my_project_1.outbox.domain.OutboxEventType;
 import com.example.my_project_1.outbox.service.OutboxPublisher;
 import com.example.my_project_1.post.domain.Post;
 import com.example.my_project_1.post.event.PostCreatedOutboxEvent;
+import com.example.my_project_1.post.event.PostDeletedOutboxEvent;
 import com.example.my_project_1.post.event.PostUpdatedOutboxEvent;
 import com.example.my_project_1.post.repository.PostRepository;
 import com.example.my_project_1.post.service.PostCommandService;
@@ -25,6 +26,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Transactional
@@ -38,6 +41,7 @@ public class PostCommandServiceImpl implements PostCommandService {
     private final PostRedisService postRedisService;
     private final UserClient userClient;
     private final OutboxPublisher outboxPublisher;
+    private final Clock clock;
 
     @Override
     public PostDetailResponse create(Long boardId, Long userId, PostCreateRequest request) {
@@ -95,6 +99,30 @@ public class PostCommandServiceImpl implements PostCommandService {
         );
 
         return PostDetailResponse.from(post, getAuthorOrUnknown(userId));
+    }
+
+    @Override
+    public void delete(Long boardId, Long postId, Long userId) {
+        Post post = postRepository.findActiveById(postId)
+                .orElseThrow(() -> new CustomException(ErrorCode.POST_NOT_FOUND));
+
+        if (!post.getBoard().getId().equals(boardId)) {
+            throw new CustomException(ErrorCode.INVALID_BOARD_POST_RELATION);
+        }
+
+        if (!post.getUserId().equals(userId)) {
+            throw new CustomException(ErrorCode.ACCESS_DENIED);
+        }
+
+        post.delete(LocalDateTime.now(clock));
+
+        outboxPublisher.publish(
+                OutboxEventType.POST_DELETED,
+                DataSerializer.serialize(
+                        new PostDeletedOutboxEvent(post.getId(), post.getUserId())
+                ),
+                OutboxEventKey.postDeleted(postId)
+        );
     }
 
     @Override
