@@ -202,6 +202,18 @@ Handler 기본 규칙:
 
 ---
 
+## Post Image Outbox Event 정책
+
+- Post create/update/delete 이후 이미지 attach/sync/detach는 Outbox side effect로 처리한다.
+- `POST_UPDATED`는 게시글 수정 이미지 sync용이며 기존 payload shape를 유지한다.
+- `POST_DELETED`는 게시글 삭제 이미지 detach용이다.
+- `POST_DELETED` eventKey는 `POST_DELETED:{postId}:{uuid}`다.
+- `POST_DELETED` payload는 `postId`, `userId`를 가진다.
+- `PostDeletedHandler`는 payload를 역직렬화한 뒤 `imageService.syncImages(postId, POST, emptyList, userId)`를 호출한다.
+- 이 호출은 삭제된 게시글의 기존 `USED` 이미지를 `DETACHED`로 전환하기 위한 것이다.
+
+---
+
 ## Outbox 변경 시 검증 기준
 
 Outbox 변경 시 다음 테스트를 고려한다.
