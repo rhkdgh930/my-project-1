@@ -69,3 +69,19 @@ Post 문서는 Board/Post 조회, 작성, 이미지 동기화, Redis count/like 
 - Post image sync payload 테스트는 `/images/{uuid}.{ext}` 내부 URL만 포함되는지 검증한다.
 - 외부 이미지 URL은 storageKeys payload에 포함되지 않아야 한다.
 - Redis count fallback, dirty marker sync, Lua toggle은 focused unit test와 실제 Redis integration test를 함께 고려한다.
+---
+
+## AuthorSummary Response Policy
+
+Post 응답의 작성자 표시는 `AuthorSummary`를 우선 사용한다.
+
+- Post list/detail/create/update 응답에는 작성자 표시용 `author` 객체를 포함한다.
+- `author`는 `id`, `displayName`, `status`를 가진다.
+- `AuthorStatus` 값은 `ACTIVE`, `WITHDRAWN`, `SUSPENDED`, `UNKNOWN`이다.
+- 기존 `userId`, `nickname` 필드는 transition을 위해 유지한다.
+- 기존 `nickname` 필드는 `author.displayName`으로 채운다.
+- `ACTIVE`: `id=userId`, `displayName=nickname`, `status=ACTIVE`
+- `WITHDRAWN`: 내부 마스킹 nickname을 노출하지 않고 `id=null`, `displayName="탈퇴한 사용자"`, `status=WITHDRAWN`
+- `SUSPENDED`: `id=userId`, `displayName="차단된 사용자"`, `status=SUSPENDED`
+- `UNKNOWN`: `id=null`, `displayName="알 수 없는 사용자"`, `status=UNKNOWN`
+- User row가 없거나 `UserClient.findAuthorsByIds(...)`가 실패해도 Post 조회/create/update 응답 자체는 실패시키지 않고 `UNKNOWN`으로 fallback한다.

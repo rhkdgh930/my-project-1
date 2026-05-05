@@ -304,3 +304,15 @@ User의 일반 회원 탈퇴는 JPA delete로 처리하지 않는다.
 - User 엔티티에는 Hibernate `@SQLDelete` / `@SQLRestriction`을 사용하지 않는다.
 - User 기본 조회는 `deletedAt` 필터가 아니라 `UserStatus` / `AccountStatus` 정책으로 해석한다.
 - 탈퇴 완료 사용자는 row를 유지하고, `UserStatus.WITHDRAWN` + 개인정보 비가역 마스킹으로 표현한다.
+---
+
+## AuthorSummary Client Policy
+
+게시글/댓글 작성자 표시에는 `AuthorSummary`를 표준 DTO로 사용한다.
+
+- `UserClient.findAuthorsByIds(...)`는 User lifecycle 상태를 public author 표시 정책으로 변환한다.
+- `ACTIVE`: `id=userId`, `displayName=nickname`, `status=ACTIVE`
+- `WITHDRAWN`: 내부 마스킹 nickname을 노출하지 않고 `id=null`, `displayName="탈퇴한 사용자"`, `status=WITHDRAWN`
+- `SUSPENDED`: `id=userId`, `displayName="차단된 사용자"`, `status=SUSPENDED`
+- `UNKNOWN`: `id=null`, `displayName="알 수 없는 사용자"`, `status=UNKNOWN`
+- User row가 없거나 author 조회가 실패한 Post/Comment 응답은 조회 자체를 실패시키지 않고 `UNKNOWN`으로 fallback한다.

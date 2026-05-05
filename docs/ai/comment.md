@@ -64,3 +64,19 @@ Comment 문서는 댓글/대댓글 작성, 조회, tombstone 정책을 정리한
 - depth 1 comment에는 reply가 불가능한지 검증한다.
 - deleted comment가 tombstone 형태로 조회되는지 검증한다.
 - 삭제된 post 또는 삭제된 board 아래 post에는 comment 작성이 불가능한지 검증한다.
+---
+
+## AuthorSummary Response Policy
+
+Comment 응답의 작성자 표시는 `AuthorSummary`를 우선 사용한다.
+
+- Comment 조회 응답에는 작성자 표시용 `author` 객체를 포함한다.
+- `author`는 `id`, `displayName`, `status`를 가진다.
+- `AuthorStatus` 값은 `ACTIVE`, `WITHDRAWN`, `SUSPENDED`, `UNKNOWN`이다.
+- 기존 `authorId` 필드는 transition을 위해 유지한다.
+- `ACTIVE`: `id=userId`, `displayName=nickname`, `status=ACTIVE`
+- `WITHDRAWN`: 내부 마스킹 nickname을 노출하지 않고 `id=null`, `displayName="탈퇴한 사용자"`, `status=WITHDRAWN`
+- `SUSPENDED`: `id=userId`, `displayName="차단된 사용자"`, `status=SUSPENDED`
+- `UNKNOWN`: `id=null`, `displayName="알 수 없는 사용자"`, `status=UNKNOWN`
+- User row가 없거나 `UserClient.findAuthorsByIds(...)`가 실패해도 Comment 조회 자체는 실패시키지 않고 non-deleted comment의 author를 `UNKNOWN`으로 fallback한다.
+- deleted comment는 기존 tombstone 정책대로 `author=null`을 유지한다.
