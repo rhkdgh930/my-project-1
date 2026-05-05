@@ -2,7 +2,7 @@
 
 ## 목적
 
-Post 문서는 Board/Post 조회, 작성, 삭제, 이미지 동기화, Redis count/like 정책을 정리한다.
+Post 문서는 Board/Post 조회, 작성, 이미지 동기화, Redis count/like 정책을 정리한다.
 
 이 문서는 Post 관련 작업에서 우선 참조한다.
 
@@ -11,7 +11,9 @@ Post 문서는 Board/Post 조회, 작성, 삭제, 이미지 동기화, Redis cou
 ## Security / Endpoint Policy
 
 - Post 조회 API만 `GET` 기준 permitAll 대상이다.
-- Post 생성, 수정, 삭제, 좋아요 API는 authenticated가 필요하다.
+- Post 생성, 수정, 좋아요 API는 authenticated가 필요하다.
+- 현재 PostController에는 delete API를 노출하지 않았다.
+- Post 삭제 API를 추가할 경우 authenticated로 둔다.
 - Post 관련 public path를 method 구분 없이 broad wildcard로 열지 않는다.
 - `/api/admin/**`는 ADMIN 권한이 필요하다.
 
@@ -23,7 +25,8 @@ Post 문서는 Board/Post 조회, 작성, 삭제, 이미지 동기화, Redis cou
 - Board 삭제는 `deletedAt` 기반 soft delete다.
 - Post 삭제는 `deletedAt` 기반 soft delete다.
 - active post 조건은 `post.deletedAt IS NULL AND post.board.deletedAt IS NULL`이다.
-- 삭제된 Board 아래 Post는 목록, 상세, 댓글, 좋아요, 수정, 삭제 대상에서 제외한다.
+- 삭제된 Board 아래 Post는 목록, 상세, 댓글, 좋아요, 수정 대상에서 제외한다.
+- Post 삭제 flow를 추가할 경우에도 active post 검증을 사용한다.
 - Post 조회 query는 Board 삭제 상태를 함께 고려해야 한다.
 
 ---
@@ -48,6 +51,7 @@ Post 문서는 Board/Post 조회, 작성, 삭제, 이미지 동기화, Redis cou
 - API 응답 count는 Redis 값이 있으면 Redis 값을 사용하고, 없으면 DB count로 fallback한다.
 - view count와 like count fallback은 독립적으로 처리한다.
 - Scheduler는 view dirty marker와 like dirty marker를 분리해 부분 sync한다.
+- legacy `post::dirty` 단일 set은 새 sync 흐름에서 사용하지 않는다.
 - view dirty marker는 view count sync 성공 시에만 제거한다.
 - like dirty marker는 like count sync 성공 시에만 제거한다.
 - Redis count key가 없거나 DB update가 실패하면 해당 dirty marker를 제거하지 않는다.
@@ -65,4 +69,3 @@ Post 문서는 Board/Post 조회, 작성, 삭제, 이미지 동기화, Redis cou
 - Post image sync payload 테스트는 `/images/{uuid}.{ext}` 내부 URL만 포함되는지 검증한다.
 - 외부 이미지 URL은 storageKeys payload에 포함되지 않아야 한다.
 - Redis count fallback, dirty marker sync, Lua toggle은 focused unit test와 실제 Redis integration test를 함께 고려한다.
-
