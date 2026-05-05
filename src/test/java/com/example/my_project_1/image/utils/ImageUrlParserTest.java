@@ -12,7 +12,7 @@ class ImageUrlParserTest {
     private static final String STORAGE_KEY = "123e4567-e89b-12d3-a456-426614174000.png";
 
     @Test
-    @DisplayName("extractStorageKeys extracts only internal image storage keys")
+    @DisplayName("extractStorageKeys는 내부 이미지 storageKey만 추출한다.")
     void extractStorageKeys_extractsOnlyInternalImageStorageKeys() {
         String content = "![image](/images/%s)".formatted(STORAGE_KEY);
 
@@ -22,7 +22,7 @@ class ImageUrlParserTest {
     }
 
     @Test
-    @DisplayName("extractStorageKeys ignores external and malformed image URLs")
+    @DisplayName("extractStorageKeys는 외부 URL과 잘못된 이미지 URL을 무시한다.")
     void extractStorageKeys_ignoresExternalAndMalformedImageUrls() {
         String content = """
                 ![external](https://cdn.example.com/image.png)
@@ -46,7 +46,7 @@ class ImageUrlParserTest {
     }
 
     @Test
-    @DisplayName("extractStorageKeys removes duplicate internal storage keys")
+    @DisplayName("extractStorageKeys는 중복된 내부 storageKey를 제거한다.")
     void extractStorageKeys_removesDuplicateInternalStorageKeys() {
         String content = """
                 ![first](/images/%s)

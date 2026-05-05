@@ -68,7 +68,7 @@ class PostRedisServiceIntegrationTest {
     }
 
     @Test
-    @DisplayName("actual Redis toggleLike likes and unlikes with count and dirty marker")
+    @DisplayName("실제 Redis toggleLike는 좋아요와 좋아요 취소 시 count와 dirty marker를 갱신한다.")
     void toggleLike_likesAndUnlikesOnActualRedis() {
         Long userId = 100L;
 
@@ -90,7 +90,7 @@ class PostRedisServiceIntegrationTest {
     }
 
     @Test
-    @DisplayName("actual Redis toggleLike does not make count negative when count key is missing")
+    @DisplayName("실제 Redis toggleLike는 count key가 없어도 count를 음수로 만들지 않는다.")
     void toggleLike_doesNotMakeCountNegativeWhenCountKeyIsMissing() {
         Long userId = 100L;
         redisTemplate.opsForSet().add(likeUserSetKey(postId), userId.toString());
@@ -106,7 +106,7 @@ class PostRedisServiceIntegrationTest {
     }
 
     @Test
-    @DisplayName("actual Redis concurrent toggleLike keeps membership and count consistent")
+    @DisplayName("실제 Redis 동시 toggleLike는 membership과 count 정합성을 유지한다.")
     void toggleLike_keepsMembershipAndCountConsistentWhenConcurrentTogglesRun() throws Exception {
         Long userId = 100L;
         int toggleCount = 20;

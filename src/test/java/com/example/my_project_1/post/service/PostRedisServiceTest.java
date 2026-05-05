@@ -38,7 +38,7 @@ class PostRedisServiceTest {
     }
 
     @Test
-    @DisplayName("increaseView marks post id in view dirty set")
+    @DisplayName("increaseView는 post id를 view dirty set에 기록한다.")
     void increaseView_marksPostIdInViewDirtySet() {
         postRedisService.increaseView(10L);
 
@@ -47,7 +47,7 @@ class PostRedisServiceTest {
     }
 
     @Test
-    @DisplayName("toggleLike returns true when Lua script returns liked result")
+    @DisplayName("toggleLike는 Lua script가 liked 결과를 반환하면 true를 반환한다.")
     void toggleLike_returnsTrueWhenLuaScriptReturnsLikedResult() {
         when(redisTemplate.execute(
                 ArgumentMatchers.<RedisScript<Long>>any(),
@@ -68,7 +68,7 @@ class PostRedisServiceTest {
     }
 
     @Test
-    @DisplayName("toggleLike returns false when Lua script returns unliked result")
+    @DisplayName("toggleLike는 Lua script가 unliked 결과를 반환하면 false를 반환한다.")
     void toggleLike_returnsFalseWhenLuaScriptReturnsUnlikedResult() {
         when(redisTemplate.execute(
                 ArgumentMatchers.<RedisScript<Long>>any(),
@@ -83,7 +83,7 @@ class PostRedisServiceTest {
     }
 
     @Test
-    @DisplayName("toggleLike executes Lua script that marks like dirty and prevents negative count")
+    @DisplayName("toggleLike는 like dirty를 기록하고 음수 count를 방지하는 Lua script를 실행한다.")
     void toggleLike_executesLuaScriptThatMarksLikeDirtyAndPreventsNegativeCount() {
         ArgumentCaptor<RedisScript<Long>> scriptCaptor = ArgumentCaptor.forClass(RedisScript.class);
         when(redisTemplate.execute(

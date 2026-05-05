@@ -10,7 +10,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class OutboxEventKeyTest {
 
     @Test
-    @DisplayName("postCreated uses deterministic post id key")
+    @DisplayName("postCreated는 post id 기반의 deterministic key를 사용한다.")
     void postCreated_usesDeterministicPostIdKey() {
         String firstKey = OutboxEventKey.postCreated(10L);
         String secondKey = OutboxEventKey.postCreated(10L);
@@ -20,7 +20,7 @@ class OutboxEventKeyTest {
     }
 
     @Test
-    @DisplayName("postUpdated uses post id and uuid key")
+    @DisplayName("postUpdated는 post id와 uuid 기반 key를 사용한다.")
     void postUpdated_usesPostIdAndUuidKey() {
         String eventKey = OutboxEventKey.postUpdated(10L);
         String[] parts = eventKey.split(":");
@@ -32,7 +32,7 @@ class OutboxEventKeyTest {
     }
 
     @Test
-    @DisplayName("postUpdated creates different keys for consecutive calls")
+    @DisplayName("postUpdated는 연속 호출 시 서로 다른 key를 생성한다.")
     void postUpdated_createsDifferentKeysForConsecutiveCalls() {
         String firstKey = OutboxEventKey.postUpdated(10L);
         String secondKey = OutboxEventKey.postUpdated(10L);

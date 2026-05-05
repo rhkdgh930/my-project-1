@@ -26,7 +26,7 @@ class RedisPasswordResetTokenServiceTest {
             new RedisPasswordResetTokenService(redisTemplate);
 
     @Test
-    @DisplayName("consumeToken uses GETDEL on the hashed key and returns email")
+    @DisplayName("consumeToken은 해시된 키에 GETDEL을 사용하고 email을 반환한다.")
     void consumeToken_getsAndDeletesTokenAtomically() {
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.getAndDelete(key())).thenReturn(EMAIL);
@@ -38,7 +38,7 @@ class RedisPasswordResetTokenServiceTest {
     }
 
     @Test
-    @DisplayName("consumeToken throws INVALID_EMAIL_TOKEN when token is missing")
+    @DisplayName("consumeToken은 token이 없으면 INVALID_EMAIL_TOKEN을 던진다.")
     void consumeToken_throwsWhenTokenIsMissing() {
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.getAndDelete(key())).thenReturn(null);

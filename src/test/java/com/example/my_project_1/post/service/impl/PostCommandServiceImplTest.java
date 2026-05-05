@@ -63,7 +63,7 @@ class PostCommandServiceImplTest {
     }
 
     @Test
-    @DisplayName("post update uses active post lookup")
+    @DisplayName("post update는 active post 조회를 사용한다.")
     void update_usesActivePostLookup() {
         Long boardId = 1L;
         Long postId = 10L;
@@ -83,7 +83,7 @@ class PostCommandServiceImplTest {
     }
 
     @Test
-    @DisplayName("post update publishes POST_UPDATED outbox event with uuid key")
+    @DisplayName("post update는 uuid key로 POST_UPDATED outbox event를 발행한다.")
     void update_publishesPostUpdatedOutboxEventWithUuidKey() {
         Long boardId = 1L;
         Long postId = 10L;
@@ -132,7 +132,7 @@ class PostCommandServiceImplTest {
     }
 
     @Test
-    @DisplayName("post update rejects when active post is not found")
+    @DisplayName("post update는 active post를 찾지 못하면 거부한다.")
     void update_rejectsWhenActivePostNotFound() {
         Long boardId = 1L;
         Long postId = 10L;
@@ -154,7 +154,7 @@ class PostCommandServiceImplTest {
     }
 
     @Test
-    @DisplayName("like uses active post lookup")
+    @DisplayName("like는 active post 조회를 사용한다.")
     void like_usesActivePostLookup() {
         Long boardId = 1L;
         Long postId = 10L;

@@ -24,7 +24,7 @@ class ImageUploadServiceImplTest {
             new ImageUploadServiceImpl(imageRepository, imageStorage);
 
     @Test
-    @DisplayName("upload deletes stored file when DB save fails")
+    @DisplayName("upload는 DB 저장 실패 시 저장된 파일을 삭제한다.")
     void upload_deletesStoredFileWhenDbSaveFails() {
         MockMultipartFile file = imageFile("image.png", "image/png", pngBytes());
         when(imageStorage.upload(file)).thenReturn("storage-key.png");
@@ -39,7 +39,7 @@ class ImageUploadServiceImplTest {
     }
 
     @Test
-    @DisplayName("upload keeps original exception when compensation delete fails")
+    @DisplayName("upload는 보상 삭제 실패 시 원래 예외를 유지한다.")
     void upload_keepsOriginalExceptionWhenCompensationDeleteFails() {
         MockMultipartFile file = imageFile("image.png", "image/png", pngBytes());
         when(imageStorage.upload(file)).thenReturn("storage-key.png");
@@ -57,7 +57,7 @@ class ImageUploadServiceImplTest {
     }
 
     @Test
-    @DisplayName("upload accepts allowed image signatures")
+    @DisplayName("upload는 허용된 이미지 signature를 통과시킨다.")
     void upload_acceptsAllowedImageSignatures() {
         List<MockMultipartFile> files = List.of(
                 imageFile("image.jpg", "image/jpeg", jpegBytes()),
@@ -77,7 +77,7 @@ class ImageUploadServiceImplTest {
     }
 
     @Test
-    @DisplayName("upload rejects svg content type")
+    @DisplayName("upload는 svg content type을 거부한다.")
     void upload_rejectsSvgContentType() {
         MockMultipartFile file = imageFile("image.svg", "image/svg+xml", "<svg/>".getBytes());
 
@@ -88,7 +88,7 @@ class ImageUploadServiceImplTest {
     }
 
     @Test
-    @DisplayName("upload rejects mismatched content type")
+    @DisplayName("upload는 확장자와 맞지 않는 content type을 거부한다.")
     void upload_rejectsMismatchedContentType() {
         MockMultipartFile file = imageFile("image.png", "text/plain", pngBytes());
 
@@ -99,7 +99,7 @@ class ImageUploadServiceImplTest {
     }
 
     @Test
-    @DisplayName("upload rejects unsupported extension")
+    @DisplayName("upload는 지원하지 않는 확장자를 거부한다.")
     void upload_rejectsUnsupportedExtension() {
         MockMultipartFile file = imageFile("image.txt", "image/png", pngBytes());
 
@@ -110,7 +110,7 @@ class ImageUploadServiceImplTest {
     }
 
     @Test
-    @DisplayName("upload rejects invalid magic bytes")
+    @DisplayName("upload는 유효하지 않은 magic byte를 거부한다.")
     void upload_rejectsInvalidMagicBytes() {
         MockMultipartFile file = imageFile("image.png", "image/png", "not-png".getBytes());
 
@@ -121,7 +121,7 @@ class ImageUploadServiceImplTest {
     }
 
     @Test
-    @DisplayName("upload rejects invalid magic bytes for every allowed type")
+    @DisplayName("upload는 모든 허용 타입에서 유효하지 않은 magic byte를 거부한다.")
     void upload_rejectsInvalidMagicBytesForEveryAllowedType() {
         List<MockMultipartFile> files = List.of(
                 imageFile("image.jpg", "image/jpeg", "not-jpeg".getBytes()),
@@ -140,7 +140,7 @@ class ImageUploadServiceImplTest {
     }
 
     @Test
-    @DisplayName("upload rejects files larger than 5MB")
+    @DisplayName("upload는 5MB를 초과한 파일을 거부한다.")
     void upload_rejectsFilesLargerThan5Mb() {
         MockMultipartFile file = imageFile("image.png", "image/png", new byte[5 * 1024 * 1024 + 1]);
 

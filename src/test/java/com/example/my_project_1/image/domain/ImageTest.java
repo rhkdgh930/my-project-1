@@ -10,7 +10,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ImageTest {
 
     @Test
-    @DisplayName("detach records detachedAt")
+    @DisplayName("detach는 detachedAt을 기록한다.")
     void detach_recordsDetachedAt() {
         Image image = Image.createPending(1L, "storage-key");
         LocalDateTime now = LocalDateTime.of(2026, 5, 5, 10, 0);
@@ -25,7 +25,7 @@ class ImageTest {
     }
 
     @Test
-    @DisplayName("attach clears detachedAt when detached image is reused")
+    @DisplayName("attach는 detached 이미지를 재사용할 때 detachedAt을 초기화한다.")
     void attach_clearsDetachedAtWhenDetachedImageIsReused() {
         Image image = Image.createPending(1L, "storage-key");
         image.attach(10L, ImageOwnerType.POST);
@@ -39,7 +39,7 @@ class ImageTest {
     }
 
     @Test
-    @DisplayName("markDeleted records deletedAt")
+    @DisplayName("markDeleted는 deletedAt을 기록한다.")
     void markDeleted_recordsDeletedAt() {
         Image image = Image.createPending(1L, "storage-key");
         LocalDateTime now = LocalDateTime.of(2026, 5, 5, 10, 0);

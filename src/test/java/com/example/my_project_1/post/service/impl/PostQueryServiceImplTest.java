@@ -69,7 +69,7 @@ class PostQueryServiceImplTest {
     }
 
     @Test
-    @DisplayName("post list keeps db counts when redis counts are missing")
+    @DisplayName("post list는 redis count가 없으면 DB count를 유지한다.")
     void getPosts_keepsDbCountsWhenRedisCountsAreMissing() {
         Long boardId = 1L;
         Pageable pageable = PageRequest.of(0, 10);
@@ -113,7 +113,7 @@ class PostQueryServiceImplTest {
     }
 
     @Test
-    @DisplayName("post detail uses redis view and db like when redis like is missing")
+    @DisplayName("post detail은 redis like가 없으면 redis view와 DB like를 사용한다.")
     void getPostDetail_usesRedisViewAndDbLikeWhenRedisLikeIsMissing() {
         Long boardId = 1L;
         Long postId = 10L;

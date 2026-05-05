@@ -28,7 +28,7 @@ class PostSyncSchedulerTest {
     }
 
     @Test
-    @DisplayName("sync updates only view count for view dirty post")
+    @DisplayName("sync는 view dirty post의 view count만 갱신한다.")
     void sync_updatesOnlyViewCountForViewDirtyPost() {
         Long postId = 10L;
         when(redisService.getViewDirtyPostIds()).thenReturn(Set.of(postId.toString()));
@@ -45,7 +45,7 @@ class PostSyncSchedulerTest {
     }
 
     @Test
-    @DisplayName("sync updates only like count for like dirty post")
+    @DisplayName("sync는 like dirty post의 like count만 갱신한다.")
     void sync_updatesOnlyLikeCountForLikeDirtyPost() {
         Long postId = 10L;
         when(redisService.getViewDirtyPostIds()).thenReturn(Set.of());
@@ -62,7 +62,7 @@ class PostSyncSchedulerTest {
     }
 
     @Test
-    @DisplayName("sync keeps view dirty marker when redis view count is missing")
+    @DisplayName("sync는 redis view count가 없으면 view dirty marker를 유지한다.")
     void sync_keepsViewDirtyMarkerWhenRedisViewCountIsMissing() {
         Long postId = 10L;
         when(redisService.getViewDirtyPostIds()).thenReturn(Set.of(postId.toString()));
@@ -76,7 +76,7 @@ class PostSyncSchedulerTest {
     }
 
     @Test
-    @DisplayName("sync keeps like dirty marker when redis like count is missing")
+    @DisplayName("sync는 redis like count가 없으면 like dirty marker를 유지한다.")
     void sync_keepsLikeDirtyMarkerWhenRedisLikeCountIsMissing() {
         Long postId = 10L;
         when(redisService.getViewDirtyPostIds()).thenReturn(Set.of());
@@ -90,7 +90,7 @@ class PostSyncSchedulerTest {
     }
 
     @Test
-    @DisplayName("sync keeps view dirty marker when view db update fails")
+    @DisplayName("sync는 view DB 갱신 실패 시 view dirty marker를 유지한다.")
     void sync_keepsViewDirtyMarkerWhenViewDbUpdateFails() {
         Long postId = 10L;
         when(redisService.getViewDirtyPostIds()).thenReturn(Set.of(postId.toString()));
@@ -105,7 +105,7 @@ class PostSyncSchedulerTest {
     }
 
     @Test
-    @DisplayName("sync keeps like dirty marker when like db update fails")
+    @DisplayName("sync는 like DB 갱신 실패 시 like dirty marker를 유지한다.")
     void sync_keepsLikeDirtyMarkerWhenLikeDbUpdateFails() {
         Long postId = 10L;
         when(redisService.getViewDirtyPostIds()).thenReturn(Set.of());

@@ -33,7 +33,7 @@ class ImageCleanupJobTest {
             new ImageCleanupJob(imageRepository, imageStorage, processor, clock);
 
     @Test
-    @DisplayName("cleanup marks only successfully deleted images as deleted")
+    @DisplayName("cleanup은 파일 삭제에 성공한 이미지만 deleted 처리한다.")
     void cleanup_marksOnlySuccessfullyDeletedImagesAsDeleted() {
         LocalDateTime threshold = LocalDateTime.of(2026, 5, 4, 1, 0);
         Image success = image(1L, "success-key");
@@ -62,7 +62,7 @@ class ImageCleanupJobTest {
     }
 
     @Test
-    @DisplayName("detached cleanup uses detached cleanup query")
+    @DisplayName("detached cleanup은 detached cleanup query를 사용한다.")
     void cleanup_usesDetachedCleanupQueryWhenStatusIsDetached() {
         LocalDateTime threshold = LocalDateTime.of(2026, 5, 4, 1, 0);
         when(imageRepository.findDetachedCleanupTargets(

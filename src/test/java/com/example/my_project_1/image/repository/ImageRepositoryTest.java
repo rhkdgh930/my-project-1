@@ -26,7 +26,7 @@ class ImageRepositoryTest {
     private ImageRepository imageRepository;
 
     @Test
-    @DisplayName("detached cleanup targets use detachedAt instead of createdAt")
+    @DisplayName("detached cleanup 대상은 createdAt 대신 detachedAt을 기준으로 조회한다.")
     void findDetachedCleanupTargets_usesDetachedAtInsteadOfCreatedAt() {
         LocalDateTime now = LocalDateTime.of(2026, 5, 5, 10, 0);
         Image recentDetached = detachedImage(

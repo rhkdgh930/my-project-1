@@ -153,7 +153,7 @@ class UserTest {
     }
 
     @Test
-    @DisplayName("complete withdrawal masks email irreversibly without soft delete")
+    @DisplayName("complete withdrawal은 soft delete 없이 email을 비가역 마스킹한다.")
     void completeWithdrawal_masksEmailIrreversiblyWithoutSoftDelete() {
         User user = getVerifiedUser();
         LocalDateTime now = LocalDateTime.now();
