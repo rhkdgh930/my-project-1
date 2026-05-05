@@ -11,10 +11,12 @@ import com.example.my_project_1.post.domain.Post;
 import com.example.my_project_1.post.event.PostUpdatedOutboxEvent;
 import com.example.my_project_1.post.repository.PostRepository;
 import com.example.my_project_1.post.service.PostRedisService;
+import com.example.my_project_1.post.service.request.PostCreateRequest;
 import com.example.my_project_1.post.service.request.PostUpdateRequest;
 import com.example.my_project_1.post.service.response.PostDetailResponse;
+import com.example.my_project_1.user.client.AuthorStatus;
+import com.example.my_project_1.user.client.AuthorSummary;
 import com.example.my_project_1.user.client.UserClient;
-import com.example.my_project_1.user.client.UserSummary;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -72,13 +74,17 @@ class PostCommandServiceImplTest {
         PostUpdateRequest request = updateRequest("updated title", "updated content");
 
         when(postRepository.findActiveById(postId)).thenReturn(Optional.of(post));
-        when(userClient.findUsersByIds(List.of(userId)))
-                .thenReturn(Map.of(userId, new UserSummary(userId, "nickname")));
+        when(userClient.findAuthorsByIds(List.of(userId)))
+                .thenReturn(Map.of(userId, AuthorSummary.active(userId, "nickname")));
 
         PostDetailResponse response = postCommandService.update(boardId, postId, userId, request);
 
         assertThat(response.getTitle()).isEqualTo("updated title");
         assertThat(response.getContent()).isEqualTo("updated content");
+        assertThat(response.getNickname()).isEqualTo("nickname");
+        assertThat(response.getAuthor().id()).isEqualTo(userId);
+        assertThat(response.getAuthor().displayName()).isEqualTo("nickname");
+        assertThat(response.getAuthor().status()).isEqualTo(AuthorStatus.ACTIVE);
         verify(postRepository).findActiveById(postId);
     }
 
@@ -98,8 +104,8 @@ class PostCommandServiceImplTest {
         );
 
         when(postRepository.findActiveById(postId)).thenReturn(Optional.of(post));
-        when(userClient.findUsersByIds(List.of(userId)))
-                .thenReturn(Map.of(userId, new UserSummary(userId, "nickname")));
+        when(userClient.findAuthorsByIds(List.of(userId)))
+                .thenReturn(Map.of(userId, AuthorSummary.active(userId, "nickname")));
 
         postCommandService.update(boardId, postId, userId, request);
 
@@ -129,6 +135,67 @@ class PostCommandServiceImplTest {
         assertThat(payload.getPostId()).isEqualTo(postId);
         assertThat(payload.getUserId()).isEqualTo(userId);
         assertThat(payload.getStorageKeys()).containsExactly(IMAGE_STORAGE_KEY);
+    }
+
+    @Test
+    @DisplayName("post create response includes AuthorSummary author")
+    void create_returnsAuthorSummaryAuthor() {
+        Long boardId = 1L;
+        Long userId = 100L;
+        Board board = board(boardId);
+        PostCreateRequest request = createRequest("title", "content");
+
+        when(boardRepository.findByIdAndDeletedAtIsNull(boardId)).thenReturn(Optional.of(board));
+        when(userClient.findAuthorsByIds(List.of(userId)))
+                .thenReturn(Map.of(userId, AuthorSummary.active(userId, "nickname")));
+
+        PostDetailResponse response = postCommandService.create(boardId, userId, request);
+
+        assertThat(response.getUserId()).isEqualTo(userId);
+        assertThat(response.getNickname()).isEqualTo("nickname");
+        assertThat(response.getAuthor().id()).isEqualTo(userId);
+        assertThat(response.getAuthor().displayName()).isEqualTo("nickname");
+        assertThat(response.getAuthor().status()).isEqualTo(AuthorStatus.ACTIVE);
+    }
+
+    @Test
+    @DisplayName("post create response uses UNKNOWN author when author lookup throws")
+    void create_usesUnknownAuthorWhenUserLookupThrows() {
+        Long boardId = 1L;
+        Long userId = 100L;
+        Board board = board(boardId);
+        PostCreateRequest request = createRequest("title", "content");
+
+        when(boardRepository.findByIdAndDeletedAtIsNull(boardId)).thenReturn(Optional.of(board));
+        when(userClient.findAuthorsByIds(List.of(userId)))
+                .thenThrow(new RuntimeException("user lookup failed"));
+
+        PostDetailResponse response = postCommandService.create(boardId, userId, request);
+
+        assertThat(response.getUserId()).isEqualTo(userId);
+        assertThat(response.getAuthor().id()).isNull();
+        assertThat(response.getAuthor().status()).isEqualTo(AuthorStatus.UNKNOWN);
+    }
+
+    @Test
+    @DisplayName("post update response uses UNKNOWN author when author lookup throws")
+    void update_usesUnknownAuthorWhenUserLookupThrows() {
+        Long boardId = 1L;
+        Long postId = 10L;
+        Long userId = 100L;
+        Post post = post(boardId, postId, userId);
+        PostUpdateRequest request = updateRequest("updated title", "updated content");
+
+        when(postRepository.findActiveById(postId)).thenReturn(Optional.of(post));
+        when(userClient.findAuthorsByIds(List.of(userId)))
+                .thenThrow(new RuntimeException("user lookup failed"));
+
+        PostDetailResponse response = postCommandService.update(boardId, postId, userId, request);
+
+        assertThat(response.getTitle()).isEqualTo("updated title");
+        assertThat(response.getUserId()).isEqualTo(userId);
+        assertThat(response.getAuthor().id()).isNull();
+        assertThat(response.getAuthor().status()).isEqualTo(AuthorStatus.UNKNOWN);
     }
 
     @Test
@@ -171,11 +238,23 @@ class PostCommandServiceImplTest {
     }
 
     private static Post post(Long boardId, Long postId, Long userId) {
-        Board board = Board.create("board", "description");
-        ReflectionTestUtils.setField(board, "id", boardId);
+        Board board = board(boardId);
         Post post = Post.create(board, userId, "title", "content");
         ReflectionTestUtils.setField(post, "id", postId);
         return post;
+    }
+
+    private static Board board(Long boardId) {
+        Board board = Board.create("board", "description");
+        ReflectionTestUtils.setField(board, "id", boardId);
+        return board;
+    }
+
+    private static PostCreateRequest createRequest(String title, String content) {
+        PostCreateRequest request = new PostCreateRequest();
+        ReflectionTestUtils.setField(request, "title", title);
+        ReflectionTestUtils.setField(request, "content", content);
+        return request;
     }
 
     private static PostUpdateRequest updateRequest(String title, String content) {
