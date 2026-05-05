@@ -1,0 +1,151 @@
+package com.example.my_project_1.post.service;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
+import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.serializer.StringRedisSerializer;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+class PostRedisServiceIntegrationTest {
+
+    private static final String LIKE_USER_SET_KEY = "post::like::user::%s";
+    private static final String LIKE_COUNT_KEY = "post::like::%s";
+    private static final String LIKE_DIRTY_SET_KEY = "post::dirty::like";
+
+    private LettuceConnectionFactory connectionFactory;
+    private RedisTemplate<String, String> redisTemplate;
+    private PostRedisService postRedisService;
+    private Long postId;
+
+    @BeforeEach
+    void setUp() {
+        connectionFactory = new LettuceConnectionFactory(
+                new RedisStandaloneConfiguration("localhost", 6379)
+        );
+        connectionFactory.afterPropertiesSet();
+
+        try {
+            connectionFactory.getConnection().ping();
+        } catch (Exception e) {
+            Assumptions.abort("localhost:6379 Redis is not available");
+        }
+
+        redisTemplate = new RedisTemplate<>();
+        redisTemplate.setConnectionFactory(connectionFactory);
+        redisTemplate.setKeySerializer(new StringRedisSerializer());
+        redisTemplate.setValueSerializer(new StringRedisSerializer());
+        redisTemplate.setHashKeySerializer(new StringRedisSerializer());
+        redisTemplate.setHashValueSerializer(new StringRedisSerializer());
+        redisTemplate.afterPropertiesSet();
+
+        postRedisService = new PostRedisService(redisTemplate);
+        postId = System.nanoTime();
+        cleanKeys(postId);
+    }
+
+    @AfterEach
+    void tearDown() {
+        if (redisTemplate != null && postId != null) {
+            cleanKeys(postId);
+        }
+        if (connectionFactory != null) {
+            connectionFactory.destroy();
+        }
+    }
+
+    @Test
+    @DisplayName("actual Redis toggleLike likes and unlikes with count and dirty marker")
+    void toggleLike_likesAndUnlikesOnActualRedis() {
+        Long userId = 100L;
+
+        boolean liked = postRedisService.toggleLike(postId, userId);
+
+        assertThat(liked).isTrue();
+        assertThat(redisTemplate.opsForSet().isMember(likeUserSetKey(postId), userId.toString()))
+                .isTrue();
+        assertThat(redisTemplate.opsForValue().get(likeCountKey(postId))).isEqualTo("1");
+        assertThat(redisTemplate.opsForSet().isMember(LIKE_DIRTY_SET_KEY, postId.toString()))
+                .isTrue();
+
+        boolean unliked = postRedisService.toggleLike(postId, userId);
+
+        assertThat(unliked).isFalse();
+        assertThat(redisTemplate.opsForSet().isMember(likeUserSetKey(postId), userId.toString()))
+                .isFalse();
+        assertThat(redisTemplate.opsForValue().get(likeCountKey(postId))).isEqualTo("0");
+    }
+
+    @Test
+    @DisplayName("actual Redis toggleLike does not make count negative when count key is missing")
+    void toggleLike_doesNotMakeCountNegativeWhenCountKeyIsMissing() {
+        Long userId = 100L;
+        redisTemplate.opsForSet().add(likeUserSetKey(postId), userId.toString());
+
+        boolean unliked = postRedisService.toggleLike(postId, userId);
+
+        assertThat(unliked).isFalse();
+        assertThat(redisTemplate.opsForSet().isMember(likeUserSetKey(postId), userId.toString()))
+                .isFalse();
+        assertThat(redisTemplate.opsForValue().get(likeCountKey(postId))).isEqualTo("0");
+        assertThat(redisTemplate.opsForSet().isMember(LIKE_DIRTY_SET_KEY, postId.toString()))
+                .isTrue();
+    }
+
+    @Test
+    @DisplayName("actual Redis concurrent toggleLike keeps membership and count consistent")
+    void toggleLike_keepsMembershipAndCountConsistentWhenConcurrentTogglesRun() throws Exception {
+        Long userId = 100L;
+        int toggleCount = 20;
+        ExecutorService executor = Executors.newFixedThreadPool(8);
+        CountDownLatch start = new CountDownLatch(1);
+        List<Future<Boolean>> futures = new ArrayList<>();
+
+        for (int i = 0; i < toggleCount; i++) {
+            futures.add(executor.submit(() -> {
+                start.await();
+                return postRedisService.toggleLike(postId, userId);
+            }));
+        }
+
+        start.countDown();
+
+        for (Future<Boolean> future : futures) {
+            future.get(5, TimeUnit.SECONDS);
+        }
+        executor.shutdown();
+        assertThat(executor.awaitTermination(5, TimeUnit.SECONDS)).isTrue();
+
+        assertThat(redisTemplate.opsForSet().isMember(likeUserSetKey(postId), userId.toString()))
+                .isFalse();
+        assertThat(redisTemplate.opsForValue().get(likeCountKey(postId))).isEqualTo("0");
+        assertThat(redisTemplate.opsForSet().isMember(LIKE_DIRTY_SET_KEY, postId.toString()))
+                .isTrue();
+    }
+
+    private void cleanKeys(Long postId) {
+        redisTemplate.delete(List.of(likeUserSetKey(postId), likeCountKey(postId)));
+        redisTemplate.opsForSet().remove(LIKE_DIRTY_SET_KEY, postId.toString());
+    }
+
+    private String likeUserSetKey(Long postId) {
+        return LIKE_USER_SET_KEY.formatted(postId);
+    }
+
+    private String likeCountKey(Long postId) {
+        return LIKE_COUNT_KEY.formatted(postId);
+    }
+}
