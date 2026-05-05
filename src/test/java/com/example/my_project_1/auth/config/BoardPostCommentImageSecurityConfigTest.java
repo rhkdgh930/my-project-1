@@ -13,6 +13,7 @@ import com.example.my_project_1.auth.service.RedisLoginAttemptService;
 import com.example.my_project_1.auth.service.RedisTokenService;
 import com.example.my_project_1.auth.service.RedisUserContextService;
 import com.example.my_project_1.auth.service.response.TokenResponse;
+import com.example.my_project_1.auth.userdetails.UserDetailsImpl;
 import com.example.my_project_1.auth.utils.JwtProvider;
 import com.example.my_project_1.board.controller.AdminBoardController;
 import com.example.my_project_1.board.controller.BoardController;
@@ -32,7 +33,11 @@ import com.example.my_project_1.post.controller.PostController;
 import com.example.my_project_1.post.service.PostCommandService;
 import com.example.my_project_1.post.service.PostQueryService;
 import com.example.my_project_1.user.controller.UserController;
+import com.example.my_project_1.user.domain.AccountStatus;
+import com.example.my_project_1.user.domain.UserStatus;
 import com.example.my_project_1.user.service.UserCommandService;
+import com.example.my_project_1.user.service.UserQueryService;
+import com.example.my_project_1.user.service.response.UserMeResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,9 +54,11 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -110,6 +117,9 @@ class BoardPostCommentImageSecurityConfigTest {
 
     @MockitoBean
     private UserCommandService userCommandService;
+
+    @MockitoBean
+    private UserQueryService userQueryService;
 
     @MockitoBean
     private JwtProvider jwtProvider;
@@ -246,5 +256,40 @@ class BoardPostCommentImageSecurityConfigTest {
                         .content("{}"))
                 .andExpect(result -> assertThat(result.getResponse().getStatus())
                         .isNotEqualTo(HttpStatus.UNAUTHORIZED.value()));
+    }
+
+    @Test
+    @DisplayName("내 정보 조회 API는 인증이 필요하고 인증 사용자는 접근할 수 있다.")
+    void userMeApi_requiresAuthenticationAndAllowsAuthenticatedUser() throws Exception {
+        UserMeResponse response = new UserMeResponse();
+        when(userQueryService.getMe(anyLong())).thenReturn(response);
+
+        mockMvc.perform(get("/api/users/me"))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(get("/api/users/me")
+                        .with(authentication(new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                                userDetails(),
+                                null,
+                                userDetails().getAuthorities()
+                        ))))
+                .andExpect(status().isOk());
+    }
+
+    private UserDetailsImpl userDetails() {
+        return new UserDetailsImpl(
+                1L,
+                "user@example.com",
+                null,
+                "USER",
+                AccountStatus.NORMAL,
+                UserStatus.ACTIVE,
+                null,
+                null,
+                null,
+                null,
+                false,
+                false
+        );
     }
 }
