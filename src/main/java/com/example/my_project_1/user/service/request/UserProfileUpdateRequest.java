@@ -6,13 +6,13 @@ import lombok.Getter;
 import org.hibernate.validator.constraints.URL;
 
 @Getter
+@Schema(description = "프로필 수정 요청")
 public class UserProfileUpdateRequest {
-    @Schema(title = "자기 소개", description = "최대 500자 이내의 소개글", example = "백엔드 개발자 지망생입니다.")
+    @Schema(description = "자기소개. 최대 500자입니다.", example = "백엔드 개발자입니다.", maxLength = 500)
     @Size(max = 500)
     private String introduce;
 
-    @Schema(title = "프로필 이미지 URL", description = "이미지 업로드 API를 통해 얻은 URL 주소",
-            example = "https://cdn.example.com/profiles/user1.png")
+    @Schema(description = "프로필 이미지 URL", example = "http://localhost:8080/images/default.png")
     @URL
     private String profileImageUrl;
 }

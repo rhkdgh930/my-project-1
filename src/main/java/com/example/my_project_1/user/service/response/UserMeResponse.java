@@ -1,15 +1,15 @@
 package com.example.my_project_1.user.service.response;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.example.my_project_1.user.domain.ProfileDetail;
 import com.example.my_project_1.user.domain.User;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
 
 @Getter
-@Schema(description = "내 계정 조회 응답")
+@Schema(description = "내 계정 조회 응답. password, refresh token, socialId, suspension 상세, withdrawal 상세는 포함하지 않습니다.")
 public class UserMeResponse {
     @Schema(description = "사용자 ID", example = "1")
     private Long id;
