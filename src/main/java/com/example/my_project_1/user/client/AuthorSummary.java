@@ -2,7 +2,7 @@ package com.example.my_project_1.user.client;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
-@Schema(description = "게시글/댓글 작성자 표시용 요약 정보")
+@Schema(description = "게시글/댓글 작성자 표시용 요약 정보. ACTIVE는 id=userId/displayName=nickname, WITHDRAWN은 id=null/displayName=탈퇴한 사용자, SUSPENDED는 id=userId/displayName=차단된 사용자, UNKNOWN은 id=null/displayName=알 수 없는 사용자입니다.")
 public record AuthorSummary(
         @Schema(description = "표시 가능한 작성자 ID. 탈퇴/알 수 없음 상태에서는 null입니다.", example = "1", nullable = true)
         Long id,
