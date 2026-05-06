@@ -16,13 +16,13 @@ public class PostDetailResponse {
     @Schema(description = "게시판 ID", example = "1")
     private Long boardId;
 
-    @Schema(description = "전환 기간 유지 필드. 게시글 작성자 ID입니다.", example = "1")
+    @Schema(description = "전환 기간 유지 필드입니다. 게시글 작성자 ID입니다.", example = "1")
     private Long userId;
 
-    @Schema(description = "전환 기간 유지 필드. author.displayName과 같은 값입니다.", example = "seoul_dev")
+    @Schema(description = "전환 기간 유지 필드입니다. author.displayName과 같은 값입니다.", example = "seoul_dev")
     private String nickname;
 
-    @Schema(description = "작성자 표시 정보")
+    @Schema(description = "작성자 표시 정보. ACTIVE/WITHDRAWN/SUSPENDED/UNKNOWN 상태를 포함합니다.")
     private AuthorSummary author;
 
     @Schema(description = "게시글 제목", example = "첫 번째 게시글")
@@ -31,10 +31,10 @@ public class PostDetailResponse {
     @Schema(description = "게시글 본문", example = "본문 내용입니다.")
     private String content;
 
-    @Schema(description = "조회 수", example = "10")
+    @Schema(description = "응답 시점 기준 조회 수", example = "10")
     private long viewCount;
 
-    @Schema(description = "좋아요 수", example = "3")
+    @Schema(description = "응답 시점 기준 좋아요 수", example = "3")
     private long likeCount;
 
     @Schema(description = "작성 시각", example = "2026-05-06T10:15:30")
