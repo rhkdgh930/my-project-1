@@ -127,10 +127,10 @@ class UserSignUpRequestTest {
 
     private void password_wrong_type(String wrongPassword) {
         // given
-        LoginRequest request = LoginRequest.create("email@email.com", wrongPassword);
+        UserSignUpRequest request = UserSignUpRequest.create("email@email.com", wrongPassword, "nickname");
 
         // when
-        Set<ConstraintViolation<LoginRequest>> violations = validator.validate(request);
+        Set<ConstraintViolation<UserSignUpRequest>> violations = validator.validate(request);
 
         // then
         assertThat(violations).isNotEmpty();

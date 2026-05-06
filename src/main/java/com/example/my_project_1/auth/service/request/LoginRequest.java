@@ -1,6 +1,5 @@
 package com.example.my_project_1.auth.service.request;
 
-import com.example.my_project_1.common.annotation.ValidPassword;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -18,7 +17,6 @@ public class LoginRequest {
 
     @Schema(description = "로그인 비밀번호", example = "a12345678*", format = "password", requiredMode = Schema.RequiredMode.REQUIRED)
     @NotBlank(message = "비밀번호 입력은 필수입니다.")
-    @ValidPassword
     private String password;
 
     public static LoginRequest create(String email, String password) {
