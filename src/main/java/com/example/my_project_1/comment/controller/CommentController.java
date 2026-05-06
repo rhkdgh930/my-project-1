@@ -4,9 +4,11 @@ import com.example.my_project_1.auth.userdetails.UserDetailsImpl;
 import com.example.my_project_1.comment.service.CommentCommandService;
 import com.example.my_project_1.comment.service.CommentQueryService;
 import com.example.my_project_1.comment.service.request.CommentCreateRequest;
+import com.example.my_project_1.comment.service.request.CommentUpdateRequest;
 import com.example.my_project_1.comment.service.response.CommentResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -39,6 +41,28 @@ public class CommentController {
     ) {
         Long userId = userDetails.getUserId();
         commentCommandService.writeReply(postId, commentId, userId, request.getContent());
+    }
+
+    @PatchMapping("/{commentId}")
+    public CommentResponse update(
+            @PathVariable Long postId,
+            @PathVariable Long commentId,
+            @RequestBody @Valid CommentUpdateRequest request,
+            @AuthenticationPrincipal UserDetailsImpl userDetails
+    ) {
+        Long userId = userDetails.getUserId();
+        return commentCommandService.update(postId, commentId, userId, request.getContent());
+    }
+
+    @DeleteMapping("/{commentId}")
+    public ResponseEntity<Void> delete(
+            @PathVariable Long postId,
+            @PathVariable Long commentId,
+            @AuthenticationPrincipal UserDetailsImpl userDetails
+    ) {
+        Long userId = userDetails.getUserId();
+        commentCommandService.delete(postId, commentId, userId);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping

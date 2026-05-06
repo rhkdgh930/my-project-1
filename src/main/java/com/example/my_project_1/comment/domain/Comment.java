@@ -12,6 +12,7 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 import static org.springframework.util.Assert.hasText;
+import static org.springframework.util.Assert.isTrue;
 import static org.springframework.util.Assert.notNull;
 
 @Getter
@@ -20,6 +21,7 @@ import static org.springframework.util.Assert.notNull;
 @Table(name = "comment")
 public class Comment extends BaseEntity {
     public static final String DELETED_CONTENT = "삭제된 댓글입니다.";
+    private static final int MAX_CONTENT_LENGTH = 1000;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -70,7 +72,7 @@ public class Comment extends BaseEntity {
     private Comment(Long postId, Long userId, String content, Long parentId, int depth) {
         notNull(postId, "게시판 정보는 필수입니다.");
         notNull(userId, "작성자 ID는 필수입니다.");
-        hasText(content, "내용은 필수입니다.");
+        validateContent(content);
         notNull(depth, "depth는 필수입니다.");
 
         this.postId = postId;
@@ -83,6 +85,7 @@ public class Comment extends BaseEntity {
     public void updateContent(String content, Long editorId) {
         validateAuthor(editorId);
         validateNotDeleted();
+        validateContent(content);
         this.content = content;
     }
 
@@ -105,5 +108,10 @@ public class Comment extends BaseEntity {
         if (isDeleted()) {
             throw new CustomException(ErrorCode.COMMENT_ALREADY_DELETED);
         }
+    }
+
+    private static void validateContent(String content) {
+        hasText(content, "내용은 필수입니다.");
+        isTrue(content.length() <= MAX_CONTENT_LENGTH, "내용은 1000자를 초과할 수 없습니다.");
     }
 }
