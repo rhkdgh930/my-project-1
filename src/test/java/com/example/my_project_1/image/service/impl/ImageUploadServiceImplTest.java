@@ -1,5 +1,7 @@
 package com.example.my_project_1.image.service.impl;
 
+import com.example.my_project_1.common.exception.CustomException;
+import com.example.my_project_1.common.exception.ErrorCode;
 import com.example.my_project_1.image.domain.Image;
 import com.example.my_project_1.image.repository.ImageRepository;
 import com.example.my_project_1.image.service.ImageStorage;
@@ -10,6 +12,7 @@ import org.springframework.mock.web.MockMultipartFile;
 
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -81,8 +84,7 @@ class ImageUploadServiceImplTest {
     void upload_rejectsSvgContentType() {
         MockMultipartFile file = imageFile("image.svg", "image/svg+xml", "<svg/>".getBytes());
 
-        assertThatThrownBy(() -> imageUploadService.upload(file, 1L))
-                .isInstanceOf(IllegalArgumentException.class);
+        assertInvalidImageFile(file);
 
         verifyNoInteractions(imageStorage);
     }
@@ -92,8 +94,7 @@ class ImageUploadServiceImplTest {
     void upload_rejectsMismatchedContentType() {
         MockMultipartFile file = imageFile("image.png", "text/plain", pngBytes());
 
-        assertThatThrownBy(() -> imageUploadService.upload(file, 1L))
-                .isInstanceOf(IllegalArgumentException.class);
+        assertInvalidImageFile(file);
 
         verifyNoInteractions(imageStorage);
     }
@@ -103,8 +104,7 @@ class ImageUploadServiceImplTest {
     void upload_rejectsUnsupportedExtension() {
         MockMultipartFile file = imageFile("image.txt", "image/png", pngBytes());
 
-        assertThatThrownBy(() -> imageUploadService.upload(file, 1L))
-                .isInstanceOf(IllegalArgumentException.class);
+        assertInvalidImageFile(file);
 
         verifyNoInteractions(imageStorage);
     }
@@ -114,8 +114,7 @@ class ImageUploadServiceImplTest {
     void upload_rejectsInvalidMagicBytes() {
         MockMultipartFile file = imageFile("image.png", "image/png", "not-png".getBytes());
 
-        assertThatThrownBy(() -> imageUploadService.upload(file, 1L))
-                .isInstanceOf(IllegalArgumentException.class);
+        assertInvalidImageFile(file);
 
         verifyNoInteractions(imageStorage);
     }
@@ -132,8 +131,7 @@ class ImageUploadServiceImplTest {
         );
 
         for (MockMultipartFile file : files) {
-            assertThatThrownBy(() -> imageUploadService.upload(file, 1L))
-                    .isInstanceOf(IllegalArgumentException.class);
+            assertInvalidImageFile(file);
         }
 
         verifyNoInteractions(imageStorage);
@@ -144,10 +142,16 @@ class ImageUploadServiceImplTest {
     void upload_rejectsFilesLargerThan5Mb() {
         MockMultipartFile file = imageFile("image.png", "image/png", new byte[5 * 1024 * 1024 + 1]);
 
-        assertThatThrownBy(() -> imageUploadService.upload(file, 1L))
-                .isInstanceOf(IllegalArgumentException.class);
+        assertInvalidImageFile(file);
 
         verifyNoInteractions(imageStorage);
+    }
+
+    private void assertInvalidImageFile(MockMultipartFile file) {
+        assertThatThrownBy(() -> imageUploadService.upload(file, 1L))
+                .isInstanceOf(CustomException.class)
+                .satisfies(e -> assertThat(((CustomException) e).getErrorCode())
+                        .isEqualTo(ErrorCode.INVALID_IMAGE_FILE));
     }
 
     private MockMultipartFile imageFile(String originalFilename, String contentType, byte[] bytes) {

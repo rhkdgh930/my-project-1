@@ -22,6 +22,8 @@ import com.example.my_project_1.board.service.BoardQueryService;
 import com.example.my_project_1.comment.controller.CommentController;
 import com.example.my_project_1.comment.service.CommentCommandService;
 import com.example.my_project_1.comment.service.CommentQueryService;
+import com.example.my_project_1.common.exception.CustomException;
+import com.example.my_project_1.common.exception.ErrorCode;
 import com.example.my_project_1.common.logging.HttpLoggingFilter;
 import com.example.my_project_1.common.logging.SecurityUserMdcFilter;
 import com.example.my_project_1.common.logging.TraceIdFilter;
@@ -65,6 +67,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(controllers = {
@@ -319,7 +322,26 @@ class BoardPostCommentImageSecurityConfigTest {
     }
 
     @Test
-    @DisplayName("내 정보 조회 API는 인증이 필요하고 인증 사용자는 접근할 수 있다.")
+    @DisplayName("Image upload에 실패하면 400에러를 던진다.")
+    void imageUploadValidationFailure_returnsBadRequest() throws Exception {
+        UserDetailsImpl userDetails = userDetails();
+        when(imageUploadService.upload(any(), eq(1L)))
+                .thenThrow(new CustomException(ErrorCode.INVALID_IMAGE_FILE));
+
+        mockMvc.perform(multipart("/api/images")
+                        .file("file", "not-image".getBytes())
+                        .with(authentication(new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                                userDetails,
+                                null,
+                                userDetails.getAuthorities()
+                        ))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.code").value(ErrorCode.INVALID_IMAGE_FILE.name()));
+    }
+
+    @Test
+    @DisplayName("사용자 정보 조회 API는 인증이 필요하고 인증 사용자는 접근할 수 있다.")
     void userMeApi_requiresAuthenticationAndAllowsAuthenticatedUser() throws Exception {
         UserMeResponse response = new UserMeResponse();
         when(userQueryService.getMe(anyLong())).thenReturn(response);

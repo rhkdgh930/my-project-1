@@ -1,5 +1,7 @@
 package com.example.my_project_1.image.service.impl;
 
+import com.example.my_project_1.common.exception.CustomException;
+import com.example.my_project_1.common.exception.ErrorCode;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -50,8 +52,7 @@ class LocalFileStorageTest {
                 "<svg/>".getBytes()
         );
 
-        assertThatThrownBy(() -> localFileStorage.upload(file))
-                .isInstanceOf(IllegalArgumentException.class);
+        assertInvalidImageFile(() -> localFileStorage.upload(file));
     }
 
     @Test
@@ -65,8 +66,7 @@ class LocalFileStorageTest {
                 pngBytes()
         );
 
-        assertThatThrownBy(() -> localFileStorage.upload(file))
-                .isInstanceOf(IllegalArgumentException.class);
+        assertInvalidImageFile(() -> localFileStorage.upload(file));
     }
 
     @Test
@@ -97,8 +97,14 @@ class LocalFileStorageTest {
     void delete_rejectsStorageKeysOutsideUploadRoot() {
         LocalFileStorage localFileStorage = new LocalFileStorage(uploadRoot);
 
-        assertThatThrownBy(() -> localFileStorage.delete("../evil.png"))
-                .isInstanceOf(IllegalArgumentException.class);
+        assertInvalidImageFile(() -> localFileStorage.delete("../evil.png"));
+    }
+
+    private void assertInvalidImageFile(org.assertj.core.api.ThrowableAssert.ThrowingCallable callable) {
+        assertThatThrownBy(callable)
+                .isInstanceOf(CustomException.class)
+                .satisfies(e -> assertThat(((CustomException) e).getErrorCode())
+                        .isEqualTo(ErrorCode.INVALID_IMAGE_FILE));
     }
 
     private byte[] pngBytes() {
