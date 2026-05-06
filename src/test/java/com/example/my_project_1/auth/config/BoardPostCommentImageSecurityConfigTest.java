@@ -196,6 +196,12 @@ class BoardPostCommentImageSecurityConfigTest {
                         .contentType("application/json")
                         .content("{\"content\":\"reply\"}"))
                 .andExpect(status().isUnauthorized());
+        mockMvc.perform(patch("/api/posts/1/comments/10")
+                        .contentType("application/json")
+                        .content("{\"content\":\"updated\"}"))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(delete("/api/posts/1/comments/10"))
+                .andExpect(status().isUnauthorized());
         mockMvc.perform(multipart("/api/images")
                         .file("file", "image".getBytes()))
                 .andExpect(status().isUnauthorized());
@@ -276,6 +282,40 @@ class BoardPostCommentImageSecurityConfigTest {
                 .andExpect(status().isNoContent());
 
         verify(postCommandService).delete(1L, 10L, 1L);
+    }
+
+    @Test
+    @DisplayName("Comment update API는 인증 사용자가 호출하면 command service를 호출한다.")
+    void commentUpdateApi_callsServiceForAuthenticatedUser() throws Exception {
+        UserDetailsImpl userDetails = userDetails();
+
+        mockMvc.perform(patch("/api/posts/1/comments/10")
+                        .contentType("application/json")
+                        .content("{\"content\":\"updated\"}")
+                        .with(authentication(new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                                userDetails,
+                                null,
+                                userDetails.getAuthorities()
+                        ))))
+                .andExpect(status().isOk());
+
+        verify(commentCommandService).update(1L, 10L, 1L, "updated");
+    }
+
+    @Test
+    @DisplayName("Comment delete API는 인증 사용자가 호출하면 204를 반환한다.")
+    void commentDeleteApi_returnsNoContentForAuthenticatedUser() throws Exception {
+        UserDetailsImpl userDetails = userDetails();
+
+        mockMvc.perform(delete("/api/posts/1/comments/10")
+                        .with(authentication(new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                                userDetails,
+                                null,
+                                userDetails.getAuthorities()
+                        ))))
+                .andExpect(status().isNoContent());
+
+        verify(commentCommandService).delete(1L, 10L, 1L);
     }
 
     @Test

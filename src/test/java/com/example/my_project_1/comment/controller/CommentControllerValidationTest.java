@@ -10,6 +10,7 @@ import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.Mockito.mock;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -44,6 +45,15 @@ class CommentControllerValidationTest {
     @DisplayName("대댓글 작성 요청 body validation을 적용한다.")
     void reply_validatesRequestBody() throws Exception {
         mockMvc.perform(post("/api/posts/1/comments/100/replies")
+                        .contentType("application/json")
+                        .content("{\"content\":\"\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("댓글 수정 요청 body validation을 적용한다.")
+    void update_validatesRequestBody() throws Exception {
+        mockMvc.perform(patch("/api/posts/1/comments/100")
                         .contentType("application/json")
                         .content("{\"content\":\"\"}"))
                 .andExpect(status().isBadRequest());
