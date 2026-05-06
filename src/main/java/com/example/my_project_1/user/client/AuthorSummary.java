@@ -1,8 +1,16 @@
 package com.example.my_project_1.user.client;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
+@Schema(description = "게시글/댓글 작성자 표시용 요약 정보")
 public record AuthorSummary(
+        @Schema(description = "표시 가능한 작성자 ID. 탈퇴/알 수 없음 상태에서는 null입니다.", example = "1", nullable = true)
         Long id,
+
+        @Schema(description = "작성자 표시명", example = "seoul_dev")
         String displayName,
+
+        @Schema(description = "작성자 표시 상태")
         AuthorStatus status
 ) {
     private static final String WITHDRAWN_DISPLAY_NAME = "탈퇴한 사용자";
