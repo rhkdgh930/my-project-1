@@ -15,6 +15,7 @@ public enum ErrorCode {
 
     /* 400 BAD_REQUEST: 잘못된 요청 (비즈니스 로직 위반) */
     INVALID_INPUT_VALUE(HttpStatus.BAD_REQUEST, "입력 값이 유효하지 않습니다."),
+    INVALID_IMAGE_FILE(HttpStatus.BAD_REQUEST, "유효하지 않은 이미지 파일입니다."),
     INVALID_COMMENT_POST_RELATION(HttpStatus.BAD_REQUEST, "댓글이 해당 게시글에 속하지 않습니다."),
     INVALID_BOARD_POST_RELATION(HttpStatus.BAD_REQUEST, "해당 게시판에 속하지 않은 게시글입니다."),
     DUPLICATED_EMAIL(HttpStatus.BAD_REQUEST, "이미 존재하는 이메일입니다."),

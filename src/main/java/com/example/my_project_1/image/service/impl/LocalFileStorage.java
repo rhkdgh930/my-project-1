@@ -1,5 +1,7 @@
 package com.example.my_project_1.image.service.impl;
 
+import com.example.my_project_1.common.exception.CustomException;
+import com.example.my_project_1.common.exception.ErrorCode;
 import com.example.my_project_1.image.service.ImageStorage;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -10,7 +12,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Locale;
-import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
@@ -35,7 +36,11 @@ public class LocalFileStorage implements ImageStorage {
     @Override
     public String upload(MultipartFile file) {
         try {
-            String ext = getExtension(Objects.requireNonNull(file.getOriginalFilename()));
+            String originalFilename = file.getOriginalFilename();
+            if (originalFilename == null) {
+                throw invalidImageFile();
+            }
+            String ext = getExtension(originalFilename);
             String storageKey = UUID.randomUUID() + "." + ext;
             Path path = resolveStoragePath(storageKey);
 
@@ -70,12 +75,12 @@ public class LocalFileStorage implements ImageStorage {
     private String getExtension(String filename) {
         int dotIndex = filename.lastIndexOf(".");
         if (dotIndex == -1) {
-            throw new IllegalArgumentException("Image extension is required");
+            throw invalidImageFile();
         }
 
         String extension = filename.substring(dotIndex + 1).toLowerCase(Locale.ROOT);
         if (!ALLOWED_EXTENSIONS.contains(extension)) {
-            throw new IllegalArgumentException("Unsupported image extension");
+            throw invalidImageFile();
         }
         return extension;
     }
@@ -83,8 +88,12 @@ public class LocalFileStorage implements ImageStorage {
     private Path resolveStoragePath(String storageKey) {
         Path path = uploadRoot.resolve(storageKey).normalize();
         if (!path.startsWith(uploadRoot)) {
-            throw new IllegalArgumentException("Invalid image storage key");
+            throw invalidImageFile();
         }
         return path;
+    }
+
+    private CustomException invalidImageFile() {
+        return new CustomException(ErrorCode.INVALID_IMAGE_FILE);
     }
 }

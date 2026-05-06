@@ -1,5 +1,7 @@
 package com.example.my_project_1.image.service.impl;
 
+import com.example.my_project_1.common.exception.CustomException;
+import com.example.my_project_1.common.exception.ErrorCode;
 import com.example.my_project_1.image.domain.Image;
 import com.example.my_project_1.image.repository.ImageRepository;
 import com.example.my_project_1.image.service.ImageStorage;
@@ -61,14 +63,14 @@ public class ImageUploadServiceImpl implements ImageUploadService {
 
     private void validate(MultipartFile file) {
         if (file.getSize() > MAX_IMAGE_SIZE) {
-            throw new IllegalArgumentException("Image file size exceeded");
+            throw invalidImageFile();
         }
 
         String extension = getExtension(file.getOriginalFilename());
         String contentType = file.getContentType();
         if (contentType == null ||
                 !ALLOWED_CONTENT_TYPES_BY_EXTENSION.get(extension).contains(contentType.toLowerCase(Locale.ROOT))) {
-            throw new IllegalArgumentException("Unsupported image content type");
+            throw invalidImageFile();
         }
 
         validateMagicBytes(file, extension);
@@ -76,17 +78,17 @@ public class ImageUploadServiceImpl implements ImageUploadService {
 
     private String getExtension(String filename) {
         if (filename == null) {
-            throw new IllegalArgumentException("Image extension is required");
+            throw invalidImageFile();
         }
 
         int dotIndex = filename.lastIndexOf(".");
         if (dotIndex == -1) {
-            throw new IllegalArgumentException("Image extension is required");
+            throw invalidImageFile();
         }
 
         String extension = filename.substring(dotIndex + 1).toLowerCase(Locale.ROOT);
         if (!ALLOWED_CONTENT_TYPES_BY_EXTENSION.containsKey(extension)) {
-            throw new IllegalArgumentException("Unsupported image extension");
+            throw invalidImageFile();
         }
         return extension;
     }
@@ -95,11 +97,15 @@ public class ImageUploadServiceImpl implements ImageUploadService {
         try {
             byte[] bytes = file.getBytes();
             if (!hasValidSignature(bytes, extension)) {
-                throw new IllegalArgumentException("Invalid image file signature");
+                throw invalidImageFile();
             }
         } catch (IOException e) {
-            throw new IllegalArgumentException("Cannot read image file", e);
+            throw invalidImageFile();
         }
+    }
+
+    private CustomException invalidImageFile() {
+        return new CustomException(ErrorCode.INVALID_IMAGE_FILE);
     }
 
     private boolean hasValidSignature(byte[] bytes, String extension) {
