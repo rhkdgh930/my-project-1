@@ -28,7 +28,8 @@ class AdminOutboxServiceTest {
             ZoneId.of("UTC")
     );
     private final OutboxRepository outboxRepository = mock(OutboxRepository.class);
-    private final AdminOutboxService service = new AdminOutboxService(clock, outboxRepository);
+    private final OutboxPublisher outboxPublisher = mock(OutboxPublisher.class);
+    private final AdminOutboxService service = new AdminOutboxService(clock, outboxRepository, outboxPublisher);
 
     @Test
     @DisplayName("FAILED 상태의 Outbox event는 admin retry를 허용한다.")
