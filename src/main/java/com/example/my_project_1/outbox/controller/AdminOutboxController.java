@@ -2,7 +2,6 @@ package com.example.my_project_1.outbox.controller;
 
 import com.example.my_project_1.common.exception.ExceptionResponse;
 import com.example.my_project_1.outbox.service.AdminOutboxService;
-import com.example.my_project_1.outbox.service.OutboxProcessor;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -27,7 +26,6 @@ import org.springframework.web.bind.annotation.RestController;
 public class AdminOutboxController {
 
     private final AdminOutboxService adminOutboxService;
-    private final OutboxProcessor outboxProcessor;
 
     @Operation(
             summary = "Outbox 이벤트 재시도 예약",
@@ -73,8 +71,7 @@ public class AdminOutboxController {
     public ResponseEntity<Void> retryNow(
             @Parameter(description = "Outbox event ID", example = "1", required = true)
             @PathVariable Long id) {
-        adminOutboxService.retry(id);
-        outboxProcessor.process(id);
+        adminOutboxService.retryNow(id);
         return ResponseEntity.accepted().build();
     }
 }

@@ -18,8 +18,21 @@ import java.time.LocalDateTime;
 public class AdminOutboxService {
     private final Clock clock;
     private final OutboxRepository outboxRepository;
+    private final OutboxPublisher outboxPublisher;
 
     public void retry(Long id) {
+        OutboxEvent event = findRetryableEvent(id);
+        event.resetForRetry(LocalDateTime.now(clock));
+    }
+
+    public void retryNow(Long id) {
+        OutboxEvent event = findRetryableEvent(id);
+        event.resetForRetry(LocalDateTime.now(clock));
+
+        outboxPublisher.requestProcessing(event.getId());
+    }
+
+    private OutboxEvent findRetryableEvent(Long id) {
         OutboxEvent event = outboxRepository.findById(id)
                 .orElseThrow(() -> new CustomException(ErrorCode.OUTBOX_EVENT_NOT_FOUND));
 
@@ -27,6 +40,6 @@ public class AdminOutboxService {
             throw new CustomException(ErrorCode.OUTBOX_RETRY_NOT_ALLOWED);
         }
 
-        event.resetForRetry(LocalDateTime.now(clock));
+        return event;
     }
 }
