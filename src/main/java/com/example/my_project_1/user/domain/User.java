@@ -80,12 +80,11 @@ public class User extends BaseEntity {
                 .build();
     }
 
-    public static User socialSignUp(Email email, String nickname, SocialType socialType, String socialId, LocalDateTime now) {
-        String randomPassword = UUID.randomUUID().toString();
+    public static User socialSignUp(Email email, String encodedPassword, String nickname, SocialType socialType, String socialId, LocalDateTime now) {
         return User.builder()
                 .email(email)
                 .profileDetail(ProfileDetail.defaultProfile())
-                .password(randomPassword)
+                .password(encodedPassword)
                 .nickname(nickname)
                 .role(Role.USER)
                 .userStatus(UserStatus.ACTIVE)
