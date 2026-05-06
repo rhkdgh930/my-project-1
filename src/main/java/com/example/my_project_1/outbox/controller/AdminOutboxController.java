@@ -1,7 +1,16 @@
 package com.example.my_project_1.outbox.controller;
 
+import com.example.my_project_1.common.exception.ExceptionResponse;
 import com.example.my_project_1.outbox.service.AdminOutboxService;
 import com.example.my_project_1.outbox.service.OutboxProcessor;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -10,6 +19,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+@Tag(name = "Admin Outbox API", description = "관리자 전용 Outbox 운영 API")
 @RestController
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
@@ -19,14 +29,50 @@ public class AdminOutboxController {
     private final AdminOutboxService adminOutboxService;
     private final OutboxProcessor outboxProcessor;
 
+    @Operation(
+            summary = "Outbox 이벤트 재시도 예약",
+            description = "FAILED 또는 DEAD 상태의 Outbox event를 재처리 가능한 PENDING 상태로 되돌립니다. 내부 운영용 API이며 payload 구조는 노출하지 않습니다. ADMIN 권한이 필요합니다.",
+            security = @SecurityRequirement(name = "jwtAuth")
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "재시도 예약 성공"),
+            @ApiResponse(responseCode = "400", description = "재시도 불가능 상태. OUTBOX_RETRY_NOT_ALLOWED",
+                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
+            @ApiResponse(responseCode = "401", description = "인증 실패",
+                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
+            @ApiResponse(responseCode = "403", description = "ADMIN 권한 필요",
+                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
+            @ApiResponse(responseCode = "404", description = "Outbox event 없음. OUTBOX_EVENT_NOT_FOUND",
+                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
+    })
     @PostMapping("/{id}/retry")
-    public ResponseEntity<Void> retry(@PathVariable Long id) {
+    public ResponseEntity<Void> retry(
+            @Parameter(description = "Outbox event ID", example = "1", required = true)
+            @PathVariable Long id) {
         adminOutboxService.retry(id);
         return ResponseEntity.noContent().build();
     }
 
+    @Operation(
+            summary = "Outbox 이벤트 즉시 재시도",
+            description = "FAILED 또는 DEAD 상태의 Outbox event를 PENDING으로 되돌린 뒤 가능한 경우 즉시 processor 실행을 시도합니다. 요청 수락 성공 시 202 Accepted를 반환하며, 실제 side effect 성공 여부는 Outbox 처리 결과에 따릅니다. 내부 운영용 API이며 payload 구조는 노출하지 않습니다. ADMIN 권한이 필요합니다.",
+            security = @SecurityRequirement(name = "jwtAuth")
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "202", description = "즉시 재시도 요청 수락"),
+            @ApiResponse(responseCode = "400", description = "재시도 불가능 상태. OUTBOX_RETRY_NOT_ALLOWED",
+                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
+            @ApiResponse(responseCode = "401", description = "인증 실패",
+                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
+            @ApiResponse(responseCode = "403", description = "ADMIN 권한 필요",
+                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
+            @ApiResponse(responseCode = "404", description = "Outbox event 없음. OUTBOX_EVENT_NOT_FOUND",
+                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
+    })
     @PostMapping("/{id}/retry-now")
-    public ResponseEntity<Void> retryNow(@PathVariable Long id) {
+    public ResponseEntity<Void> retryNow(
+            @Parameter(description = "Outbox event ID", example = "1", required = true)
+            @PathVariable Long id) {
         adminOutboxService.retry(id);
         outboxProcessor.process(id);
         return ResponseEntity.accepted().build();
