@@ -1,10 +1,12 @@
 package com.example.my_project_1.user.domain;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
 @Getter
 @RequiredArgsConstructor
+@Schema(description = "차단 사유. SPAM, ABUSE, INAPPROPRIATE_CONTENT, FRAUD, OTHER")
 public enum SuspensionReason {
     SPAM("스팸 및 광고 게시"),
     ABUSE("욕설 및 비하 발언"),
