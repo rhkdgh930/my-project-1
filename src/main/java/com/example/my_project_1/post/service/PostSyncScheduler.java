@@ -17,26 +17,47 @@ public class PostSyncScheduler {
     private final PostRedisService redisService;
     private final PostRepository postRepository;
 
-    @Scheduled(fixedDelay = 30_000) //30초
+    @Scheduled(fixedDelay = 30_000)
     @Transactional
     public void sync() {
-        Set<String> dirtyIds = redisService.getDirtyPostIds();
+        syncViews();
+        syncLikes();
+    }
+
+    private void syncViews() {
+        Set<String> dirtyIds = redisService.getViewDirtyPostIds();
         if (dirtyIds == null || dirtyIds.isEmpty()) return;
 
         for (String id : dirtyIds) {
             try {
                 Long postId = Long.parseLong(id);
+                Long viewCount = redisService.getViewOrNull(postId);
 
-                postRepository.updateCounts(
-                        postId,
-                        redisService.getView(postId),
-                        redisService.getLike(postId)
-                );
-
-                redisService.removeDirty(postId);
-
+                if (viewCount != null) {
+                    postRepository.updateViewCount(postId, viewCount);
+                    redisService.removeViewDirty(postId);
+                }
             } catch (Exception e) {
-                log.error("[SYNC FAIL] postId={}", id, e);
+                log.error("[VIEW SYNC FAIL] postId={}", id, e);
+            }
+        }
+    }
+
+    private void syncLikes() {
+        Set<String> dirtyIds = redisService.getLikeDirtyPostIds();
+        if (dirtyIds == null || dirtyIds.isEmpty()) return;
+
+        for (String id : dirtyIds) {
+            try {
+                Long postId = Long.parseLong(id);
+                Long likeCount = redisService.getLikeOrNull(postId);
+
+                if (likeCount != null) {
+                    postRepository.updateLikeCount(postId, likeCount);
+                    redisService.removeLikeDirty(postId);
+                }
+            } catch (Exception e) {
+                log.error("[LIKE SYNC FAIL] postId={}", id, e);
             }
         }
     }

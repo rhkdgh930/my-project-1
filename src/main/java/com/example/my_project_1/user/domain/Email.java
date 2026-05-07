@@ -8,6 +8,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.springframework.util.Assert;
 
+import java.util.Locale;
 import java.util.Objects;
 import java.util.regex.Pattern;
 
@@ -16,7 +17,7 @@ import java.util.regex.Pattern;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Email {
 
-    private static final String EMAIL_REGEX = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$";
+    private static final String EMAIL_REGEX = "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$";
     private static final Pattern PATTERN = Pattern.compile(EMAIL_REGEX);
 
     @Column(name = "email", nullable = false, unique = true)
@@ -31,10 +32,14 @@ public class Email {
     @Builder
     private Email(String value) {
         Assert.hasText(value, "이메일은 필수입니다.");
-        if (!PATTERN.matcher(value).matches()) {
+
+        String normalized = value.trim().toLowerCase(Locale.ROOT);
+
+        if (!PATTERN.matcher(normalized).matches()) {
             throw new IllegalArgumentException("올바르지 않은 이메일 형식입니다.");
         }
-        this.value = value;
+
+        this.value = normalized;
     }
 
     @Override

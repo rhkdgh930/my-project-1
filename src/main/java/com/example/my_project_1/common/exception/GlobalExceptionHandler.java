@@ -1,5 +1,6 @@
 package com.example.my_project_1.common.exception;
 
+import com.example.my_project_1.auth.exception.JwtAuthenticationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -33,6 +34,17 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ExceptionResponse> handleCustomException(CustomException ex) {
         return ResponseEntity.status(ex.getErrorCode().getHttpStatus())
                 .body(ex.toResponse());
+    }
+
+    @ExceptionHandler(JwtAuthenticationException.class)
+    public ResponseEntity<ExceptionResponse> handleJwtAuthenticationException(JwtAuthenticationException ex) {
+        ErrorCode errorCode = ex.getErrorCode();
+        log.warn(
+                "[SECURITY][GlobalExceptionHandler][JWT_AUTHENTICATION_FAILED] errorCode={}",
+                errorCode.name()
+        );
+        return ResponseEntity.status(errorCode.getHttpStatus())
+                .body(new ExceptionResponse(errorCode));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

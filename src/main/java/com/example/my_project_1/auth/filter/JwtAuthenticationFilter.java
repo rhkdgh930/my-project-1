@@ -15,6 +15,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -24,9 +25,8 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.time.Clock;
-import java.time.LocalDateTime;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
@@ -68,26 +68,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             authenticationEntryPoint.commence(request, response, new JwtAuthenticationException(e.getErrorCode()));
         } catch (Exception e) {
             SecurityContextHolder.clearContext();
+            log.error(
+                    "[SECURITY][JwtAuthenticationFilter][AUTHENTICATION_ERROR] uri={} errorType={}",
+                    request.getRequestURI(),
+                    e.getClass().getSimpleName(),
+                    e
+            );
             authenticationEntryPoint.commence(request, response, new JwtAuthenticationException(ErrorCode.AUTHENTICATION_FAILED));
         }
     }
 
     private void setAuthentication(CachedUserContext ctx) {
-        UserDetailsImpl userDetails =
-                new UserDetailsImpl(
-                        ctx.getUserId(),
-                        ctx.getEmail(),
-                        null,
-                        ctx.getRole().name(),
-                        ctx.getAccountStatus(),
-                        ctx.getUserStatus(),
-                        ctx.getReason(),
-                        ctx.getSuspendedUntil(),
-                        ctx.getScheduledDeletionAt(),
-                        ctx.getRemainingDays(),
-                        ctx.isCanRestore(),
-                        ctx.isDeleted()
-                );
+        UserDetailsImpl userDetails = UserDetailsImpl.from(ctx);
 
         Authentication authentication =
                 new UsernamePasswordAuthenticationToken(

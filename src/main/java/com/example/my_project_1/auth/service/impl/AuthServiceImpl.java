@@ -21,6 +21,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -45,24 +46,18 @@ public class AuthServiceImpl implements AuthService {
     public TokenResponse reissue(String refreshToken) {
         String requestHash = redisTokenService.getHash(refreshToken);
 
-        TokenResponse cachedResponse = redisTokenService.getReissueHistory(requestHash);
-        if (cachedResponse != null) {
-            return cachedResponse;
-        }
-
         Claims claims = jwtProvider.parseClaimsSafely(refreshToken);
         jwtProvider.assertRefreshToken(claims);
 
         Long userId = Long.valueOf(claims.getSubject());
 
-        String savedRTHash = redisTokenService.getRefreshTokenHash(userId);
-
-        if (savedRTHash == null || !savedRTHash.equals(requestHash)) {
-            redisTokenService.deleteRefreshTokenHash(userId);
-            throw new CustomException(ErrorCode.INVALID_REFRESH_TOKEN);
-        }
-
         CachedUserContext ctx = userContextService.getUserContext(userId);
+        userContextService.validateActiveUser(ctx);
+
+        TokenResponse cachedResponse = redisTokenService.getReissueHistory(requestHash);
+        if (cachedResponse != null) {
+            return cachedResponse;
+        }
 
         String newAccessToken =
                 jwtProvider.createAccessToken(
@@ -73,16 +68,26 @@ public class AuthServiceImpl implements AuthService {
         String newRefreshToken =
                 jwtProvider.createRefreshToken(userId);
 
-        redisTokenService.saveRefreshTokenHash(
+        TokenResponse response = new TokenResponse(newAccessToken, newRefreshToken);
+        boolean rotated = redisTokenService.rotateRefreshToken(
                 userId,
+                requestHash,
                 newRefreshToken,
-                jwtProvider.getRemainingValidityMillis(newRefreshToken)
+                jwtProvider.getRemainingValidityMillis(newRefreshToken),
+                response
         );
 
-        TokenResponse response = new TokenResponse(newAccessToken, newRefreshToken);
-        redisTokenService.saveReissueHistory(requestHash, response);
+        if (rotated) {
+            return response;
+        }
 
-        return new TokenResponse(newAccessToken, newRefreshToken);
+        TokenResponse cachedResponseAfterRotationFail = redisTokenService.getReissueHistory(requestHash);
+        if (cachedResponseAfterRotationFail != null) {
+            return cachedResponseAfterRotationFail;
+        }
+
+        redisTokenService.deleteRefreshTokenHash(userId);
+        throw new CustomException(ErrorCode.INVALID_REFRESH_TOKEN);
     }
 
     @Transactional
@@ -115,10 +120,20 @@ public class AuthServiceImpl implements AuthService {
 
     @Transactional
     @Override
-    public void logout(String accessToken) {
+    public void logout(String accessToken, String refreshToken) {
+        blacklistAccessTokenIfValid(accessToken);
+        deleteRefreshTokenIfPresent(refreshToken);
+    }
+
+    private void blacklistAccessTokenIfValid(String accessToken) {
+        if (!StringUtils.hasText(accessToken)) {
+            return;
+        }
         Claims claims;
+
         try {
             claims = jwtProvider.parseClaimsSafely(accessToken);
+            jwtProvider.assertAccessToken(claims);
         } catch (JwtAuthenticationException e) {
             if (e.getErrorCode() == ErrorCode.EXPIRED_ACCESS_TOKEN) {
                 return;
@@ -126,13 +141,21 @@ public class AuthServiceImpl implements AuthService {
             throw e;
         }
 
-        Long userId = Long.valueOf(claims.getSubject());
-
-        redisTokenService.deleteRefreshTokenHash(userId);
-
-        long ttl = jwtProvider.getRemainingValidityMillis(accessToken);
+        long ttl = jwtProvider.getRemainingValidityMillis(claims);
         if (ttl > 0) {
             redisTokenService.blacklistAccessToken(accessToken, ttl);
         }
+    }
+
+    private void deleteRefreshTokenIfPresent(String refreshToken) {
+        if (!StringUtils.hasText(refreshToken)) {
+            return;
+        }
+
+        Claims claims = jwtProvider.parseClaimsSafely(refreshToken);
+        jwtProvider.assertRefreshToken(claims);
+
+        Long userId = Long.valueOf(claims.getSubject());
+        redisTokenService.deleteRefreshTokenHash(userId);
     }
 }

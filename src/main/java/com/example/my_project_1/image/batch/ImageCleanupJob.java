@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -23,6 +24,7 @@ public class ImageCleanupJob {
     private final ImageRepository imageRepository;
     private final ImageStorage imageStorage;
     private final ImageBatchProcessor processor;
+    private final Clock clock;
 
     public void cleanup(ImageStatus status, LocalDateTime threshold) {
 
@@ -34,12 +36,7 @@ public class ImageCleanupJob {
 
         while (true) {
 
-            List<Image> images = imageRepository.findCleanupTargets(
-                    lastId,
-                    status,
-                    threshold,
-                    PageRequest.ofSize(CHUNK_SIZE)
-            );
+            List<Image> images = findTargets(status, lastId, threshold);
 
             if (images.isEmpty()) break;
 
@@ -60,7 +57,7 @@ public class ImageCleanupJob {
                 }
             }
 
-            processor.markDeletedBulk(successIds);
+            processor.markDeletedBulk(successIds, LocalDateTime.now(clock));
 
             processedCount += successIds.size();
             lastId = images.get(images.size() - 1).getId();
@@ -72,5 +69,25 @@ public class ImageCleanupJob {
                 processedCount,
                 failCount
         );
+    }
+
+    private List<Image> findTargets(ImageStatus status, Long lastId, LocalDateTime threshold) {
+        if (status == ImageStatus.PENDING) {
+            return imageRepository.findPendingCleanupTargets(
+                    lastId,
+                    threshold,
+                    PageRequest.ofSize(CHUNK_SIZE)
+            );
+        }
+
+        if (status == ImageStatus.DETACHED) {
+            return imageRepository.findDetachedCleanupTargets(
+                    lastId,
+                    threshold,
+                    PageRequest.ofSize(CHUNK_SIZE)
+            );
+        }
+
+        return List.of();
     }
 }

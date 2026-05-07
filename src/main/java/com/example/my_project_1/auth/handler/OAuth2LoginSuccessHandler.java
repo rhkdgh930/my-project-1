@@ -8,12 +8,15 @@ import com.example.my_project_1.user.service.UserLoginService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
+
+import static com.example.my_project_1.auth.constant.SecurityConstants.REFRESH_TOKEN_COOKIE;
 
 
 @Component
@@ -22,6 +25,12 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
     private final JwtProvider jwtProvider;
     private final RedisTokenService redisTokenService;
     private final UserLoginService userLoginService;
+
+    @Value("${app.frontend-url}")
+    private String frontendUrl;
+
+    @Value("${app.oauth2.success-redirect-path}")
+    private String successRedirectPath;
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException {
@@ -38,15 +47,12 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
         redisTokenService.saveRefreshTokenHash(userId, refreshToken, jwtProvider.getRemainingValidityMillis(refreshToken));
 
         int refreshTokenMaxAge = (int) (jwtProvider.getRemainingValidityMillis(refreshToken) / 1000);
-        int accessTokenMaxAge = 60 * 60; // 1시간 (혹은 토큰 만료시간에 맞춤)
+        CookieUtils.addCookie(response, REFRESH_TOKEN_COOKIE, refreshToken, refreshTokenMaxAge);
 
-        CookieUtils.addCookie(response, "accessToken", accessToken, accessTokenMaxAge);
-        CookieUtils.addCookie(response, "refreshToken", refreshToken, refreshTokenMaxAge);
-
-
-        String targetUrl = UriComponentsBuilder.fromUriString("http://localhost:8080/api/auth/test") // 프론트 대신 백엔드로
-                .queryParam("accessToken", accessToken)
-                .build().toUriString();
+        String targetUrl = UriComponentsBuilder.fromUriString(frontendUrl)
+                .path(successRedirectPath)
+                .build()
+                .toUriString();
 
         response.sendRedirect(targetUrl);
     }

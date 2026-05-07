@@ -7,6 +7,7 @@ import com.example.my_project_1.user.domain.*;
 import com.example.my_project_1.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
@@ -17,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.Map;
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -26,6 +28,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
     private final Clock clock;
 
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
     @Override
     @Transactional
@@ -83,13 +86,18 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
     private User saveOrUpdate(OAuth2UserInfo userInfo, SocialType socialType, LocalDateTime now) {
         return userRepository.findByEmail(Email.from(userInfo.getEmail()))
-                .orElseGet(() -> userRepository.save(User.socialSignUp(
-                        Email.from(userInfo.getEmail()),
-                        userInfo.getNickname(),
-                        socialType,
-                        userInfo.getProviderId(),
-                        now
-                )));
+                .orElseGet(() -> {
+                    String encodedRandomPassword = passwordEncoder.encode(UUID.randomUUID().toString());
+
+                    return userRepository.save(User.socialSignUp(
+                            Email.from(userInfo.getEmail()),
+                            encodedRandomPassword,
+                            userInfo.getNickname(),
+                            socialType,
+                            userInfo.getProviderId(),
+                            now
+                    ));
+                });
     }
 
     private SocialType getSocialType(String registrationId) {

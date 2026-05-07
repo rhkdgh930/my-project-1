@@ -32,4 +32,8 @@ public class OutboxPublisher {
         outboxRepository.save(event);
         eventPublisher.publishEvent(new OutboxSavedEvent(event.getId()));
     }
+
+    public void requestProcessing(Long outboxId) {
+        eventPublisher.publishEvent(new OutboxSavedEvent(outboxId));
+    }
 }

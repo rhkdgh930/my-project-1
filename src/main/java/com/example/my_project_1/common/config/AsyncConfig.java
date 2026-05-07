@@ -1,6 +1,7 @@
 package com.example.my_project_1.common.config;
 
 import com.example.my_project_1.common.logging.MdcTaskDecorator;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.AsyncConfigurer;
@@ -8,8 +9,10 @@ import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import java.util.concurrent.Executor;
+import java.util.concurrent.RejectedExecutionHandler;
 import java.util.concurrent.ThreadPoolExecutor;
 
+@Slf4j
 @Configuration
 @EnableAsync
 public class AsyncConfig implements AsyncConfigurer {
@@ -17,26 +20,62 @@ public class AsyncConfig implements AsyncConfigurer {
     @Bean(name = "asyncTaskExecutor")
     @Override
     public Executor getAsyncExecutor() {
+        return createExecutor(
+                5,
+                10,
+                500,
+                "async-",
+                new ThreadPoolExecutor.CallerRunsPolicy()
+        );
+    }
+
+    @Bean(name = "outboxExecutor")
+    public Executor outboxExecutor() {
+        return createExecutor(
+                3,
+                6,
+                300,
+                "outbox-async-",
+                outboxRejectedExecutionHandler()
+        );
+    }
+
+    @Bean(name = "mailExecutor")
+    public Executor mailExecutor() {
+        return createExecutor(
+                2,
+                6,
+                200,
+                "mail-async-",
+                new ThreadPoolExecutor.CallerRunsPolicy()
+        );
+    }
+
+    private ThreadPoolTaskExecutor createExecutor(
+            int corePoolSize,
+            int maxPoolSize,
+            int queueCapacity,
+            String threadNamePrefix,
+            RejectedExecutionHandler rejectedExecutionHandler
+    ) {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-
-        // 1. 코어 스레드 수 (항상 유지할 스레드 개수)
-        executor.setCorePoolSize(5);
-
-        // 2. 최대 스레드 수 (대기열이 꽉 찼을 때 추가로 생성할 최대 개수)
-        executor.setMaxPoolSize(10);
-
-        // 3. 대기열 용량 (스레드가 꽉 찼을 때 작업을 쌓아둘 공간)
-        executor.setQueueCapacity(500);
-
-        // 4. 스레드 이름 접두사 (로그에서 비동기 스레드 확인용)
-        executor.setThreadNamePrefix("async-");
-
+        executor.setCorePoolSize(corePoolSize);
+        executor.setMaxPoolSize(maxPoolSize);
+        executor.setQueueCapacity(queueCapacity);
+        executor.setThreadNamePrefix(threadNamePrefix);
         executor.setTaskDecorator(new MdcTaskDecorator());
-
-        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
-
+        executor.setRejectedExecutionHandler(rejectedExecutionHandler);
         executor.initialize();
-
         return executor;
+    }
+
+    private RejectedExecutionHandler outboxRejectedExecutionHandler() {
+        return (runnable, executor) ->
+                log.warn(
+                        "[OUTBOX][ASYNC_REJECTED] activeCount={} poolSize={} queueSize={}",
+                        executor.getActiveCount(),
+                        executor.getPoolSize(),
+                        executor.getQueue().size()
+                );
     }
 }

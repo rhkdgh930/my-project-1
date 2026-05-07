@@ -15,6 +15,8 @@ public enum ErrorCode {
 
     /* 400 BAD_REQUEST: 잘못된 요청 (비즈니스 로직 위반) */
     INVALID_INPUT_VALUE(HttpStatus.BAD_REQUEST, "입력 값이 유효하지 않습니다."),
+    INVALID_IMAGE_FILE(HttpStatus.BAD_REQUEST, "유효하지 않은 이미지 파일입니다."),
+    INVALID_COMMENT_POST_RELATION(HttpStatus.BAD_REQUEST, "댓글이 해당 게시글에 속하지 않습니다."),
     INVALID_BOARD_POST_RELATION(HttpStatus.BAD_REQUEST, "해당 게시판에 속하지 않은 게시글입니다."),
     DUPLICATED_EMAIL(HttpStatus.BAD_REQUEST, "이미 존재하는 이메일입니다."),
     USER_NOT_ACTIVE(HttpStatus.BAD_REQUEST, "활성화된 유저가 아닙니다."),
@@ -25,6 +27,10 @@ public enum ErrorCode {
     WRONG_VERIFICATION_CODE(HttpStatus.BAD_REQUEST, "인증 토큰이 일치하지 않습니다."),
     UNVERIFIED_EMAIL(HttpStatus.BAD_REQUEST, "인증되지 않은 이메일 입니다."),
     USER_DORMANT(HttpStatus.BAD_REQUEST, "휴면 상태의 계정입니다. 본인인증이 필요합니다."),
+    OUTBOX_RETRY_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "재시도할 수 없는 아웃박스 이벤트 상태입니다."),
+    INVALID_SUSPENSION_DURATION(HttpStatus.BAD_REQUEST, "차단 기간이 유효하지 않습니다."),
+    COMMENT_ALREADY_DELETED(HttpStatus.BAD_REQUEST, "삭제된 댓글에는 답글을 작성할 수 없습니다."),
+    COMMENT_DEPTH_EXCEEDED(HttpStatus.BAD_REQUEST, "대댓글은 1단계까지만 허용됩니다."),
 
     // 추가: 이미 처리된 상태에 대한 요청
     ALREADY_EXIST_BOARD_NAME(HttpStatus.BAD_REQUEST, "이미 존재하는 게시판 이름 입니다."),
@@ -35,6 +41,7 @@ public enum ErrorCode {
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 사용자입니다."),
     BOARD_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 게시판 입니다."),
     POST_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 게시물 입니다."),
+    COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 댓글입니다."),
     OUTBOX_EVENT_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 아웃박스 이벤트입니다."),
 
     /* 401 UNAUTHORIZED: 인증 실패 */

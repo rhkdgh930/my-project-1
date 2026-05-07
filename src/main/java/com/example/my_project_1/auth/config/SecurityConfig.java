@@ -6,13 +6,14 @@ import com.example.my_project_1.auth.handler.*;
 import com.example.my_project_1.auth.oauth.CustomOAuth2UserService;
 import com.example.my_project_1.auth.provider.CustomAuthenticationProvider;
 import com.example.my_project_1.auth.service.RedisLoginAttemptService;
-import com.example.my_project_1.auth.utils.UrlUtils;
+import com.example.my_project_1.auth.utils.EndpointAuthorizationRules;
 import com.example.my_project_1.common.logging.HttpLoggingFilter;
 import com.example.my_project_1.common.logging.SecurityUserMdcFilter;
 import com.example.my_project_1.common.logging.TraceIdFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -20,7 +21,6 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
@@ -69,9 +69,10 @@ public class SecurityConfig {
                 )
 
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(UrlUtils.PERMITTED).permitAll()
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/api/user/**").authenticated()
+                        .requestMatchers(HttpMethod.GET, EndpointAuthorizationRules.PUBLIC_GET_ONLY).permitAll()
+                        .requestMatchers(EndpointAuthorizationRules.PUBLIC_ANY_METHOD).permitAll()
+                        .requestMatchers(EndpointAuthorizationRules.ADMIN_ONLY).hasRole("ADMIN")
+                        .requestMatchers(EndpointAuthorizationRules.USER_ONLY).authenticated()
                         .anyRequest().authenticated()
                 )
                 .oauth2Login(oauth2 -> oauth2
@@ -91,17 +92,34 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(List.of("http://localhost:3000", "http://localhost:5173", "http://localhost:3001"));
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
+
+        configuration.setAllowedOriginPatterns(List.of(
+                "http://localhost:3000",
+                "http://localhost:3001",
+                "http://localhost:5173",
+                "http://127.0.0.1:3000",
+                "http://127.0.0.1:3001",
+                "http://127.0.0.1:5173"
+        ));
+
+        configuration.setAllowedMethods(List.of(
+                "GET",
+                "POST",
+                "PUT",
+                "DELETE",
+                "PATCH",
+                "OPTIONS"
+        ));
+
         configuration.setAllowedHeaders(List.of("*"));
-        configuration.setExposedHeaders(List.of("Authorization", "Refresh-Token")); // 클라이언트가 읽을 수 있게 헤더 노출
-        configuration.setAllowCredentials(true); // 쿠키/인증 정보 포함 허용
+        configuration.setExposedHeaders(List.of("Authorization", "Refresh-Token"));
+        configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
+
         return source;
     }
-
     @Bean
     public JwtLoginFilter jwtLoginFilter() throws Exception {
         return new JwtLoginFilter(authenticationManager(), jwtLoginSuccessHandler, jwtLoginFailureHandler, redisLoginAttemptService);
@@ -120,8 +138,4 @@ public class SecurityConfig {
         return authenticationConfiguration.getAuthenticationManager();
     }
 
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return PasswordEncoderFactories.createDelegatingPasswordEncoder();
-    }
 }

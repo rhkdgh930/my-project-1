@@ -110,4 +110,8 @@ public class JwtProvider {
             throw new JwtAuthenticationException(ErrorCode.INVALID_TOKEN);
         }
     }
+
+    public long getRemainingValidityMillis(Claims claims) {
+        return claims.getExpiration().getTime() - System.currentTimeMillis();
+    }
 }

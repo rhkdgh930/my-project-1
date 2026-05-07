@@ -1,6 +1,7 @@
 package com.example.my_project_1.auth.userdetails;
 
 
+import com.example.my_project_1.auth.cache.CachedUserContext;
 import com.example.my_project_1.user.domain.AccountStatus;
 import com.example.my_project_1.user.domain.SuspensionReason;
 import com.example.my_project_1.user.domain.UserStatus;
@@ -34,6 +35,23 @@ public class UserDetailsImpl implements UserDetails, OAuth2User {
     private final boolean deleted;
 
     private Map<String, Object> attributes;
+
+    public static UserDetailsImpl from(CachedUserContext ctx) {
+        return new UserDetailsImpl(
+                ctx.getUserId(),
+                ctx.getEmail(),
+                null,
+                ctx.getRole().name(),
+                ctx.getAccountStatus(),
+                ctx.getUserStatus(),
+                ctx.getReason(),
+                ctx.getSuspendedUntil(),
+                ctx.getScheduledDeletionAt(),
+                ctx.getRemainingDays(),
+                ctx.isCanRestore(),
+                ctx.isDeleted()
+        );
+    }
 
     public UserDetailsImpl(Long userId, String email, String password, String role, AccountStatus accountStatus, UserStatus userStatus,
                            SuspensionReason reason, LocalDateTime suspendedUntil,
@@ -74,6 +92,12 @@ public class UserDetailsImpl implements UserDetails, OAuth2User {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
+        if ("ADMIN".equals(role)) {
+            return List.of(
+                    new SimpleGrantedAuthority("ROLE_ADMIN"),
+                    new SimpleGrantedAuthority("ROLE_USER")
+            );
+        }
         return List.of(new SimpleGrantedAuthority("ROLE_" + role));
     }
 

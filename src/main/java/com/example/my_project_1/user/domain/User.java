@@ -8,23 +8,12 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.SQLDelete;
-import org.hibernate.annotations.SQLRestriction;
 import org.springframework.util.Assert;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-/**
- * [Policy] 이 엔티티는 Soft Delete 정책을 따릅니다.
- * 삭제 시 실제 DELETE 대신 @SQLDelete에 정의된 UPDATE가 실행되며,
- *
- * @SQLRestriction에 의해 삭제되지 않은 데이터만 기본 조회됩니다.
- */
-
-@SQLDelete(sql = "UPDATE users SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?")
-@SQLRestriction("deleted_at IS NULL")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Entity
@@ -73,6 +62,7 @@ public class User extends BaseEntity {
     @Column(nullable = false)
     private boolean isEmailVerified;
 
+    @Column(nullable = false)
     private LocalDateTime lastLoginAt;
 
     public static User signUp(Email email, String encodedPassword, String nickname, LocalDateTime now) {
@@ -90,12 +80,11 @@ public class User extends BaseEntity {
                 .build();
     }
 
-    public static User socialSignUp(Email email, String nickname, SocialType socialType, String socialId, LocalDateTime now) {
-        String randomPassword = UUID.randomUUID().toString();
+    public static User socialSignUp(Email email, String encodedPassword, String nickname, SocialType socialType, String socialId, LocalDateTime now) {
         return User.builder()
                 .email(email)
                 .profileDetail(ProfileDetail.defaultProfile())
-                .password(randomPassword)
+                .password(encodedPassword)
                 .nickname(nickname)
                 .role(Role.USER)
                 .userStatus(UserStatus.ACTIVE)
@@ -287,7 +276,7 @@ public class User extends BaseEntity {
 
     private void maskPersonalData() {
         String uuid = UUID.randomUUID().toString().substring(0, 8);
-        this.email = Email.from("deleted_" + uuid + "_" + this.email.getValue());
+        this.email = Email.from("deleted_" + uuid + "@deleted.local");
         this.nickname = "알수없음_" + uuid;
         this.password = "WITHDRAWN";
     }

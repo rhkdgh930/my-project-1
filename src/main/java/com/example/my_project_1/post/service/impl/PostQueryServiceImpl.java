@@ -9,9 +9,10 @@ import com.example.my_project_1.post.service.PostQueryService;
 import com.example.my_project_1.post.service.PostRedisService;
 import com.example.my_project_1.post.service.response.PostListResponse;
 import com.example.my_project_1.post.service.response.PostDetailResponse;
+import com.example.my_project_1.user.client.AuthorSummary;
 import com.example.my_project_1.user.client.UserClient;
-import com.example.my_project_1.user.client.UserSummary;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -22,6 +23,7 @@ import java.util.Map;
 
 @Transactional(readOnly = true)
 @RequiredArgsConstructor
+@Slf4j
 @Service
 public class PostQueryServiceImpl implements PostQueryService {
 
@@ -32,7 +34,7 @@ public class PostQueryServiceImpl implements PostQueryService {
     @Override
     public PageResponse<PostListResponse> getPosts(Long boardId, Pageable pageable) {
         // 1. DB에서 해당 게시판의 게시글만 페이징 조회 (Deleted=False)
-        Page<Post> page = postRepository.findAllByBoardIdAndDeletedAtIsNull(boardId, pageable);
+        Page<Post> page = postRepository.findAllActiveByBoardId(boardId, pageable);
 
         if (page.isEmpty()) {
             return PageResponse.of(Page.empty(pageable));
@@ -46,19 +48,18 @@ public class PostQueryServiceImpl implements PostQueryService {
                 .toList();
 
         // UserClient를 통해 유저 정보 Map으로 가져오기 (authorId -> UserSummary)
-        Map<Long, UserSummary> userMap = userClient.findUsersByIds(authorIds);
+        Map<Long, AuthorSummary> authorMap = findAuthorsForList(boardId, authorIds);
 
         // 3. DTO 변환 (작성자 닉네임 포함)
         Page<PostListResponse> dtoPage = page.map(post -> {
-            UserSummary user = userMap.get(post.getUserId());
-            String nickname = (user != null) ? user.nickname() : "알 수 없는 사용자";
+            AuthorSummary author = authorMap.getOrDefault(post.getUserId(), AuthorSummary.unknown());
 
             // PostListResponse.from에 nickname을 전달하도록 수정하거나
             // 직접 빌더/생성자로 매핑
-            PostListResponse response = PostListResponse.from(post, nickname);
+            PostListResponse response = PostListResponse.from(post, author);
             response.updateCounts(
-                    postRedisService.getView(post.getId()),
-                    postRedisService.getLike(post.getId())
+                    countOrDefault(postRedisService.getViewOrNull(post.getId()), post.getViewCount()),
+                    countOrDefault(postRedisService.getLikeOrNull(post.getId()), post.getLikeCount())
             );
             return response;
         });
@@ -69,22 +70,45 @@ public class PostQueryServiceImpl implements PostQueryService {
 
     @Override
     public PostDetailResponse getPostDetail(Long boardId, Long postId) {
-        Post post = postRepository.findByIdAndDeletedAtIsNull(postId)
+        Post post = postRepository.findActiveById(postId)
                 .orElseThrow(() -> new CustomException(ErrorCode.POST_NOT_FOUND));
 
         if (!post.getBoard().getId().equals(boardId)) {
             throw new CustomException(ErrorCode.INVALID_BOARD_POST_RELATION);
         }
 
-        Map<Long, UserSummary> userMap = userClient.findUsersByIds(List.of(post.getUserId()));
-        UserSummary user = userMap.get(post.getUserId());
-        String nickname = (user != null) ? user.nickname() : "알 수 없는 사용자";
+        postRedisService.increaseView(postId);
 
-        PostDetailResponse response = PostDetailResponse.from(post, nickname);
+        Map<Long, AuthorSummary> authorMap = findAuthorsForDetail(boardId, postId, List.of(post.getUserId()));
+        AuthorSummary author = authorMap.getOrDefault(post.getUserId(), AuthorSummary.unknown());
+
+        PostDetailResponse response = PostDetailResponse.from(post, author);
         response.updateCounts(
-                postRedisService.getView(postId),
-                postRedisService.getLike(postId)
+                countOrDefault(postRedisService.getViewOrNull(postId), post.getViewCount()),
+                countOrDefault(postRedisService.getLikeOrNull(postId), post.getLikeCount())
         );
         return response;
+    }
+
+    private long countOrDefault(Long redisCount, long dbCount) {
+        return redisCount != null ? redisCount : dbCount;
+    }
+
+    private Map<Long, AuthorSummary> findAuthorsForList(Long boardId, List<Long> authorIds) {
+        try {
+            return userClient.findAuthorsByIds(authorIds);
+        } catch (RuntimeException e) {
+            log.warn("[POST_QUERY][AUTHOR_LOOKUP_FAIL] boardId={} authorIds={}", boardId, authorIds, e);
+            return Map.of();
+        }
+    }
+
+    private Map<Long, AuthorSummary> findAuthorsForDetail(Long boardId, Long postId, List<Long> authorIds) {
+        try {
+            return userClient.findAuthorsByIds(authorIds);
+        } catch (RuntimeException e) {
+            log.warn("[POST_QUERY][AUTHOR_LOOKUP_FAIL] boardId={} postId={} authorIds={}", boardId, postId, authorIds, e);
+            return Map.of();
+        }
     }
 }

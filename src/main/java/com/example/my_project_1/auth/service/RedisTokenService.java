@@ -8,9 +8,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -21,6 +23,17 @@ public class RedisTokenService {
     private static final String RT_KEY = "auth::rt::%s";
     private static final String BL_KEY = "auth::bl::%s";
     private static final String HISTORY_KEY = "auth::history::%s";
+    private static final long REISSUE_HISTORY_TTL_SECONDS = 10;
+    private static final Long ROTATED = 1L;
+    private static final String ROTATE_REFRESH_TOKEN_SCRIPT = """
+            local currentHash = redis.call('GET', KEYS[1])
+            if currentHash == ARGV[1] then
+                redis.call('PSETEX', KEYS[1], ARGV[3], ARGV[2])
+                redis.call('SETEX', KEYS[2], ARGV[4], ARGV[5])
+                return 1
+            end
+            return 0
+            """;
 
     public void saveRefreshTokenHash(Long userId, String refreshToken, long ttl) {
         redisTemplate.opsForValue().set(
@@ -36,6 +49,40 @@ public class RedisTokenService {
 
     public void deleteRefreshTokenHash(Long userId) {
         redisTemplate.delete(RT_KEY.formatted(userId));
+    }
+
+    public boolean rotateRefreshToken(
+            Long userId,
+            String oldRtHash,
+            String newRefreshToken,
+            long newRefreshTokenTtl,
+            TokenResponse newTokenResponse
+    ) {
+        try {
+            String newRtHash = hash(newRefreshToken);
+            String responseValue = DataSerializer.serialize(newTokenResponse);
+            DefaultRedisScript<Long> script =
+                    new DefaultRedisScript<>(ROTATE_REFRESH_TOKEN_SCRIPT, Long.class);
+
+            Long result = redisTemplate.execute(
+                    script,
+                    List.of(RT_KEY.formatted(userId), HISTORY_KEY.formatted(oldRtHash)),
+                    oldRtHash,
+                    newRtHash,
+                    String.valueOf(newRefreshTokenTtl),
+                    String.valueOf(REISSUE_HISTORY_TTL_SECONDS),
+                    responseValue
+            );
+
+            return ROTATED.equals(result);
+        } catch (Exception e) {
+            log.error(
+                    "[CACHE][RedisTokenService][ROTATE_REFRESH_TOKEN_FAIL] userId={}",
+                    userId,
+                    e
+            );
+            throw new JwtAuthenticationException(ErrorCode.AUTHENTICATION_FAILED);
+        }
     }
 
     public void blacklistAccessToken(String accessToken, long ttl) {
@@ -70,7 +117,7 @@ public class RedisTokenService {
         redisTemplate.opsForValue().set(
                 HISTORY_KEY.formatted(oldRtHash),
                 value,
-                Duration.ofSeconds(10)
+                Duration.ofSeconds(REISSUE_HISTORY_TTL_SECONDS)
         );
     }
 

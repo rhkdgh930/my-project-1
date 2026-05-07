@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Component
@@ -15,8 +16,8 @@ public class ImageBatchProcessor {
     private final ImageRepository imageRepository;
 
     @Transactional
-    public void markDeletedBulk(List<Long> ids) {
+    public void markDeletedBulk(List<Long> ids, LocalDateTime now) {
         if (ids.isEmpty()) return;
-        imageRepository.bulkMarkDeleted(ids);
+        imageRepository.bulkMarkDeleted(ids, now);
     }
 }

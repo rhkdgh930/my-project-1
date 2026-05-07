@@ -3,9 +3,6 @@ package com.example.my_project_1.user.service.impl;
 import com.example.my_project_1.auth.service.*;
 import com.example.my_project_1.common.exception.CustomException;
 import com.example.my_project_1.common.exception.ErrorCode;
-import com.example.my_project_1.common.utils.DataSerializer;
-import com.example.my_project_1.outbox.domain.OutboxEventType;
-import com.example.my_project_1.outbox.service.OutboxPublisher;
 import com.example.my_project_1.outbox.service.UserAccountChangeOutboxPublisher;
 import com.example.my_project_1.user.domain.Email;
 import com.example.my_project_1.user.domain.User;
@@ -42,8 +39,8 @@ public class UserCommandServiceImpl implements UserCommandService {
     private final RedisEmailVerificationService redisEmailVerificationService;
     private final RedisPasswordResetTokenService redisPasswordResetTokenService;
 
-    private final OutboxPublisher outboxPublisher;
     private final UserAccountChangeOutboxPublisher userAccountChangeOutboxPublisher;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Value("${app.frontend-url}")
     private String frontendUrl;
@@ -55,13 +52,8 @@ public class UserCommandServiceImpl implements UserCommandService {
 
         String code = generateVerificationCode();
 
-        outboxPublisher.publish(
-                OutboxEventType.EMAIL_VERIFICATION,
-                DataSerializer.serialize(
-                        new EmailVerificationOutboxEvent(email.getValue(), code)
-                ),
-                "EMAIL_VERIFICATION:%s:%s".formatted(email.getValue(), UUID.randomUUID())
-        );
+        redisEmailVerificationService.saveCode(email.getValue(), code);
+        eventPublisher.publishEvent(new EmailVerificationMailRequestedEvent(email.getValue(), code));
     }
 
     @Override
@@ -156,27 +148,24 @@ public class UserCommandServiceImpl implements UserCommandService {
             String rawToken = UUID.randomUUID().toString();
             String resetLink = frontendUrl + "/password-reset?token=" + rawToken;
 
-            outboxPublisher.publish(
-                    OutboxEventType.PASSWORD_RESET,
-                    DataSerializer.serialize(
-                            new PasswordResetOutboxEvent(emailValue, rawToken, resetLink)
-                    ),
-                    "PASSWORD_RESET:%s:%s".formatted(emailValue, UUID.randomUUID())
-            );
+            redisPasswordResetTokenService.saveToken(rawToken, emailValue);
+            eventPublisher.publishEvent(new PasswordResetMailRequestedEvent(emailValue, rawToken, resetLink));
         });
     }
 
     @Override
     public void resetPassword(PasswordResetRequest request) {
-        String emailValue = redisPasswordResetTokenService.validateAndGetEmail(request.getToken());
+        String emailValue = redisPasswordResetTokenService.consumeToken(request.getToken());
 
         User user = userRepository.findByEmail(Email.from(emailValue))
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
+        if (passwordEncoder.matches(request.getNewPassword(), user.getPassword())) {
+            throw new CustomException(ErrorCode.SAME_PASSWORD);
+        }
+
         user.updatePassword(passwordEncoder.encode(request.getNewPassword()));
         userAccountChangeOutboxPublisher.publish(user.getId(), UserAccountChangedType.SECURITY_CHANGED);
-
-        redisPasswordResetTokenService.deleteToken(request.getToken());
     }
 
     private String generateVerificationCode() {

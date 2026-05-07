@@ -29,28 +29,19 @@ public class UserAccountChangedHandler implements OutboxHandler {
         UserAccountChangedOutboxEvent event =
                 DataSerializer.deserialize(payload, UserAccountChangedOutboxEvent.class);
 
-        if (event == null || event.getType() == null) {
+        if (event == null || event.getUserId() == null || event.getType() == null) {
             throw new IllegalArgumentException("Invalid USER_ACCOUNT_CHANGED payload");
         }
 
         Long userId = event.getUserId();
         UserAccountChangedType type = event.getType();
 
-        try {
-            if (type.shouldEvictCache()) {
-                redisUserContextService.evict(userId);
-            }
+        if (type.shouldEvictCache()) {
+            redisUserContextService.evict(userId);
+        }
 
-            if (type.shouldInvalidateToken()) {
-                redisTokenService.deleteRefreshTokenHash(userId);
-            }
-
-        } catch (Exception e) {
-            log.error(
-                    "[OUTBOX][USER_ACCOUNT_CHANGED][FAIL] userId={}",
-                    userId,
-                    e
-            );
+        if (type.shouldInvalidateToken()) {
+            redisTokenService.deleteRefreshTokenHash(userId);
         }
 
         log.debug("[OUTBOX][USER_ACCOUNT_CHANGED][SUCCESS] userId={} type={}", userId, type);

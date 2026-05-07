@@ -16,7 +16,7 @@ class UserTest {
     private final static String PASSWORD = "password123*";
     private final static String NICKNAME = "nickname";
     private static final String DEFAULT_INTRODUCE = "자기소개를 입력해주세요.";
-    private static final String DEFAULT_IMG_URL = "uploads/default.png";
+    private static final String DEFAULT_IMG_URL = "http://localhost:8080/images/default.png";
 
     @Test
     @DisplayName("유저 회원가입 성공 테스트")
@@ -150,6 +150,26 @@ class UserTest {
         assertThat(user.getUserStatus()).isEqualTo(UserStatus.ACTIVE);
 
         assertThat(user.isActive()).isTrue();
+    }
+
+    @Test
+    @DisplayName("complete withdrawal은 soft delete 없이 email을 비가역 마스킹한다.")
+    void completeWithdrawal_masksEmailIrreversiblyWithoutSoftDelete() {
+        User user = getVerifiedUser();
+        LocalDateTime now = LocalDateTime.now();
+
+        user.requestWithdrawal(now);
+        user.completeWithdrawal();
+
+        String maskedEmail = user.getEmail().getValue();
+
+        assertThat(maskedEmail).startsWith("deleted_");
+        assertThat(maskedEmail).endsWith("@deleted.local");
+        assertThat(maskedEmail).doesNotContain(EMAIL);
+        assertThat(maskedEmail).doesNotContain("email.com");
+        assertThat(maskedEmail).doesNotContain("email@email");
+        assertThat(user.getUserStatus()).isEqualTo(UserStatus.WITHDRAWN);
+        assertThat(user.isDeleted()).isFalse();
     }
 
     private static User getVerifiedUser() {

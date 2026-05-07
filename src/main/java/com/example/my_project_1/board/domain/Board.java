@@ -13,6 +13,8 @@ import org.springframework.util.Assert;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+import static org.springframework.util.Assert.hasText;
+
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Entity
@@ -37,13 +39,13 @@ public class Board extends BaseEntity {
 
     @Builder
     private Board(String name, String description) {
-        Assert.hasText(name, "게시판명은 필수입니다.");
+        hasText(name, "게시판명은 필수입니다.");
         this.name = name;
         this.description = description;
     }
 
     public void update(String name, String description) {
-        Assert.hasText(name, "게시판명은 필수입니다.");
+        hasText(name, "게시판명은 필수입니다.");
         this.name = name;
         this.description = description;
     }

@@ -54,6 +54,10 @@ public class RedisEmailVerificationService {
         redisTemplate.delete(verifiedKey(email));
     }
 
+    public void deleteCode(String email) {
+        redisTemplate.delete(key(email));
+    }
+
     private String key(String email) {
         return VERIFICATION_KEY.formatted(email);
     }

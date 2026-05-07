@@ -75,7 +75,9 @@ public class JwtLoginFailureHandler implements AuthenticationFailureHandler {
     private static Object putSuspendedData(UserSuspendedException suspendedEx) {
         Map<String, Object> map = new HashMap<>();
         map.put("reason", suspendedEx.getReason() != null ? suspendedEx.getReason().getDescription() : "사유 없음");
-        map.put("suspendedUntil", suspendedEx.getSuspendedUntil().toString());
+        map.put("suspendedUntil", suspendedEx.getSuspendedUntil() != null
+                ? suspendedEx.getSuspendedUntil().toString()
+                : null);
         map.put("permanent", suspendedEx.isPermanent());
 
         return map;
