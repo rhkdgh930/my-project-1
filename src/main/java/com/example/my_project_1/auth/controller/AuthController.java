@@ -3,10 +3,9 @@ package com.example.my_project_1.auth.controller;
 import com.example.my_project_1.auth.service.AuthService;
 import com.example.my_project_1.auth.service.request.LoginRequest;
 import com.example.my_project_1.auth.service.response.TokenResponse;
-import com.example.my_project_1.auth.utils.CookieUtils;
+import com.example.my_project_1.auth.utils.AuthTokenResolver;
+import com.example.my_project_1.auth.utils.CookieManager;
 import com.example.my_project_1.auth.utils.JwtProvider;
-import com.example.my_project_1.common.exception.CustomException;
-import com.example.my_project_1.common.exception.ErrorCode;
 import com.example.my_project_1.common.exception.ExceptionResponse;
 import com.example.my_project_1.common.exception.ValidExceptionResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -21,7 +20,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -30,7 +28,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import static com.example.my_project_1.auth.constant.SecurityConstants.AUTHORIZATION;
-import static com.example.my_project_1.auth.constant.SecurityConstants.BEARER;
 import static com.example.my_project_1.auth.constant.SecurityConstants.REFRESH_TOKEN;
 import static com.example.my_project_1.auth.constant.SecurityConstants.REFRESH_TOKEN_COOKIE;
 
@@ -42,8 +39,8 @@ public class AuthController {
 
     private final AuthService authService;
     private final JwtProvider jwtProvider;
-
-    // TODO 개발 단계에서는 Cookie/Header refresh token을 모두 허용한다. 운영 목표는 HttpOnly cookie 기반이다.
+    private final CookieManager cookieManager;
+    private final AuthTokenResolver authTokenResolver;
 
     @Operation(
             summary = "토큰 재발급",
@@ -61,32 +58,26 @@ public class AuthController {
     })
     @PostMapping("/reissue")
     public ResponseEntity<TokenResponse> reissue(
-            @Parameter(
-                    name = REFRESH_TOKEN_COOKIE,
-                    in = ParameterIn.COOKIE,
-                    description = "Refresh token cookie. Header보다 우선합니다.",
-                    required = false
-            )
+            @Parameter(name = REFRESH_TOKEN_COOKIE, in = ParameterIn.COOKIE, required = false)
             @CookieValue(value = REFRESH_TOKEN_COOKIE, required = false) String refreshTokenCookie,
-            @Parameter(
-                    name = REFRESH_TOKEN,
-                    in = ParameterIn.HEADER,
-                    description = "Refresh token header fallback. Cookie가 없을 때 사용합니다.",
-                    required = false
-            )
+
+            @Parameter(name = REFRESH_TOKEN, in = ParameterIn.HEADER, required = false)
             @RequestHeader(value = REFRESH_TOKEN, required = false) String refreshTokenHeader,
+
             HttpServletResponse response
     ) {
-        String refreshToken = resolveRefreshToken(refreshTokenCookie, refreshTokenHeader);
+        String refreshToken = authTokenResolver.resolveRequiredRefreshToken(
+                refreshTokenCookie,
+                refreshTokenHeader
+        );
 
         TokenResponse tokenResponse = authService.reissue(refreshToken);
 
         int refreshMaxAge =
                 (int) (jwtProvider.getRemainingValidityMillis(tokenResponse.getRefreshToken()) / 1000);
 
-        CookieUtils.addCookie(
+        cookieManager.addRefreshTokenCookie(
                 response,
-                REFRESH_TOKEN_COOKIE,
                 tokenResponse.getRefreshToken(),
                 refreshMaxAge
         );
@@ -110,9 +101,20 @@ public class AuthController {
     })
     @PostMapping("/restore")
     public ResponseEntity<TokenResponse> restore(
-            @Valid @RequestBody LoginRequest request) {
-
+            @Valid @RequestBody LoginRequest request,
+            HttpServletResponse response
+    ) {
         TokenResponse tokenResponse = authService.restoreAccount(request);
+
+        int refreshMaxAge =
+                (int) (jwtProvider.getRemainingValidityMillis(tokenResponse.getRefreshToken()) / 1000);
+
+        cookieManager.addRefreshTokenCookie(
+                response,
+                tokenResponse.getRefreshToken(),
+                refreshMaxAge
+        );
+
         return ResponseEntity.ok(tokenResponse);
     }
 
@@ -134,83 +136,27 @@ public class AuthController {
     })
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(
-            @Parameter(
-                    name = AUTHORIZATION,
-                    in = ParameterIn.HEADER,
-                    description = "Optional Bearer access token. 있으면 blacklist 처리를 시도합니다. 예: Bearer eyJhbGciOiJIUzI1NiJ9...",
-                    required = false
-            )
+            @Parameter(name = AUTHORIZATION, in = ParameterIn.HEADER, required = false)
             @RequestHeader(value = AUTHORIZATION, required = false) String authorizationHeader,
 
-            @Parameter(
-                    name = REFRESH_TOKEN_COOKIE,
-                    in = ParameterIn.COOKIE,
-                    description = "Optional refresh token cookie.",
-                    required = false
-            )
+            @Parameter(name = REFRESH_TOKEN_COOKIE, in = ParameterIn.COOKIE, required = false)
             @CookieValue(value = REFRESH_TOKEN_COOKIE, required = false) String refreshTokenCookie,
-            @Parameter(
-                    name = REFRESH_TOKEN,
-                    in = ParameterIn.HEADER,
-                    description = "Optional refresh token header fallback.",
-                    required = false
-            )
+
+            @Parameter(name = REFRESH_TOKEN, in = ParameterIn.HEADER, required = false)
             @RequestHeader(value = REFRESH_TOKEN, required = false) String refreshTokenHeader,
 
             HttpServletResponse response
     ) {
-        String accessToken = resolveOptionalBearerToken(authorizationHeader);
-        String refreshToken = resolveOptionalRefreshToken(refreshTokenCookie, refreshTokenHeader);
+        String accessToken = authTokenResolver.resolveOptionalBearerToken(authorizationHeader);
+        String refreshToken = authTokenResolver.resolveOptionalRefreshToken(
+                refreshTokenCookie,
+                refreshTokenHeader
+        );
 
         authService.logout(accessToken, refreshToken);
 
-        CookieUtils.deleteCookie(response, REFRESH_TOKEN_COOKIE);
+        cookieManager.deleteRefreshTokenCookie(response);
 
         return ResponseEntity.ok().build();
-    }
-
-    private String resolveRefreshToken(String refreshTokenCookie, String refreshTokenHeader) {
-        String refreshToken = resolveOptionalRefreshToken(refreshTokenCookie, refreshTokenHeader);
-
-        if (!StringUtils.hasText(refreshToken)) {
-            throw new CustomException(ErrorCode.INVALID_REFRESH_TOKEN);
-        }
-
-        return refreshToken;
-    }
-
-    private String resolveOptionalBearerToken(String authorizationHeader) {
-        if (!StringUtils.hasText(authorizationHeader)) {
-            return null;
-        }
-
-        if (!authorizationHeader.startsWith(BEARER)) {
-            throw new CustomException(ErrorCode.INVALID_ACCESS_TOKEN);
-        }
-
-        return authorizationHeader.substring(BEARER.length());
-    }
-
-    private String resolveOptionalRefreshToken(String refreshTokenCookie, String refreshTokenHeader) {
-        boolean hasCookie = StringUtils.hasText(refreshTokenCookie);
-        boolean hasHeader = StringUtils.hasText(refreshTokenHeader);
-
-        if (hasCookie && hasHeader) {
-            if (!refreshTokenCookie.equals(refreshTokenHeader)) {
-                throw new CustomException(ErrorCode.INVALID_REFRESH_TOKEN);
-            }
-
-            return refreshTokenCookie;
-        }
-
-        if (hasCookie) {
-            return refreshTokenCookie;
-        }
-
-        if (hasHeader) {
-            return refreshTokenHeader;
-        }
-
-        return null;
     }
 }
