@@ -3,6 +3,7 @@ package com.example.my_project_1.auth.handler;
 import com.example.my_project_1.auth.exception.UserSuspendedException;
 import com.example.my_project_1.auth.service.RedisLoginAttemptService;
 import com.example.my_project_1.common.exception.ErrorCode;
+import com.example.my_project_1.common.exception.ErrorResponseWriter;
 import com.example.my_project_1.user.domain.SuspensionReason;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -15,7 +16,8 @@ import static org.mockito.Mockito.mock;
 class JwtLoginFailureHandlerTest {
 
     private final RedisLoginAttemptService loginAttemptService = mock(RedisLoginAttemptService.class);
-    private final JwtLoginFailureHandler handler = new JwtLoginFailureHandler(loginAttemptService);
+    private final ErrorResponseWriter errorResponseWriter = new ErrorResponseWriter();
+    private final JwtLoginFailureHandler handler = new JwtLoginFailureHandler(loginAttemptService, errorResponseWriter);
 
     @Test
     @DisplayName("영구 정지 계정은 suspendedUntil이 없어도 NPE 없이 USER_SUSPENDED 응답을 반환한다.")

@@ -1,19 +1,15 @@
 package com.example.my_project_1.auth.config;
 
 import com.example.my_project_1.auth.filter.JwtAuthenticationFilter;
-import com.example.my_project_1.auth.handler.JwtAccessDeniedHandler;
-import com.example.my_project_1.auth.handler.JwtAuthenticationEntryPoint;
-import com.example.my_project_1.auth.handler.JwtLoginFailureHandler;
-import com.example.my_project_1.auth.handler.JwtLoginSuccessHandler;
-import com.example.my_project_1.auth.handler.OAuth2LoginSuccessHandler;
+import com.example.my_project_1.auth.handler.*;
 import com.example.my_project_1.auth.controller.AuthController;
 import com.example.my_project_1.auth.oauth.CustomOAuth2UserService;
-import com.example.my_project_1.auth.service.AuthService;
-import com.example.my_project_1.auth.service.RedisLoginAttemptService;
-import com.example.my_project_1.auth.service.RedisTokenService;
-import com.example.my_project_1.auth.service.RedisUserContextService;
+import com.example.my_project_1.auth.service.*;
 import com.example.my_project_1.auth.service.response.TokenResponse;
 import com.example.my_project_1.auth.userdetails.UserDetailsImpl;
+import com.example.my_project_1.auth.utils.AuthTokenResolver;
+import com.example.my_project_1.auth.utils.CookieManager;
+import com.example.my_project_1.auth.utils.CookieProperties;
 import com.example.my_project_1.auth.utils.JwtProvider;
 import com.example.my_project_1.board.controller.AdminBoardController;
 import com.example.my_project_1.board.controller.BoardController;
@@ -24,6 +20,7 @@ import com.example.my_project_1.comment.service.CommentCommandService;
 import com.example.my_project_1.comment.service.CommentQueryService;
 import com.example.my_project_1.common.exception.CustomException;
 import com.example.my_project_1.common.exception.ErrorCode;
+import com.example.my_project_1.common.exception.ErrorResponseWriter;
 import com.example.my_project_1.common.logging.HttpLoggingFilter;
 import com.example.my_project_1.common.logging.SecurityUserMdcFilter;
 import com.example.my_project_1.common.logging.TraceIdFilter;
@@ -54,6 +51,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -87,7 +85,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         TraceIdFilter.class,
         SecurityUserMdcFilter.class,
         HttpLoggingFilter.class,
-        PasswordConfig.class
+        PasswordConfig.class,
+        UserAccountPolicy.class,
+        CookieProperties.class,
+        CookieManager.class,
+        AuthTokenResolver.class,
+        ErrorResponseWriter.class
 })
 class BoardPostCommentImageSecurityConfigTest {
 
@@ -147,6 +150,9 @@ class BoardPostCommentImageSecurityConfigTest {
 
     @MockitoBean
     private OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler;
+
+    @MockitoBean
+    private OAuth2LoginFailureHandler oAuth2LoginFailureHandler;
 
     @MockitoBean
     private CustomOAuth2UserService customOAuth2UserService;
@@ -371,7 +377,8 @@ class BoardPostCommentImageSecurityConfigTest {
                 null,
                 null,
                 false,
-                false
+                false,
+                Map.of()
         );
     }
 }
