@@ -46,7 +46,7 @@ public class CustomAuthenticationProvider extends DaoAuthenticationProvider {
 
     private void validateWithdrawalStatus(UserDetailsImpl details) {
 
-        if (details.isDeleted()) {
+        if (details.isDeleted() || details.getUserStatus() == UserStatus.WITHDRAWN) {
             throw new WithdrawalCompletedException("탈퇴 처리 된 계정입니다.");
         }
 
