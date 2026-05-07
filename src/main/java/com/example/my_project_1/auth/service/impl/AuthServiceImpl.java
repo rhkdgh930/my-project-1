@@ -104,6 +104,8 @@ public class AuthServiceImpl implements AuthService {
         // 🔥 도메인 로직
         user.cancelWithdrawal(LocalDateTime.now(clock));
 
+        userContextService.evict(user.getId());
+
         userAccountChangeOutboxPublisher.publish(user.getId(), UserAccountChangedType.WITHDRAWAL_RESTORED);
         // 토큰 생성
         String accessToken = jwtProvider.createAccessToken(user.getId(), user.getRole().name());
