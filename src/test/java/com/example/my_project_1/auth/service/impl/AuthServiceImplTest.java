@@ -210,6 +210,95 @@ class AuthServiceImplTest {
         verify(jwtProvider, never()).createRefreshToken(anyLong());
     }
 
+    @Test
+    @DisplayName("로그아웃 access token이 만료되면 blacklist를 생략하고 성공한다.")
+    void logout_skipsBlacklistWhenAccessTokenExpired() {
+        String accessToken = "expired-access-token";
+
+        when(jwtProvider.parseClaimsSafely(accessToken))
+                .thenThrow(new JwtAuthenticationException(ErrorCode.EXPIRED_ACCESS_TOKEN));
+
+        authService.logout(accessToken, null);
+
+        verify(redisTokenService, never()).blacklistAccessToken(anyString(), anyLong());
+        verify(redisTokenService, never()).deleteRefreshTokenHash(anyLong());
+    }
+
+    @Test
+    @DisplayName("로그아웃 access token이 유효하면 남은 TTL만큼 blacklist 처리한다.")
+    void logout_blacklistsValidAccessToken() {
+        String accessToken = "access-token";
+        Claims claims = mock(Claims.class);
+
+        when(jwtProvider.parseClaimsSafely(accessToken)).thenReturn(claims);
+        when(jwtProvider.getRemainingValidityMillis(claims)).thenReturn(60_000L);
+
+        authService.logout(accessToken, null);
+
+        verify(jwtProvider).assertAccessToken(claims);
+        verify(redisTokenService).blacklistAccessToken(accessToken, 60_000L);
+    }
+
+    @Test
+    @DisplayName("로그아웃 access token이 없으면 blacklist를 생략하고 성공한다.")
+    void logout_skipsBlacklistWhenAccessTokenMissing() {
+        authService.logout(null, null);
+
+        verifyNoInteractions(jwtProvider);
+        verify(redisTokenService, never()).blacklistAccessToken(anyString(), anyLong());
+        verify(redisTokenService, never()).deleteRefreshTokenHash(anyLong());
+    }
+
+    @Test
+    @DisplayName("로그아웃 refresh token이 있으면 userId를 읽고 refresh token hash를 삭제한다.")
+    void logout_deletesRefreshTokenHashWhenRefreshTokenPresent() {
+        String refreshToken = "refresh-token";
+        Claims claims = mock(Claims.class);
+
+        when(jwtProvider.parseClaimsSafely(refreshToken)).thenReturn(claims);
+        when(claims.getSubject()).thenReturn("1");
+
+        authService.logout(null, refreshToken);
+
+        verify(jwtProvider).assertRefreshToken(claims);
+        verify(redisTokenService).deleteRefreshTokenHash(1L);
+        verify(redisTokenService, never()).blacklistAccessToken(anyString(), anyLong());
+    }
+
+    @Test
+    @DisplayName("로그아웃 access token이 만료되어도 refresh token 정리는 계속 진행한다.")
+    void logout_deletesRefreshTokenHashWhenAccessTokenExpired() {
+        String accessToken = "expired-access-token";
+        String refreshToken = "refresh-token";
+        Claims refreshClaims = mock(Claims.class);
+
+        when(jwtProvider.parseClaimsSafely(accessToken))
+                .thenThrow(new JwtAuthenticationException(ErrorCode.EXPIRED_ACCESS_TOKEN));
+        when(jwtProvider.parseClaimsSafely(refreshToken)).thenReturn(refreshClaims);
+        when(refreshClaims.getSubject()).thenReturn("1");
+
+        authService.logout(accessToken, refreshToken);
+
+        verify(redisTokenService, never()).blacklistAccessToken(anyString(), anyLong());
+        verify(jwtProvider).assertRefreshToken(refreshClaims);
+        verify(redisTokenService).deleteRefreshTokenHash(1L);
+    }
+
+    @Test
+    @DisplayName("로그아웃 refresh token이 유효하지 않으면 INVALID_REFRESH_TOKEN을 전파한다.")
+    void logout_rejectsInvalidRefreshToken() {
+        String refreshToken = "invalid-refresh-token";
+        JwtAuthenticationException exception = new JwtAuthenticationException(ErrorCode.INVALID_REFRESH_TOKEN);
+
+        when(jwtProvider.parseClaimsSafely(refreshToken)).thenThrow(exception);
+
+        assertThatThrownBy(() -> authService.logout(null, refreshToken))
+                .isSameAs(exception);
+
+        verify(redisTokenService, never()).deleteRefreshTokenHash(anyLong());
+        verify(redisTokenService, never()).blacklistAccessToken(anyString(), anyLong());
+    }
+
     private CachedUserContext activeContext(Long userId) {
         return new CachedUserContext(
                 userId,

@@ -86,7 +86,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         JwtAccessDeniedHandler.class,
         TraceIdFilter.class,
         SecurityUserMdcFilter.class,
-        HttpLoggingFilter.class
+        HttpLoggingFilter.class,
+        PasswordConfig.class
 })
 class BoardPostCommentImageSecurityConfigTest {
 
@@ -239,8 +240,7 @@ class BoardPostCommentImageSecurityConfigTest {
                 .andExpect(result -> assertThat(result.getResponse().getStatus())
                         .isNotEqualTo(HttpStatus.UNAUTHORIZED.value()));
         mockMvc.perform(post("/api/auth/logout"))
-                .andExpect(result -> assertThat(result.getResponse().getStatus())
-                        .isNotEqualTo(HttpStatus.UNAUTHORIZED.value()));
+                .andExpect(status().isOk());
         mockMvc.perform(post("/api/auth/restore")
                         .contentType("application/json")
                         .content("{}"))
