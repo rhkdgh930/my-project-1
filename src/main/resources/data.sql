@@ -7,11 +7,20 @@ VALUES ('rhkdgh821@naver.com', '{bcrypt}$2a$10$fVn4lhyxvKSwaHQja3L4D.fTshkPTdWSE
 INSERT INTO board (name, description, created_at, updated_at)
 VALUES ('공지사항', '공지사항입니다.', NOW(), NOW());
 
+INSERT INTO board (name, description, created_at, updated_at)
+VALUES ('자유게시판', '자유게시판입니다.', NOW(), NOW());
+
 INSERT INTO post (board_id, user_id, title, content, like_count, view_count, created_at, updated_at)
 VALUES (1, 1, '첫 게시물', '첫 게시물 입니다.', 0, 0, NOW(), NOW());
 
+INSERT INTO post (board_id, user_id, title, content, like_count, view_count, created_at, updated_at)
+VALUES (1, 1, '두번째 게시물', '두번째 게시물 입니다.', 0, 0, NOW(), NOW());
+
 INSERT INTO comment (post_id, user_id, content, parent_id, depth, created_at, updated_at)
 VALUES (1, 1, '첫번째 댓글', null, 0, NOW(), NOW());
+
+INSERT INTO comment (post_id, user_id, content, parent_id, depth, created_at, updated_at)
+VALUES (1, 1, '두번째 댓글', null, 0, NOW(), NOW());
 
 INSERT INTO comment (post_id, user_id, content, parent_id, depth, created_at, updated_at)
 VALUES (1, 1, '첫번째 대댓글', 1, 1, NOW(), NOW());
