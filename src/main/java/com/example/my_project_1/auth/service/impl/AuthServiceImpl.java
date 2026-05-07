@@ -126,6 +126,9 @@ public class AuthServiceImpl implements AuthService {
     }
 
     private void blacklistAccessTokenIfValid(String accessToken) {
+        if (!StringUtils.hasText(accessToken)) {
+            return;
+        }
         Claims claims;
 
         try {

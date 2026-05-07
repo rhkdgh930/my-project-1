@@ -5,9 +5,9 @@ import com.example.my_project_1.auth.service.request.LoginRequest;
 import com.example.my_project_1.auth.service.response.TokenResponse;
 import com.example.my_project_1.auth.utils.CookieUtils;
 import com.example.my_project_1.auth.utils.JwtProvider;
-import com.example.my_project_1.common.exception.ExceptionResponse;
 import com.example.my_project_1.common.exception.CustomException;
 import com.example.my_project_1.common.exception.ErrorCode;
+import com.example.my_project_1.common.exception.ExceptionResponse;
 import com.example.my_project_1.common.exception.ValidExceptionResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -22,9 +22,17 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.CookieValue;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
-import static com.example.my_project_1.auth.constant.SecurityConstants.*;
+import static com.example.my_project_1.auth.constant.SecurityConstants.AUTHORIZATION;
+import static com.example.my_project_1.auth.constant.SecurityConstants.BEARER;
+import static com.example.my_project_1.auth.constant.SecurityConstants.REFRESH_TOKEN;
+import static com.example.my_project_1.auth.constant.SecurityConstants.REFRESH_TOKEN_COOKIE;
 
 @Tag(name = "Auth API", description = "JWT login, token reissue, logout, and account restore APIs")
 @RestController
@@ -42,7 +50,7 @@ public class AuthController {
             description = """
                     refreshToken cookie를 우선 사용하고, 없으면 Refresh-Token header를 fallback으로 사용합니다.
                     cookie와 header가 모두 있고 값이 다르면 INVALID_REFRESH_TOKEN으로 실패합니다.
-                    성공 시 새 accessToken/refreshToken을 반환하고 새 refreshToken cookie를 내려줍니다.
+                    성공 시 accessToken/refreshToken을 반환하고 새 refreshToken cookie를 내려줍니다.
                     """
     )
     @ApiResponses({
@@ -88,7 +96,7 @@ public class AuthController {
 
     @Operation(
             summary = "탈퇴 요청 계정 복구",
-            description = "탈퇴 유예 기간 안의 계정을 이메일/비밀번호로 복구하고 TokenResponse를 반환합니다."
+            description = "탈퇴 유예 기간 안의 계정을 이메일과 비밀번호로 복구하고 TokenResponse를 반환합니다."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "계정 복구 성공",
@@ -111,14 +119,17 @@ public class AuthController {
     @Operation(
             summary = "로그아웃",
             description = """
-                    SecurityConfig에서는 permitAll 경로지만 실제 API 사용에는 Authorization: Bearer accessToken header가 필요합니다.
-                    optional refreshToken cookie/header가 있으면 refresh token hash 삭제도 시도합니다.
-                    성공 시 refreshToken cookie를 삭제하고 200 OK를 반환합니다.
+                    Authorization header는 optional입니다.
+                    accessToken이 있으면 Authorization: Bearer accessToken header를 통해 blacklist 처리를 시도합니다.
+                    accessToken이 없거나 만료되었으면 blacklist는 생략하고 logout을 계속 진행합니다.
+                    refreshToken cookie 또는 Refresh-Token header가 있으면 refresh token hash 삭제를 시도합니다.
+                    refreshToken이 없어도 성공하며, 성공 시 refreshToken cookie를 삭제하고 200 OK를 반환합니다.
+                    잘못된 Bearer 형식 또는 유효하지 않은 refreshToken은 401로 응답합니다.
                     """
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "로그아웃 성공"),
-            @ApiResponse(responseCode = "401", description = "유효하지 않은 access token 또는 refresh token",
+            @ApiResponse(responseCode = "401", description = "잘못된 token 형식 또는 유효하지 않은 refreshToken",
                     content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
     })
     @PostMapping("/logout")
@@ -126,10 +137,10 @@ public class AuthController {
             @Parameter(
                     name = AUTHORIZATION,
                     in = ParameterIn.HEADER,
-                    description = "Bearer access token. 예: Bearer eyJhbGciOiJIUzI1NiJ9...",
-                    required = true
+                    description = "Optional Bearer access token. 있으면 blacklist 처리를 시도합니다. 예: Bearer eyJhbGciOiJIUzI1NiJ9...",
+                    required = false
             )
-            @RequestHeader(AUTHORIZATION) String authorizationHeader,
+            @RequestHeader(value = AUTHORIZATION, required = false) String authorizationHeader,
 
             @Parameter(
                     name = REFRESH_TOKEN_COOKIE,
@@ -148,7 +159,7 @@ public class AuthController {
 
             HttpServletResponse response
     ) {
-        String accessToken = resolveBearerToken(authorizationHeader);
+        String accessToken = resolveOptionalBearerToken(authorizationHeader);
         String refreshToken = resolveOptionalRefreshToken(refreshTokenCookie, refreshTokenHeader);
 
         authService.logout(accessToken, refreshToken);
@@ -156,14 +167,6 @@ public class AuthController {
         CookieUtils.deleteCookie(response, REFRESH_TOKEN_COOKIE);
 
         return ResponseEntity.ok().build();
-    }
-
-    private String resolveBearerToken(String authorizationHeader) {
-        if (!StringUtils.hasText(authorizationHeader) || !authorizationHeader.startsWith(BEARER)) {
-            throw new CustomException(ErrorCode.INVALID_ACCESS_TOKEN);
-        }
-
-        return authorizationHeader.substring(BEARER.length());
     }
 
     private String resolveRefreshToken(String refreshTokenCookie, String refreshTokenHeader) {
@@ -174,6 +177,18 @@ public class AuthController {
         }
 
         return refreshToken;
+    }
+
+    private String resolveOptionalBearerToken(String authorizationHeader) {
+        if (!StringUtils.hasText(authorizationHeader)) {
+            return null;
+        }
+
+        if (!authorizationHeader.startsWith(BEARER)) {
+            throw new CustomException(ErrorCode.INVALID_ACCESS_TOKEN);
+        }
+
+        return authorizationHeader.substring(BEARER.length());
     }
 
     private String resolveOptionalRefreshToken(String refreshTokenCookie, String refreshTokenHeader) {
