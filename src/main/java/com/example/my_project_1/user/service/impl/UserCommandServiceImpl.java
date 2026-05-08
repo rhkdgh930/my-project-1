@@ -67,6 +67,7 @@ public class UserCommandServiceImpl implements UserCommandService {
 
         Email email = Email.from(request.getEmail());
         validateDuplicateEmail(email);
+        validateDuplicateNickname(request.getNickname());
 
         String encodedPassword = passwordEncoder.encode(request.getPassword());
 
@@ -86,6 +87,12 @@ public class UserCommandServiceImpl implements UserCommandService {
     private void validateDuplicateEmail(Email email) {
         if (userRepository.existsByEmail(email)) {
             throw new CustomException(ErrorCode.DUPLICATED_EMAIL);
+        }
+    }
+
+    private void validateDuplicateNickname(String nickname) {
+        if (userRepository.existsByNickname(nickname)) {
+            throw new CustomException(ErrorCode.DUPLICATED_NICKNAME);
         }
     }
 

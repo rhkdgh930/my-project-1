@@ -19,6 +19,7 @@ public enum ErrorCode {
     INVALID_COMMENT_POST_RELATION(HttpStatus.BAD_REQUEST, "댓글이 해당 게시글에 속하지 않습니다."),
     INVALID_BOARD_POST_RELATION(HttpStatus.BAD_REQUEST, "해당 게시판에 속하지 않은 게시글입니다."),
     DUPLICATED_EMAIL(HttpStatus.BAD_REQUEST, "이미 존재하는 이메일입니다."),
+    DUPLICATED_NICKNAME(HttpStatus.BAD_REQUEST, "이미 존재하는 닉네임입니다."),
     USER_NOT_ACTIVE(HttpStatus.BAD_REQUEST, "활성화된 유저가 아닙니다."),
     INVALID_USER_STATUS(HttpStatus.BAD_REQUEST, "유효하지 않은 유저 상태입니다."),
     SAME_PASSWORD(HttpStatus.BAD_REQUEST, "기존 비밀번호와 동일합니다."),
