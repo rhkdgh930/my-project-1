@@ -26,7 +26,7 @@ public class TraceIdFilter extends OncePerRequestFilter {
         try {
             filterChain.doFilter(request, response);
         } finally {
-            MDC.clear();
+            MDC.remove(TraceConstants.TRACE_ID);
         }
     }
 }
