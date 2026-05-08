@@ -34,18 +34,17 @@ public interface OutboxRepository extends JpaRepository<OutboxEvent, Long> {
             """)
     int claim(@Param("id") Long id, @Param("now") LocalDateTime now);
 
-    @Modifying
     @Query("""
-            UPDATE OutboxEvent o
-            SET o.status = 'FAILED',
-                o.nextRetryAt = :now,
-                o.lastError = :lastErrorMessage
+            SELECT o.id
+            FROM OutboxEvent o
             WHERE o.status = 'PROCESSING'
               AND o.lastTriedAt < :threshold
+            ORDER BY o.lastTriedAt ASC, o.id ASC
             """)
-    int recoverStuckEvents(@Param("threshold") LocalDateTime threshold,
-                           @Param("now") LocalDateTime now,
-                           @Param("lastErrorMessage") String lastErrorMessage);
+    List<Long> findStuckProcessingIds(
+            @Param("threshold") LocalDateTime threshold,
+            Pageable pageable
+    );
 
     @Modifying
     @Query("""
