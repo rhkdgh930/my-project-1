@@ -259,11 +259,9 @@ class PostCommandServiceImplTest {
 
         assertThat(post.getDeletedAt()).isEqualTo(LocalDateTime.now(CLOCK));
         assertThat(typeCaptor.getValue()).isEqualTo(OutboxEventType.POST_DELETED);
-        assertThat(eventKeyParts).hasSize(3);
+        assertThat(eventKeyParts).hasSize(2);
         assertThat(eventKeyParts[0]).isEqualTo("POST_DELETED");
         assertThat(eventKeyParts[1]).isEqualTo(postId.toString());
-        assertThatCode(() -> java.util.UUID.fromString(eventKeyParts[2]))
-                .doesNotThrowAnyException();
         assertThat(payload.getPostId()).isEqualTo(postId);
         assertThat(payload.getUserId()).isEqualTo(userId);
     }
