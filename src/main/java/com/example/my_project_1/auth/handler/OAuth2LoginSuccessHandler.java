@@ -57,6 +57,7 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
 
         cookieManager.addRefreshTokenCookie(response, refreshToken, refreshTokenMaxAge);
 
+        //todo 보안 이슈 있음 -> 수정해야함 (테스트 환경이라 편하게 하기 위해 사용)
         String targetUrl = UriComponentsBuilder.fromUriString(frontendUrl)
                 .path(successRedirectPath)
                 .queryParam("accessToken", accessToken)
