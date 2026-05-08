@@ -278,3 +278,91 @@ Redis Cluster 환경에서는 Lua script가 접근하는 모든 key가 같은 ha
 - 단일 Redis 또는 Sentinel 환경에서는 문제가 없다.
 - Redis Cluster를 사용할 경우 key hash tag 설계를 검토해야 한다.
 - Cluster 대응 전에는 이 구조를 그대로 배포하지 않는다.
+
+---
+
+## Current Auth/Security Refactor Policy
+
+이 섹션은 최근 Auth/Security 리팩토링 이후의 현재 구현 기준을 기록한다.
+아래 내용은 TODO가 아니라 현재 코드가 따르는 책임 분리와 정책이다.
+
+### Token Resolution
+
+- `AuthTokenResolver`가 auth request token 해석을 담당한다.
+- Authorization header의 optional bearer access token을 해석한다.
+- refresh token은 cookie 값을 우선 사용하고, 없으면 `Refresh-Token` header로 fallback한다.
+- refresh token cookie와 `Refresh-Token` header가 모두 있고 값이 다르면 `INVALID_REFRESH_TOKEN`으로 실패한다.
+- required refresh token이 없으면 `INVALID_REFRESH_TOKEN`으로 실패한다.
+
+### Refresh Token Cookie
+
+- `CookieManager`가 refresh token cookie 발급과 삭제를 담당한다.
+- `CookieProperties`가 `app.cookie` 설정을 바인딩한다.
+- refresh token cookie의 name, secure, httpOnly, sameSite, path, domain은 `CookieProperties` 기준으로 처리한다.
+- 로그인 성공, reissue 성공, restore 성공 시 refresh token cookie를 발급한다.
+- logout 성공 시 refresh token cookie를 삭제한다.
+
+### Security Error Response
+
+- `ErrorResponseWriter`가 Security handler/filter 영역의 JSON error response 작성을 담당한다.
+- `JwtAuthenticationEntryPoint`, `JwtAccessDeniedHandler`, `JwtLoginFailureHandler`는 직접 JSON을 조립하지 않고 `ErrorResponseWriter`를 사용한다.
+- 공통 `ExceptionResponse` shape를 유지한다.
+- `JwtAuthenticationEntryPoint`는 `JwtAuthenticationException`의 `ErrorCode`를 응답에 반영한다.
+- `JwtAccessDeniedHandler`는 `ACCESS_DENIED`를 응답한다.
+- `JwtLoginFailureHandler`는 로그인 실패 원인별 `ErrorCode`와 필요한 data를 `ExceptionResponse` shape로 응답한다.
+
+### User Account Policy
+
+- `UserAccountPolicy`가 login/API 접근 가능한 계정 상태 정책을 담당한다.
+- 일반 로그인/OAuth2 로그인에서 withdrawn, withdrawal requested, dormant, suspended 상태를 검증한다.
+- API 접근 검증에서는 `UserStatus`, `AccountStatus`, deleted 상태를 기준으로 JWT 인증 실패용 `ErrorCode`를 결정한다.
+- `RedisUserContextService`는 `CachedUserContext`를 조회하고, active user 검증은 `UserAccountPolicy`로 위임한다.
+- Redis user context cache miss 또는 Redis 조회 실패 시 DB fallback을 사용한다.
+
+### Reissue
+
+- reissue는 refresh token cookie를 우선 사용한다.
+- refresh token cookie가 없으면 `Refresh-Token` header를 fallback으로 사용한다.
+- cookie와 header가 모두 있고 값이 다르면 `INVALID_REFRESH_TOKEN`으로 실패한다.
+- refresh token rotation은 Redis에 저장된 refresh token hash와 요청 token hash를 비교하는 기존 정책을 유지한다.
+- reissue history fallback을 유지한다.
+- active user 검증은 `RedisUserContextService`의 `CachedUserContext` 기반으로 수행한다.
+
+### Logout
+
+- logout의 access token은 optional이다.
+- access token이 있으면 access token blacklist를 시도한다.
+- expired access token은 blacklist를 생략하고 logout 처리를 계속한다.
+- refresh token cookie 또는 `Refresh-Token` header가 있으면 refresh token hash 삭제를 시도한다.
+- refresh token이 없어도 logout은 성공한다.
+- refresh token cookie와 header가 모두 있고 값이 다르면 `INVALID_REFRESH_TOKEN`으로 실패한다.
+- 성공 시 `CookieManager.deleteRefreshTokenCookie`로 refresh token cookie를 삭제한다.
+
+### Login Attempt
+
+- `RedisLoginAttemptService`는 email을 trim + lowercase normalize한 뒤 실패 횟수를 관리한다.
+- 빈 email은 실패 횟수 증가와 block check에서 방어적으로 처리한다.
+- 로그인 성공 시 normalize된 email 기준으로 실패 횟수를 초기화한다.
+
+### OAuth2
+
+- `CustomOAuth2UserService`는 Google OAuth2 user info 검증을 담당한다.
+- Google OAuth2 user info에서 provider id와 email은 필수다.
+- `email_verified=false`이면 OAuth2 login을 실패시킨다.
+- 기존 계정이 있으면 social login method와 provider id가 일치하는지 검증한다.
+- 신규 social user 생성 시 encoded random password를 저장한다.
+- OAuth2 login도 `UserAccountPolicy.validateLoginAllowed`로 user lifecycle 정책을 검증한다.
+- `OAuth2LoginFailureHandler`는 OAuth2 실패 시 frontend login path로 redirect한다.
+- OAuth2 login success는 refresh token cookie를 발급하고, 현재는 access token을 query param으로 포함해 frontend success path로 redirect한다.
+
+### SecurityConfig / PasswordEncoder
+
+- `PasswordEncoder` bean은 `SecurityConfig`가 아니라 `PasswordConfig`에서 제공한다.
+- `SecurityConfig`는 `PasswordEncoder` bean을 직접 만들지 않는다.
+- `SecurityConfig`는 `PasswordEncoder`를 주입받아 `CustomAuthenticationProvider` 구성에 사용한다.
+
+### TODO
+
+- OAuth2 success redirect의 access token query param 방식은 장기적으로 제거를 검토한다.
+- 장기 목표는 refresh token cookie 기반 reissue 흐름으로 access token을 획득하는 구조다.
+- 이 TODO는 현재 구현 정책이 아니며, 별도 보안 영향 검토와 migration plan 없이 즉시 변경하지 않는다.
