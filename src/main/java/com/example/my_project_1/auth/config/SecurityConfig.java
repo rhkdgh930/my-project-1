@@ -11,6 +11,7 @@ import com.example.my_project_1.auth.handler.OAuth2LoginSuccessHandler;
 import com.example.my_project_1.auth.oauth.CustomOAuth2UserService;
 import com.example.my_project_1.auth.provider.CustomAuthenticationProvider;
 import com.example.my_project_1.auth.service.RedisLoginAttemptService;
+import com.example.my_project_1.auth.service.UserAccountPolicy;
 import com.example.my_project_1.auth.utils.EndpointAuthorizationRules;
 import com.example.my_project_1.common.logging.HttpLoggingFilter;
 import com.example.my_project_1.common.logging.SecurityUserMdcFilter;
@@ -141,9 +142,10 @@ public class SecurityConfig {
     @Bean
     public CustomAuthenticationProvider customAuthenticationProvider(
             UserDetailsService userDetailsService,
-            PasswordEncoder passwordEncoder
+            PasswordEncoder passwordEncoder,
+            UserAccountPolicy userAccountPolicy
     ) {
-        return new CustomAuthenticationProvider(userDetailsService, passwordEncoder);
+        return new CustomAuthenticationProvider(userDetailsService, passwordEncoder, userAccountPolicy);
     }
 
     @Bean
