@@ -40,7 +40,8 @@ class PostSyncSchedulerTest {
         verify(postRepository).updateViewCount(postId, 100L);
         verify(postRepository, never()).updateLikeCount(anyLong(), anyLong());
         verify(postRepository, never()).updateCounts(anyLong(), anyLong(), anyLong());
-        verify(redisService).removeViewDirty(postId);
+        verify(redisService).removeViewDirtyIfUnchanged(postId, 100L);
+        verify(redisService, never()).removeViewDirty(postId);
         verify(redisService, never()).removeLikeDirty(postId);
     }
 
@@ -58,7 +59,8 @@ class PostSyncSchedulerTest {
         verify(postRepository).updateLikeCount(postId, 5L);
         verify(postRepository, never()).updateCounts(anyLong(), anyLong(), anyLong());
         verify(redisService, never()).removeViewDirty(postId);
-        verify(redisService).removeLikeDirty(postId);
+        verify(redisService).removeLikeDirtyIfUnchanged(postId, 5L);
+        verify(redisService, never()).removeLikeDirty(postId);
     }
 
     @Test
@@ -73,6 +75,7 @@ class PostSyncSchedulerTest {
 
         verify(postRepository, never()).updateViewCount(anyLong(), anyLong());
         verify(redisService, never()).removeViewDirty(postId);
+        verify(redisService, never()).removeViewDirtyIfUnchanged(anyLong(), anyLong());
     }
 
     @Test
@@ -87,6 +90,7 @@ class PostSyncSchedulerTest {
 
         verify(postRepository, never()).updateLikeCount(anyLong(), anyLong());
         verify(redisService, never()).removeLikeDirty(postId);
+        verify(redisService, never()).removeLikeDirtyIfUnchanged(anyLong(), anyLong());
     }
 
     @Test
@@ -102,6 +106,7 @@ class PostSyncSchedulerTest {
         scheduler.sync();
 
         verify(redisService, never()).removeViewDirty(postId);
+        verify(redisService, never()).removeViewDirtyIfUnchanged(anyLong(), anyLong());
     }
 
     @Test
@@ -117,5 +122,21 @@ class PostSyncSchedulerTest {
         scheduler.sync();
 
         verify(redisService, never()).removeLikeDirty(postId);
+        verify(redisService, never()).removeLikeDirtyIfUnchanged(anyLong(), anyLong());
+    }
+
+    @Test
+    @DisplayName("sync는 removeViewDirtyIfUnchanged가 false여도 실패하지 않는다.")
+    void sync_continuesWhenRemoveViewDirtyIfUnchangedReturnsFalse() {
+        Long postId = 10L;
+        when(redisService.getViewDirtyPostIds()).thenReturn(Set.of(postId.toString()));
+        when(redisService.getLikeDirtyPostIds()).thenReturn(Set.of());
+        when(redisService.getViewOrNull(postId)).thenReturn(100L);
+        when(redisService.removeViewDirtyIfUnchanged(postId, 100L)).thenReturn(false);
+
+        scheduler.sync();
+
+        verify(postRepository).updateViewCount(postId, 100L);
+        verify(redisService).removeViewDirtyIfUnchanged(postId, 100L);
     }
 }

@@ -23,7 +23,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 class PostRedisServiceIntegrationTest {
 
     private static final String LIKE_USER_SET_KEY = "post::like::user::%s";
+    private static final String VIEW_COUNT_KEY = "post::view::%s";
     private static final String LIKE_COUNT_KEY = "post::like::%s";
+    private static final String VIEW_DIRTY_SET_KEY = "post::dirty::view";
     private static final String LIKE_DIRTY_SET_KEY = "post::dirty::like";
 
     private LettuceConnectionFactory connectionFactory;
@@ -90,6 +92,53 @@ class PostRedisServiceIntegrationTest {
     }
 
     @Test
+    @DisplayName("실제 Redis increaseView는 view count와 view dirty marker를 함께 갱신한다.")
+    void increaseView_incrementsViewCountAndMarksDirtyOnActualRedis() {
+        postRedisService.increaseView(postId);
+
+        assertThat(redisTemplate.opsForValue().get(viewCountKey(postId))).isEqualTo("1");
+        assertThat(redisTemplate.opsForSet().isMember(VIEW_DIRTY_SET_KEY, postId.toString()))
+                .isTrue();
+    }
+
+    @Test
+    @DisplayName("removeViewDirtyIfUnchanged는 synced count와 Redis count가 같으면 dirty marker를 제거한다.")
+    void removeViewDirtyIfUnchanged_removesDirtyWhenCountMatches() {
+        postRedisService.increaseView(postId);
+
+        boolean removed = postRedisService.removeViewDirtyIfUnchanged(postId, 1L);
+
+        assertThat(removed).isTrue();
+        assertThat(redisTemplate.opsForSet().isMember(VIEW_DIRTY_SET_KEY, postId.toString()))
+                .isFalse();
+    }
+
+    @Test
+    @DisplayName("removeViewDirtyIfUnchanged는 Redis count가 바뀌었으면 dirty marker를 유지한다.")
+    void removeViewDirtyIfUnchanged_keepsDirtyWhenCountChanged() {
+        postRedisService.increaseView(postId);
+        postRedisService.increaseView(postId);
+
+        boolean removed = postRedisService.removeViewDirtyIfUnchanged(postId, 1L);
+
+        assertThat(removed).isFalse();
+        assertThat(redisTemplate.opsForSet().isMember(VIEW_DIRTY_SET_KEY, postId.toString()))
+                .isTrue();
+    }
+
+    @Test
+    @DisplayName("removeLikeDirtyIfUnchanged는 synced count와 Redis count가 같으면 dirty marker를 제거한다.")
+    void removeLikeDirtyIfUnchanged_removesDirtyWhenCountMatches() {
+        postRedisService.toggleLike(postId, 100L);
+
+        boolean removed = postRedisService.removeLikeDirtyIfUnchanged(postId, 1L);
+
+        assertThat(removed).isTrue();
+        assertThat(redisTemplate.opsForSet().isMember(LIKE_DIRTY_SET_KEY, postId.toString()))
+                .isFalse();
+    }
+
+    @Test
     @DisplayName("실제 Redis toggleLike는 count key가 없어도 count를 음수로 만들지 않는다.")
     void toggleLike_doesNotMakeCountNegativeWhenCountKeyIsMissing() {
         Long userId = 100L;
@@ -137,7 +186,8 @@ class PostRedisServiceIntegrationTest {
     }
 
     private void cleanKeys(Long postId) {
-        redisTemplate.delete(List.of(likeUserSetKey(postId), likeCountKey(postId)));
+        redisTemplate.delete(List.of(viewCountKey(postId), likeUserSetKey(postId), likeCountKey(postId)));
+        redisTemplate.opsForSet().remove(VIEW_DIRTY_SET_KEY, postId.toString());
         redisTemplate.opsForSet().remove(LIKE_DIRTY_SET_KEY, postId.toString());
     }
 
@@ -147,5 +197,9 @@ class PostRedisServiceIntegrationTest {
 
     private String likeCountKey(Long postId) {
         return LIKE_COUNT_KEY.formatted(postId);
+    }
+
+    private String viewCountKey(Long postId) {
+        return VIEW_COUNT_KEY.formatted(postId);
     }
 }
