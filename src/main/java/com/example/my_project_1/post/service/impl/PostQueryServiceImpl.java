@@ -36,29 +36,24 @@ public class PostQueryServiceImpl implements PostQueryService {
     @Override
     public PageResponse<PostListResponse> getPosts(Long boardId, Pageable pageable) {
         validateBoard(boardId);
-        // 1. DB에서 해당 게시판의 게시글만 페이징 조회 (Deleted=False)
+
         Page<Post> page = postRepository.findAllActiveByBoardId(boardId, pageable);
 
-        if (page.isEmpty()) {
-            return PageResponse.of(Page.empty(pageable));
-        }
-
-        // 2. 작성자 정보 일괄 조회 (N+1 방지)
-        // 페이지 내의 모든 작성자 ID를 중복 없이 추출
         List<Long> authorIds = page.getContent().stream()
                 .map(Post::getUserId)
                 .distinct()
                 .toList();
 
-        // UserClient를 통해 유저 정보 Map으로 가져오기 (authorId -> UserSummary)
-        Map<Long, AuthorSummary> authorMap = findAuthorsForList(boardId, authorIds);
+        Map<Long, AuthorSummary> authorMap = authorIds.isEmpty()
+                ? Map.of()
+                : findAuthorsForList(boardId, authorIds);
 
-        // 3. DTO 변환 (작성자 닉네임 포함)
         Page<PostListResponse> dtoPage = page.map(post -> {
-            AuthorSummary author = authorMap.getOrDefault(post.getUserId(), AuthorSummary.unknown());
+            AuthorSummary author = authorMap.getOrDefault(
+                    post.getUserId(),
+                    AuthorSummary.unknown()
+            );
 
-            // PostListResponse.from에 nickname을 전달하도록 수정하거나
-            // 직접 빌더/생성자로 매핑
             PostListResponse response = PostListResponse.from(post, author);
             response.updateCounts(
                     countOrDefault(postRedisService.getViewOrNull(post.getId()), post.getViewCount()),
@@ -67,7 +62,6 @@ public class PostQueryServiceImpl implements PostQueryService {
             return response;
         });
 
-        // 4. 공통 페이징 포맷으로 반환
         return PageResponse.of(dtoPage);
     }
 
