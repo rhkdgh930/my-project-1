@@ -33,6 +33,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
 
 class PostQueryServiceImplTest {
 
@@ -100,6 +101,29 @@ class PostQueryServiceImplTest {
         assertThat(response.getContent()).hasSize(1);
         assertThat(response.getContent().get(0).getViewCount()).isEqualTo(100L);
         assertThat(response.getContent().get(0).getLikeCount()).isEqualTo(5L);
+    }
+
+    @Test
+    @DisplayName("post list가 빈 페이지여도 metadata를 유지하고 author 조회를 생략한다.")
+    void getPosts_keepsPageMetadataAndSkipsAuthorLookupWhenPageIsEmpty() {
+        Long boardId = 1L;
+        Pageable pageable = PageRequest.of(2, 10);
+
+        when(boardRepository.findByIdAndDeletedAtIsNull(boardId))
+                .thenReturn(Optional.ofNullable(Board.create("board", "description")));
+        when(postRepository.findAllActiveByBoardId(boardId, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 25));
+
+        PageResponse<PostListResponse> response = postQueryService.getPosts(boardId, pageable);
+
+        assertThat(response.getContent()).isEmpty();
+        assertThat(response.getPageNumber()).isEqualTo(2);
+        assertThat(response.getPageSize()).isEqualTo(10);
+        assertThat(response.getTotalElements()).isEqualTo(25);
+        assertThat(response.getTotalPages()).isEqualTo(3);
+        verify(userClient, never()).findAuthorsByIds(any());
+        verify(postRedisService, never()).getViewOrNull(any());
+        verify(postRedisService, never()).getLikeOrNull(any());
     }
 
     @Test
