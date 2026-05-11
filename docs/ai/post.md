@@ -1,96 +1,77 @@
-# Post Domain AI Rules
+# Board / Post Domain AI Rules
 
-## 목적
+이 문서는 Board/Post 조회, soft delete, Redis count/like, Post image outbox 정책을 정의한다.
 
-Post 문서는 Board/Post 조회, 작성, 이미지 동기화, Redis count/like 정책을 정리한다.
+## 현재 정책
 
-이 문서는 Post 관련 작업에서 우선 참조한다.
-
----
-
-## Security / Endpoint Policy
-
-- Post 조회 API만 `GET` 기준 permitAll 대상이다.
-- Post 생성, 수정, 좋아요 API는 authenticated가 필요하다.
-- `DELETE /api/boards/{boardId}/posts/{postId}`는 authenticated API다.
-- 일반 Post delete는 작성자만 허용한다.
-- 관리자 삭제가 필요하면 일반 delete와 섞지 말고 별도 admin API로 분리할 수 있다.
-- Post 관련 public path를 method 구분 없이 broad wildcard로 열지 않는다.
-- `/api/admin/**`는 ADMIN 권한이 필요하다.
-
----
-
-## Board / Post 삭제 정책
+### Board / Post Hidden Soft Delete
 
 - Board와 Post는 일반 사용자 조회에서 숨기는 hidden soft delete 모델을 사용한다.
-- Board 삭제는 `deletedAt` 기반 soft delete다.
-- Post 삭제는 `deletedAt` 기반 soft delete다.
-- Post delete는 hidden soft delete이며, 성공 시 `Post.delete(now)`로 `title`/`content`를 마스킹하고 `deletedAt`을 세팅한다.
+- Board delete는 `deletedAt` 기반 soft delete다.
+- Post delete는 `deletedAt` 기반 soft delete다.
 - active post 조건은 `post.deletedAt IS NULL AND post.board.deletedAt IS NULL`이다.
-- 삭제된 Board 아래 Post는 목록, 상세, 댓글, 좋아요, 수정 대상에서 제외한다.
-- 삭제된 Post 또는 삭제된 Board 아래 Post는 일반 delete 대상이 아니다.
-- Post 삭제 flow는 active post 검증을 사용한다.
-- Post 조회 query는 Board 삭제 상태를 함께 고려해야 한다.
+- 삭제된 Board 아래 Post는 목록, 상세, 댓글, 좋아요, 수정, 삭제 대상에서 제외한다.
+- 삭제된 Post는 일반 조회와 일반 delete 대상이 아니다.
+- 관리자 삭제 정책이 필요하면 일반 delete를 넓히지 말고 별도 admin API로 분리한다.
 
----
+### Post Delete / Outbox
 
-## Post Outbox / Image Sync 정책
+- Post delete 성공 시 `Post.delete(now)`로 title/content masking과 `deletedAt` 설정을 수행한다.
+- Post delete 성공 후 `POST_DELETED` Outbox event를 발행한다.
+- `POST_DELETED` payload는 `postId`, `userId`를 가진다.
+- `PostDeletedHandler`는 `imageService.syncImages(postId, POST, emptyList, userId)`를 호출해 기존 post image를 detach한다.
 
-- Post create/update 이후 본문 Markdown에서 내부 이미지 storageKey를 파싱한다.
-- 이미지 attach/sync는 Outbox side effect로 처리한다.
-- `POST_CREATED` eventKey는 `POST_CREATED:{postId}`를 사용한다.
-- `POST_CREATED`는 같은 post 생성 이벤트 중복 처리를 막는 deterministic key가 적절하다.
-- `POST_UPDATED` eventKey는 `POST_UPDATED:{postId}:{uuid}`를 사용한다.
-- `POST_UPDATED`는 수정마다 image sync 이벤트 처리가 필요하므로 `updatedAt` auditing 값에 의존하지 않는다.
-- `POST_UPDATED` eventKey에 flush 전 JPA auditing 값을 사용하지 않는다.
-- Outbox payload shape는 `postId`, `userId`, `storageKeys`를 유지한다.
-- Post delete 성공 시 `POST_DELETED` Outbox event를 발행한다.
-- `POST_DELETED` eventKey는 `POST_DELETED:{postId}:{uuid}`를 사용한다.
-- `POST_DELETED` payload는 `postId`, `userId`만 가진다.
-- `POST_UPDATED`는 게시글 수정 이미지 sync용이고, `POST_DELETED`는 게시글 삭제 이미지 detach용이다.
+### Post Query
 
----
+- `PostQueryServiceImpl.getPosts`는 board 존재와 삭제 여부를 먼저 검증한다.
+- 빈 page에서도 `Page.empty(pageable)`로 조기 반환하지 않는다.
+- repository가 반환한 원본 `Page<Post>`의 `page.map(...)` 흐름을 유지한다.
+- authorIds가 비어 있으면 `UserClient.findAuthorsByIds(...)` 호출을 생략한다.
+- `PageResponse` metadata는 원본 page 기준으로 유지한다.
+- UserClient 실패 또는 누락된 author는 `AuthorSummary.unknown()` fallback을 사용한다.
 
-## Redis Count / Like 정책
+### Redis Count / Like
 
-- Redis는 단일 Redis 또는 non-cluster Redis를 전제로 한다.
-- Redis Cluster에서는 Lua multi-key hash slot 문제가 있을 수 있으므로 cluster 전환 전 key hash tag 설계를 검토한다.
 - API 응답 count는 Redis 값이 있으면 Redis 값을 사용하고, 없으면 DB count로 fallback한다.
 - view count와 like count fallback은 독립적으로 처리한다.
-- Scheduler는 view dirty marker와 like dirty marker를 분리해 부분 sync한다.
-- legacy `post::dirty` 단일 set은 새 sync 흐름에서 사용하지 않는다.
-- view dirty marker는 view count sync 성공 시에만 제거한다.
-- like dirty marker는 like count sync 성공 시에만 제거한다.
-- Redis count key가 없거나 DB update가 실패하면 해당 dirty marker를 제거하지 않는다.
-- Like toggle은 Redis Lua script로 원자화한다.
-- Lua script 안에서 membership 변경, count 증감, like dirty mark를 함께 처리한다.
-- dirty marker 제거와 count 변경 사이의 race는 남은 tradeoff다.
-- Post delete 시점에 Redis view/like count key와 dirty marker를 즉시 제거하지 않는다.
-- 삭제 후 일반 조회/좋아요가 active post 검증으로 막히므로 count 노출 문제는 없고, count cleanup은 별도 정책으로 다룬다.
-- 좋아요의 정확한 감사/복구가 중요해지면 DB `post_likes` 테이블 도입을 검토한다.
+- view dirty marker와 like dirty marker는 분리되어 있다.
+- legacy `post::dirty` 단일 set은 현재 sync 흐름에서 사용하지 않는다.
+- `increaseView(postId)`는 Lua script로 view count 증가와 view dirty marker 등록을 원자적으로 처리한다.
+- like toggle은 Lua script로 user like set, like count, like dirty marker를 원자적으로 처리한다.
+- like count는 음수가 되지 않도록 Lua script에서 방어한다.
 
----
+### PostSyncScheduler
 
-## Testing Policy
+- scheduler는 view dirty set과 like dirty set을 각각 처리한다.
+- Redis count를 한 번 읽고 DB에 반영한다.
+- DB update 이후 `removeViewDirtyIfUnchanged` 또는 `removeLikeDirtyIfUnchanged`를 호출한다.
+- dirty 제거는 Lua script로 처리한다.
+- Redis 현재 count가 DB에 반영한 `syncedCount`와 같을 때만 dirty marker를 제거한다.
+- Redis 현재 count가 `syncedCount`와 다르면 sync 이후 새 증가/토글이 있었다고 보고 dirty marker를 유지한다.
+- Redis count key가 null이면 DB update를 하지 않고 dirty marker도 제거하지 않는다.
+- 이 정책은 데이터 유실보다 재시도와 운영 감지를 우선한다.
+- DB update가 실패하면 dirty marker를 제거하지 않는다.
+- invalid dirty id는 log 후 skip한다.
 
-- active post query 변경은 삭제된 post와 삭제된 board 아래 post가 제외되는지 검증한다.
-- Post create/update Outbox 테스트는 event type, eventKey, payload shape를 검증한다.
-- Post image sync payload 테스트는 `/images/{uuid}.{ext}` 내부 URL만 포함되는지 검증한다.
-- 외부 이미지 URL은 storageKeys payload에 포함되지 않아야 한다.
-- Redis count fallback, dirty marker sync, Lua toggle은 focused unit test와 실제 Redis integration test를 함께 고려한다.
----
+### Redis 운영 전제
 
-## AuthorSummary Response Policy
+- 현재 Redis count/like Lua script는 단일 Redis 또는 non-cluster Redis 전제다.
+- Redis Cluster를 사용할 경우 multi-key Lua script의 hash slot 정책을 검토해야 한다.
 
-Post 응답의 작성자 표시는 `AuthorSummary`를 우선 사용한다.
+## 테스트 기준
 
-- Post list/detail/create/update 응답에는 작성자 표시용 `author` 객체를 포함한다.
-- `author`는 `id`, `displayName`, `status`를 가진다.
-- `AuthorStatus` 값은 `ACTIVE`, `WITHDRAWN`, `SUSPENDED`, `UNKNOWN`이다.
-- 기존 `userId`, `nickname` 필드는 transition을 위해 유지한다.
-- 기존 `nickname` 필드는 `author.displayName`으로 채운다.
-- `ACTIVE`: `id=userId`, `displayName=nickname`, `status=ACTIVE`
-- `WITHDRAWN`: 내부 마스킹 nickname을 노출하지 않고 `id=null`, `displayName="탈퇴한 사용자"`, `status=WITHDRAWN`
-- `SUSPENDED`: `id=userId`, `displayName="차단된 사용자"`, `status=SUSPENDED`
-- `UNKNOWN`: `id=null`, `displayName="알 수 없는 사용자"`, `status=UNKNOWN`
-- User row가 없거나 `UserClient.findAuthorsByIds(...)`가 실패해도 Post 조회/create/update 응답 자체는 실패시키지 않고 `UNKNOWN`으로 fallback한다.
+- active post query가 삭제된 post와 삭제된 board 아래 post를 제외하는지 검증한다.
+- Post create/update/delete Outbox event type, eventKey, payload shape를 검증한다.
+- Post image sync payload는 `/images/{uuid}.{ext}` storageKey만 포함하는지 검증한다.
+- empty page에서 `UserClient` 호출을 생략하고 `PageResponse` metadata를 유지하는지 검증한다.
+- Redis count fallback을 검증한다.
+- `increaseView` Lua 실행과 실제 Redis count/dirty marker 갱신을 검증한다.
+- `removeDirtyIfUnchanged`는 exact timing이 아니라 count match/mismatch로 검증한다.
+- scheduler는 count null 시 dirty marker를 유지하는지 검증한다.
+
+## TODO / 운영 전 개선
+
+- Redis count key 유실이 반복되면 dirty marker가 계속 남을 수 있다.
+- stale dirty marker 감지를 위한 운영 로그, metric, admin 진단 기능을 보강한다.
+- Redis Cluster 전환 전 key hash tag 설계를 검토한다.
+- 좋아요의 감사/복구 정확도가 더 중요해지면 DB `post_likes` 영속화 전환을 검토한다.

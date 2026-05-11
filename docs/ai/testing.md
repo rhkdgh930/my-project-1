@@ -1,211 +1,96 @@
 # Testing AI Rules
 
-## 목적
-
-이 문서는 Codex가 변경한 코드를 검증하는 기준을 정의한다.
-
-테스트는 현재 구조를 고정하기 위한 것이 아니라, 안전하게 발전시키기 위한 장치다.
-
----
+이 문서는 테스트 작성과 실행 기준을 정의한다.
 
 ## 기본 원칙
 
-- 버그 수정은 재현 테스트를 우선한다.
-- 리팩토링은 동작 보존 테스트를 우선한다.
-- 구조 개선은 단계별 검증을 우선한다.
-- 테스트를 실행하지 못했으면 실행하지 못했다고 말한다.
-- 빌드를 실행하지 않았으면 빌드 성공이라고 말하지 않는다.
-- 테스트 DisplayName은 한글로 적어야 한다.
+- 변경한 behavior는 테스트로 검증한다.
+- 테스트를 통과시키기 위해 실제 정책을 약화하지 않는다.
+- 실패하는 테스트를 이유 없이 삭제하거나 비활성화하지 않는다.
+- 실행하지 않은 테스트를 실행했다고 말하지 않는다.
+- 빌드하지 못했으면 빌드 성공이라고 말하지 않는다.
+- 테스트 DisplayName은 가능하면 한국어 behavior 중심으로 작성한다.
+- unrelated test cleanup은 하지 않는다.
 
----
-
-## 테스트 우선순위
+## 우선순위
 
 1. Domain unit test
 2. Application service test
-3. Outbox processor/handler test
+3. Outbox processor/handler/repository test
 4. Security/JWT/filter test
 5. Repository query test
 6. Controller request/response test
-7. End-to-end test
+7. Frontend build 또는 e2e smoke test
 
----
+## 실행 명령
 
-## Surgical Mode 테스트 기준
+Backend compile:
 
-작은 변경에서는 다음을 우선한다.
+```powershell
+.\gradlew.bat compileJava
+```
 
-- 변경한 메서드 주변 테스트
-- 기존 동작 보존 테스트
-- regression test
-- 최소한의 build/test command
+Backend focused test:
 
----
+```powershell
+.\gradlew.bat test --tests com.example.my_project_1.some.TestClass
+```
 
-## Architecture Review Mode 테스트 기준
+Backend full test:
 
-구조 검토만 하는 경우 코드를 수정하지 않는다.
+```powershell
+.\gradlew.bat test
+```
 
-대신 다음을 제안한다.
+Frontend build:
 
-- 현재 테스트 공백
-- 가장 먼저 추가해야 할 테스트
-- 리팩토링 전 안전망 테스트
-- 리팩토링 후 검증 테스트
+```powershell
+npm run build
+```
 
----
+## Redis Integration Test
 
-## Evolutionary Refactor Mode 테스트 기준
+- Redis integration test는 localhost Redis를 사용할 수 있다.
+- localhost Redis가 없으면 JUnit assumption으로 skip될 수 있다.
+- skip된 테스트는 실제 Redis 동작 검증으로 간주하지 않는다.
+- Redis Cluster 동작은 현재 integration test의 기본 검증 범위가 아니다.
 
-구조를 점진적으로 개선하는 경우 다음 순서를 따른다.
+## Outbox Test
 
-1. 현재 동작을 고정하는 characterization test 작성
-2. 작은 리팩토링 적용
-3. 테스트 통과 확인
-4. 다음 단계 진행
+- claim 실패 시 handler가 실행되지 않는지 검증한다.
+- handler 성공 시 `SUCCESS`, 실패 시 `FAILED` 또는 `DEAD` 전이를 검증한다.
+- retry/backoff/jitter는 exact second에 의존하지 말고 범위로 검증한다.
+- stuck PROCESSING recovery를 검증한다.
+- admin retry는 `resetForRetry` 정책을 검증한다.
+- duplicate eventKey 정책은 일반 `publish`와 `publishIfAbsent`를 구분해 검증한다.
 
----
+## Security/Auth Test
 
-## Domain Test 기준
+- login success/failure/count/block/email normalize를 검증한다.
+- access token 만료, blacklist, invalid bearer 형식을 검증한다.
+- refresh token 만료, type mismatch, hash mismatch를 검증한다.
+- reissue cookie/header fallback과 mismatch를 검증한다.
+- logout optional access token, expired access token, refresh token hash 검증을 검증한다.
+- Security slice test는 필요한 config import, 특히 PasswordEncoder config 누락에 주의한다.
+- `spring.main.allow-circular-references=true`로 테스트를 우회하지 않는다.
 
-다음 변경은 domain test를 우선한다.
+## Post/Image Test
 
-- User lifecycle 변경
-- withdrawal 정책 변경
-- suspension 정책 변경
-- dormancy 정책 변경
-- Email validation 변경
-- ProfileDetail validation 변경
-- 상태 전이 method 변경
+- active post query는 deleted post/board를 제외해야 한다.
+- Redis count fallback과 Lua script 기반 count/dirty 갱신을 검증한다.
+- dirty 제거는 `removeDirtyIfUnchanged` 기준으로 검증한다.
+- Redis count null 시 dirty 유지 정책을 검증한다.
+- Image parser는 strict URL parsing을 검증한다.
+- Image attach는 distinct, idempotency, 상태 위반을 검증한다.
 
-검증 예시:
+## Frontend Test / Build
 
-- ACTIVE user가 탈퇴 요청 가능
-- WITHDRAWN_REQUESTED user가 복구 가능 기간 내 복구 가능
-- 복구 가능 기간이 지나면 복구 불가
-- 탈퇴 완료 시 개인정보 masking
-- 휴면 유저 로그인 시 ACTIVE 전환
-- 차단 유저는 full access 불가
-- permanent suspension은 만료되지 않음
+- frontend 변경 후 최소 `npm run build`를 실행한다.
+- Auth interceptor, route guard, admin 권한 UI는 가능하면 browser smoke test를 추가한다.
+- build만 통과한 경우 실제 브라우저 상호작용은 별도 미검증으로 남긴다.
 
----
+## 최근 Green 기준
 
-## Service Test 기준
-
-다음 변경은 service test를 고려한다.
-
-- UserCommandService
-- AuthService
-- UserLoginService
-- AdminUserCommandService
-- Batch worker
-- Redis service orchestration
-- Outbox publishing
-
-검증 예시:
-
-- 비밀번호 변경 시 현재 비밀번호 검증
-- 비밀번호 변경 후 token invalidation event 발행
-- 탈퇴 요청 후 cache/token invalidation event 발행
-- 로그인 성공 후 lastLoginAt 갱신
-- 휴면 해제 시 Outbox event 발행
-- password reset token 검증 후 password 변경
-
----
-
-## Outbox Test 기준
-
-다음 변경은 Outbox test를 고려한다.
-
-- OutboxProcessor
-- OutboxEventManager
-- OutboxRepository claim query
-- Handler
-- Retry/dead-letter policy
-- Recovery scheduler
-- Admin retry
-
-검증 예시:
-
-- claim 실패 시 handler 실행 안 됨
-- handler 성공 시 SUCCESS
-- handler 실패 시 FAILED
-- retryCount 초과 시 DEAD
-- handler 없음이면 DEAD
-- invalid payload 처리
-- PROCESSING stuck event가 FAILED로 복구됨
-- 상태 업데이트가 handler transaction 실패에 휘말리지 않음
-
----
-
-## Security Test 기준
-
-다음 변경은 Security/Auth test를 고려한다.
-
-- JwtProvider
-- JwtAuthenticationFilter
-- JwtLoginFilter
-- JwtLoginSuccessHandler
-- JwtLoginFailureHandler
-- AuthService reissue/logout
-- RedisTokenService
-- RedisUserContextService
-
-검증 예시:
-
-- expired access token 응답
-- expired refresh token 응답
-- refresh token type 검증
-- access token type 검증
-- blacklist token 거부
-- refresh token hash mismatch 시 기존 refresh token 삭제
-- suspended user 인증 거부
-- withdrawn requested user 인증 거부
-- dormant user 인증 거부
-- login failure count 증가
-
----
-
-## Repository Test 기준
-
-다음 변경은 repository test를 고려한다.
-
-- cursor query
-- dormant user query
-- withdrawal cleanup query
-- outbox processable query
-- outbox claim query
-- cleanup query
-
----
-
-## MUST
-
-- 변경한 behavior에 대한 검증 방법을 설명한다.
-- 테스트를 추가하지 않는다면 이유를 설명한다.
-- 테스트를 실행하지 못했다면 명확히 말한다.
-- 실패하는 테스트를 무시하지 않는다.
-- 테스트를 통과시키기 위해 assertion을 약화하지 않는다.
-- 기존 테스트를 삭제할 경우 이유를 설명한다.
-- 테스트 DisplayName은 한글로 적어야 한다. 
-
----
-
-## SHOULD
-
-- 작은 단위 테스트를 우선한다.
-- 외부 side effect는 mock/fake 처리한다.
-- Redis가 필요한 테스트는 test container 또는 명확한 대안을 사용한다.
-- transaction boundary가 중요한 테스트는 단순 mock만으로 충분하다고 주장하지 않는다.
-- 테스트 이름은 behavior 중심으로 작성한다.
-
----
-
-## DO NOT
-
-- 실행하지 않은 테스트를 실행했다고 말하지 않는다.
-- 빌드하지 않았는데 빌드 성공이라고 말하지 않는다.
-- unrelated test를 수정하지 않는다.
-- flaky test를 이유 없이 비활성화하지 않는다.
-- 테스트 없이 Outbox transaction 구조를 크게 바꾸지 않는다.
-- 테스트 없이 SecurityConfig를 크게 바꾸지 않는다.
+- 최근 전체 backend `.\gradlew.bat test` green 상태를 확인했다.
+- 최근 frontend `npm run build` green 상태를 확인했다.
+- 단, 이후 변경이 있으면 다시 검증해야 한다.
