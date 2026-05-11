@@ -19,6 +19,8 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class AdminOutboxServiceTest {
@@ -34,28 +36,129 @@ class AdminOutboxServiceTest {
     @Test
     @DisplayName("FAILED 상태의 Outbox event는 admin retry를 허용한다.")
     void retry_allowsFailedEvent() {
-        OutboxEvent event = event();
+        OutboxEvent event = event(1L);
         event.markFail(new RuntimeException("temporary failure"), LocalDateTime.now(clock));
         when(outboxRepository.findById(1L)).thenReturn(Optional.of(event));
 
         service.retry(1L);
 
-        assertThat(event.getStatus()).isEqualTo(OutboxStatus.PENDING);
-        assertThat(event.getRetryCount()).isZero();
-        assertThat(event.getLastError()).isNull();
-        assertThat(event.getLastTriedAt()).isNull();
-        assertThat(event.getNextRetryAt()).isEqualTo(LocalDateTime.now(clock));
+        assertResetForRetry(event);
+        verify(outboxPublisher, never()).requestProcessing(1L);
     }
 
     @Test
     @DisplayName("DEAD 상태의 Outbox event는 admin retry를 허용한다.")
     void retry_allowsDeadEvent() {
-        OutboxEvent event = event();
+        OutboxEvent event = event(1L);
         event.markDead("MAX_RETRY_EXCEEDED", LocalDateTime.now(clock));
         when(outboxRepository.findById(1L)).thenReturn(Optional.of(event));
 
         service.retry(1L);
 
+        assertResetForRetry(event);
+        verify(outboxPublisher, never()).requestProcessing(1L);
+    }
+
+    @Test
+    @DisplayName("FAILED 상태의 Outbox event는 retry-now 성공 시 reset 후 즉시 처리를 요청한다.")
+    void retryNow_allowsFailedEventAndRequestsProcessing() {
+        OutboxEvent event = event(1L);
+        event.markFail(new RuntimeException("temporary failure"), LocalDateTime.now(clock));
+        when(outboxRepository.findById(1L)).thenReturn(Optional.of(event));
+
+        service.retryNow(1L);
+
+        assertResetForRetry(event);
+        verify(outboxPublisher).requestProcessing(1L);
+    }
+
+    @Test
+    @DisplayName("DEAD 상태의 Outbox event는 retry-now 성공 시 reset 후 즉시 처리를 요청한다.")
+    void retryNow_allowsDeadEventAndRequestsProcessing() {
+        OutboxEvent event = event(1L);
+        event.markDead("MAX_RETRY_EXCEEDED", LocalDateTime.now(clock));
+        when(outboxRepository.findById(1L)).thenReturn(Optional.of(event));
+
+        service.retryNow(1L);
+
+        assertResetForRetry(event);
+        verify(outboxPublisher).requestProcessing(1L);
+    }
+
+    @Test
+    @DisplayName("SUCCESS 상태의 Outbox event는 이미 성공 ErrorCode로 admin retry를 거부한다.")
+    void retry_rejectsSuccessEvent() {
+        OutboxEvent event = event(1L);
+        event.markSuccess(LocalDateTime.now(clock));
+        when(outboxRepository.findById(1L)).thenReturn(Optional.of(event));
+
+        assertRetryRejected(event, ErrorCode.OUTBOX_ALREADY_SUCCEEDED);
+        assertRetryNowRejected(event, ErrorCode.OUTBOX_ALREADY_SUCCEEDED);
+    }
+
+    @Test
+    @DisplayName("PENDING 상태의 Outbox event는 이미 대기 중 ErrorCode로 admin retry를 거부한다.")
+    void retry_rejectsPendingEvent() {
+        OutboxEvent event = event(1L);
+        when(outboxRepository.findById(1L)).thenReturn(Optional.of(event));
+
+        assertRetryRejected(event, ErrorCode.OUTBOX_ALREADY_PENDING);
+        assertRetryNowRejected(event, ErrorCode.OUTBOX_ALREADY_PENDING);
+    }
+
+    @Test
+    @DisplayName("PROCESSING 상태의 Outbox event는 처리 중 ErrorCode로 admin retry를 거부한다.")
+    void retry_rejectsProcessingEvent() {
+        OutboxEvent event = event(1L);
+        ReflectionTestUtils.setField(event, "status", OutboxStatus.PROCESSING);
+        when(outboxRepository.findById(1L)).thenReturn(Optional.of(event));
+
+        assertRetryRejected(event, ErrorCode.OUTBOX_ALREADY_PROCESSING);
+        assertRetryNowRejected(event, ErrorCode.OUTBOX_ALREADY_PROCESSING);
+    }
+
+    @Test
+    @DisplayName("없는 Outbox event id는 OUTBOX_EVENT_NOT_FOUND로 실패한다.")
+    void retry_rejectsMissingEvent() {
+        when(outboxRepository.findById(1L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.retry(1L))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.OUTBOX_EVENT_NOT_FOUND);
+
+        assertThatThrownBy(() -> service.retryNow(1L))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.OUTBOX_EVENT_NOT_FOUND);
+
+        verify(outboxPublisher, never()).requestProcessing(1L);
+    }
+
+    private void assertRetryRejected(OutboxEvent event, ErrorCode expectedErrorCode) {
+        OutboxStatus before = event.getStatus();
+
+        assertThatThrownBy(() -> service.retry(1L))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(expectedErrorCode);
+
+        assertThat(event.getStatus()).isEqualTo(before);
+    }
+
+    private void assertRetryNowRejected(OutboxEvent event, ErrorCode expectedErrorCode) {
+        OutboxStatus before = event.getStatus();
+
+        assertThatThrownBy(() -> service.retryNow(1L))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(expectedErrorCode);
+
+        assertThat(event.getStatus()).isEqualTo(before);
+        verify(outboxPublisher, never()).requestProcessing(1L);
+    }
+
+    private void assertResetForRetry(OutboxEvent event) {
         assertThat(event.getStatus()).isEqualTo(OutboxStatus.PENDING);
         assertThat(event.getRetryCount()).isZero();
         assertThat(event.getLastError()).isNull();
@@ -63,52 +166,14 @@ class AdminOutboxServiceTest {
         assertThat(event.getNextRetryAt()).isEqualTo(LocalDateTime.now(clock));
     }
 
-    @Test
-    @DisplayName("SUCCESS 상태의 Outbox event는 admin retry를 거부한다.")
-    void retry_rejectsSuccessEvent() {
-        OutboxEvent event = event();
-        event.markSuccess(LocalDateTime.now(clock));
-        when(outboxRepository.findById(1L)).thenReturn(Optional.of(event));
-
-        assertRetryNotAllowed(event);
-    }
-
-    @Test
-    @DisplayName("PROCESSING 상태의 Outbox event는 admin retry를 거부한다.")
-    void retry_rejectsProcessingEvent() {
-        OutboxEvent event = event();
-        ReflectionTestUtils.setField(event, "status", OutboxStatus.PROCESSING);
-        when(outboxRepository.findById(1L)).thenReturn(Optional.of(event));
-
-        assertRetryNotAllowed(event);
-    }
-
-    @Test
-    @DisplayName("PENDING 상태의 Outbox event는 admin retry를 거부한다.")
-    void retry_rejectsPendingEvent() {
-        OutboxEvent event = event();
-        when(outboxRepository.findById(1L)).thenReturn(Optional.of(event));
-
-        assertRetryNotAllowed(event);
-    }
-
-    private void assertRetryNotAllowed(OutboxEvent event) {
-        OutboxStatus before = event.getStatus();
-
-        assertThatThrownBy(() -> service.retry(1L))
-                .isInstanceOf(CustomException.class)
-                .extracting("errorCode")
-                .isEqualTo(ErrorCode.OUTBOX_RETRY_NOT_ALLOWED);
-
-        assertThat(event.getStatus()).isEqualTo(before);
-    }
-
-    private OutboxEvent event() {
-        return OutboxEvent.create(
+    private OutboxEvent event(Long id) {
+        OutboxEvent event = OutboxEvent.create(
                 OutboxEventType.USER_ACCOUNT_CHANGED,
                 "{}",
                 "event-key",
                 LocalDateTime.now(clock)
         );
+        ReflectionTestUtils.setField(event, "id", id);
+        return event;
     }
 }
