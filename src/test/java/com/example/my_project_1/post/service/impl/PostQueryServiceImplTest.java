@@ -1,6 +1,7 @@
 package com.example.my_project_1.post.service.impl;
 
 import com.example.my_project_1.board.domain.Board;
+import com.example.my_project_1.board.repository.BoardRepository;
 import com.example.my_project_1.common.exception.CustomException;
 import com.example.my_project_1.common.exception.ErrorCode;
 import com.example.my_project_1.common.utils.PageResponse;
@@ -35,6 +36,7 @@ import static org.mockito.Mockito.when;
 
 class PostQueryServiceImplTest {
 
+    private BoardRepository boardRepository;
     private PostRepository postRepository;
     private UserClient userClient;
     private PostRedisService postRedisService;
@@ -42,10 +44,11 @@ class PostQueryServiceImplTest {
 
     @BeforeEach
     void setUp() {
+        boardRepository = mock(BoardRepository.class);
         postRepository = mock(PostRepository.class);
         userClient = mock(UserClient.class);
         postRedisService = mock(PostRedisService.class);
-        postQueryService = new PostQueryServiceImpl(postRepository, userClient, postRedisService);
+        postQueryService = new PostQueryServiceImpl(boardRepository, postRepository, userClient, postRedisService);
     }
 
     @Test
@@ -55,6 +58,8 @@ class PostQueryServiceImplTest {
         Pageable pageable = PageRequest.of(0, 10);
         Post post = post(boardId, 10L, 100L);
 
+        when(boardRepository.findByIdAndDeletedAtIsNull(boardId))
+                .thenReturn(Optional.ofNullable(Board.create("board", "description")));
         when(postRepository.findAllActiveByBoardId(boardId, pageable))
                 .thenReturn(new PageImpl<>(List.of(post), pageable, 1));
         when(userClient.findAuthorsByIds(List.of(100L)))
@@ -81,6 +86,8 @@ class PostQueryServiceImplTest {
         Post post = post(boardId, 10L, 100L);
         post.updateCounts(100L, 5L);
 
+        when(boardRepository.findByIdAndDeletedAtIsNull(boardId))
+                .thenReturn(Optional.ofNullable(Board.create("board", "description")));
         when(postRepository.findAllActiveByBoardId(boardId, pageable))
                 .thenReturn(new PageImpl<>(List.of(post), pageable, 1));
         when(userClient.findAuthorsByIds(List.of(100L)))
@@ -149,6 +156,8 @@ class PostQueryServiceImplTest {
         Pageable pageable = PageRequest.of(0, 10);
         Post post = post(boardId, 10L, 100L);
 
+        when(boardRepository.findByIdAndDeletedAtIsNull(boardId))
+                .thenReturn(Optional.ofNullable(Board.create("board", "description")));
         when(postRepository.findAllActiveByBoardId(boardId, pageable))
                 .thenReturn(new PageImpl<>(List.of(post), pageable, 1));
         when(userClient.findAuthorsByIds(List.of(100L))).thenReturn(Map.of());
@@ -169,6 +178,8 @@ class PostQueryServiceImplTest {
         Pageable pageable = PageRequest.of(0, 10);
         Post post = post(boardId, 10L, 100L);
 
+        when(boardRepository.findByIdAndDeletedAtIsNull(boardId))
+                .thenReturn(Optional.ofNullable(Board.create("board", "description")));
         when(postRepository.findAllActiveByBoardId(boardId, pageable))
                 .thenReturn(new PageImpl<>(List.of(post), pageable, 1));
         when(userClient.findAuthorsByIds(List.of(100L)))

@@ -1,5 +1,6 @@
 package com.example.my_project_1.post.service.impl;
 
+import com.example.my_project_1.board.repository.BoardRepository;
 import com.example.my_project_1.common.exception.CustomException;
 import com.example.my_project_1.common.exception.ErrorCode;
 import com.example.my_project_1.common.utils.PageResponse;
@@ -27,12 +28,14 @@ import java.util.Map;
 @Service
 public class PostQueryServiceImpl implements PostQueryService {
 
+    private final BoardRepository boardRepository;
     private final PostRepository postRepository;
     private final UserClient userClient;
     private final PostRedisService postRedisService;
 
     @Override
     public PageResponse<PostListResponse> getPosts(Long boardId, Pageable pageable) {
+        validateBoard(boardId);
         // 1. DB에서 해당 게시판의 게시글만 페이징 조회 (Deleted=False)
         Page<Post> page = postRepository.findAllActiveByBoardId(boardId, pageable);
 
@@ -66,6 +69,11 @@ public class PostQueryServiceImpl implements PostQueryService {
 
         // 4. 공통 페이징 포맷으로 반환
         return PageResponse.of(dtoPage);
+    }
+
+    private void validateBoard(Long boardId) {
+        boardRepository.findByIdAndDeletedAtIsNull(boardId)
+                .orElseThrow(() -> new CustomException(ErrorCode.BOARD_NOT_FOUND));
     }
 
     @Override
