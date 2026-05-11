@@ -36,10 +36,20 @@ public class AdminOutboxService {
         OutboxEvent event = outboxRepository.findById(id)
                 .orElseThrow(() -> new CustomException(ErrorCode.OUTBOX_EVENT_NOT_FOUND));
 
-        if (event.getStatus() != OutboxStatus.FAILED && event.getStatus() != OutboxStatus.DEAD) {
-            throw new CustomException(ErrorCode.OUTBOX_RETRY_NOT_ALLOWED);
-        }
+        validateRetryable(event);
 
         return event;
+    }
+
+    private void validateRetryable(OutboxEvent event) {
+        switch (event.getStatus()) {
+            case FAILED, DEAD -> {
+                return;
+            }
+            case SUCCESS -> throw new CustomException(ErrorCode.OUTBOX_ALREADY_SUCCEEDED);
+            case PENDING -> throw new CustomException(ErrorCode.OUTBOX_ALREADY_PENDING);
+            case PROCESSING -> throw new CustomException(ErrorCode.OUTBOX_ALREADY_PROCESSING);
+            default -> throw new CustomException(ErrorCode.OUTBOX_RETRY_NOT_ALLOWED);
+        }
     }
 }
