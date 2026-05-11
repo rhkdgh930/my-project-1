@@ -29,19 +29,22 @@ public class ImageServiceImpl implements ImageService {
             List<String> storageKeys,
             Long uploaderId
     ) {
+        if (storageKeys == null || storageKeys.isEmpty()) {
+            return;
+        }
 
-        if (storageKeys == null || storageKeys.isEmpty()) return;
+        List<String> distinctKeys = storageKeys.stream()
+                .distinct()
+                .toList();
 
         List<Image> images =
-                imageRepository.findAllByStorageKeyInAndUploaderId(storageKeys, uploaderId);
+                imageRepository.findAllByStorageKeyInAndUploaderId(distinctKeys, uploaderId);
 
-        if (images.size() != storageKeys.size()) {
+        if (images.size() != distinctKeys.size()) {
             throw new IllegalArgumentException("존재하지 않거나 권한 없는 이미지 포함");
         }
 
-        images.stream()
-                .filter(Image::isAttachable)
-                .forEach(img -> img.attach(ownerId, ownerType));
+        images.forEach(img -> img.attach(ownerId, ownerType));
     }
 
     @Override
