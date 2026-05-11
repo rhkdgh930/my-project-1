@@ -2,18 +2,23 @@ package com.example.my_project_1.outbox.service;
 
 import com.example.my_project_1.common.exception.CustomException;
 import com.example.my_project_1.common.exception.ErrorCode;
+import com.example.my_project_1.common.utils.PageResponse;
 import com.example.my_project_1.outbox.domain.OutboxEvent;
 import com.example.my_project_1.outbox.domain.OutboxEventType;
 import com.example.my_project_1.outbox.domain.OutboxStatus;
 import com.example.my_project_1.outbox.repository.OutboxRepository;
+import com.example.my_project_1.outbox.service.response.AdminOutboxResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -32,6 +37,45 @@ class AdminOutboxServiceTest {
     private final OutboxRepository outboxRepository = mock(OutboxRepository.class);
     private final OutboxPublisher outboxPublisher = mock(OutboxPublisher.class);
     private final AdminOutboxService service = new AdminOutboxService(clock, outboxRepository, outboxPublisher);
+
+    @Test
+    @DisplayName("status 필터가 없으면 전체 Outbox event page를 payload 없이 조회한다.")
+    void findPage_returnsAllEventsWithoutPayload() {
+        PageRequest pageable = PageRequest.of(0, 20);
+        OutboxEvent event = event(1L);
+        when(outboxRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(event), pageable, 1));
+
+        PageResponse<AdminOutboxResponse> response = service.findPage(null, pageable);
+
+        assertThat(response.getContent()).hasSize(1);
+        AdminOutboxResponse item = response.getContent().get(0);
+        assertThat(item.getId()).isEqualTo(1L);
+        assertThat(item.getEventType()).isEqualTo(OutboxEventType.USER_ACCOUNT_CHANGED);
+        assertThat(item.getEventKey()).isEqualTo("event-key");
+        assertThat(item.getStatus()).isEqualTo(OutboxStatus.PENDING);
+        assertThat(item.getRetryCount()).isZero();
+        assertThat(item.getCreatedAt()).isEqualTo(LocalDateTime.now(clock));
+        assertThat(item.getLastTriedAt()).isNull();
+        assertThat(item.getNextRetryAt()).isEqualTo(LocalDateTime.now(clock));
+        assertThat(item.getLastError()).isNull();
+    }
+
+    @Test
+    @DisplayName("status 필터가 있으면 해당 상태의 Outbox event page만 조회한다.")
+    void findPage_filtersByStatus() {
+        PageRequest pageable = PageRequest.of(0, 20);
+        OutboxEvent event = event(1L);
+        event.markFail(new RuntimeException("temporary failure"), LocalDateTime.now(clock));
+        when(outboxRepository.findAllByStatus(OutboxStatus.FAILED, pageable))
+                .thenReturn(new PageImpl<>(List.of(event), pageable, 1));
+
+        PageResponse<AdminOutboxResponse> response = service.findPage(OutboxStatus.FAILED, pageable);
+
+        assertThat(response.getContent()).hasSize(1);
+        assertThat(response.getContent().get(0).getStatus()).isEqualTo(OutboxStatus.FAILED);
+        assertThat(response.getContent().get(0).getLastError()).isEqualTo("temporary failure");
+        verify(outboxRepository, never()).findAll(pageable);
+    }
 
     @Test
     @DisplayName("FAILED 상태의 Outbox event는 admin retry를 허용한다.")
