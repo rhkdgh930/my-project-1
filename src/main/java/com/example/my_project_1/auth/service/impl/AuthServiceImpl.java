@@ -158,6 +158,14 @@ public class AuthServiceImpl implements AuthService {
         jwtProvider.assertRefreshToken(claims);
 
         Long userId = Long.valueOf(claims.getSubject());
+
+        String storedHash = redisTokenService.getRefreshTokenHash(userId);
+        String requestHash = redisTokenService.getHash(refreshToken);
+
+        if (!StringUtils.hasText(storedHash) || !requestHash.equals(storedHash)) {
+            throw new CustomException(ErrorCode.INVALID_REFRESH_TOKEN);
+        }
+
         redisTokenService.deleteRefreshTokenHash(userId);
     }
 }
