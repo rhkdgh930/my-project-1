@@ -26,38 +26,48 @@ public class PostSyncScheduler {
 
     private void syncViews() {
         Set<String> dirtyIds = redisService.getViewDirtyPostIds();
-        if (dirtyIds == null || dirtyIds.isEmpty()) return;
+        if (dirtyIds == null || dirtyIds.isEmpty()) {
+            return;
+        }
 
         for (String id : dirtyIds) {
             try {
                 Long postId = Long.parseLong(id);
                 Long viewCount = redisService.getViewOrNull(postId);
 
-                if (viewCount != null) {
-                    postRepository.updateViewCount(postId, viewCount);
-                    redisService.removeViewDirty(postId);
+                if (viewCount == null) {
+                    continue;
                 }
+
+                postRepository.updateViewCount(postId, viewCount);
+                redisService.removeViewDirtyIfUnchanged(postId, viewCount);
+
             } catch (Exception e) {
-                log.error("[VIEW SYNC FAIL] postId={}", id, e);
+                log.error("[VIEW_SYNC_FAIL] postId={}", id, e);
             }
         }
     }
 
     private void syncLikes() {
         Set<String> dirtyIds = redisService.getLikeDirtyPostIds();
-        if (dirtyIds == null || dirtyIds.isEmpty()) return;
+        if (dirtyIds == null || dirtyIds.isEmpty()) {
+            return;
+        }
 
         for (String id : dirtyIds) {
             try {
                 Long postId = Long.parseLong(id);
                 Long likeCount = redisService.getLikeOrNull(postId);
 
-                if (likeCount != null) {
-                    postRepository.updateLikeCount(postId, likeCount);
-                    redisService.removeLikeDirty(postId);
+                if (likeCount == null) {
+                    continue;
                 }
+
+                postRepository.updateLikeCount(postId, likeCount);
+                redisService.removeLikeDirtyIfUnchanged(postId, likeCount);
+
             } catch (Exception e) {
-                log.error("[LIKE SYNC FAIL] postId={}", id, e);
+                log.error("[LIKE_SYNC_FAIL] postId={}", id, e);
             }
         }
     }

@@ -14,14 +14,21 @@ public class PostRedisService {
 
     private final RedisTemplate<String, String> redisTemplate;
 
-    // 키 컨벤션: post::[기능]::[식별자]
     private static final String VIEW_KEY = "post::view::%s";
     private static final String LIKE_CNT_KEY = "post::like::%s";
     private static final String LIKE_USER_SET_KEY = "post::like::user::%s";
-    private static final String DIRTY_SET_KEY = "post::dirty";
     private static final String VIEW_DIRTY_SET_KEY = "post::dirty::view";
     private static final String LIKE_DIRTY_SET_KEY = "post::dirty::like";
+
     private static final Long LIKED = 1L;
+    private static final Long REMOVED = 1L;
+
+    private static final String INCREASE_VIEW_SCRIPT = """
+            redis.call('INCR', KEYS[1])
+            redis.call('SADD', KEYS[2], ARGV[1])
+            return 1
+            """;
+
     private static final String TOGGLE_LIKE_SCRIPT = """
             local isMember = redis.call('SISMEMBER', KEYS[1], ARGV[1])
             if isMember == 1 then
@@ -41,19 +48,37 @@ public class PostRedisService {
             return 1
             """;
 
+    private static final String REMOVE_DIRTY_IF_UNCHANGED_SCRIPT = """
+            local current = redis.call('GET', KEYS[1])
+            if current == ARGV[1] then
+                redis.call('SREM', KEYS[2], ARGV[2])
+                return 1
+            end
+            return 0
+            """;
+
     public void increaseView(Long postId) {
-        redisTemplate.opsForValue().increment(VIEW_KEY.formatted(postId));
-        markViewAsDirty(postId);
+        DefaultRedisScript<Long> script =
+                new DefaultRedisScript<>(INCREASE_VIEW_SCRIPT, Long.class);
+
+        redisTemplate.execute(
+                script,
+                List.of(VIEW_KEY.formatted(postId), VIEW_DIRTY_SET_KEY),
+                postId.toString()
+        );
     }
 
     public boolean toggleLike(Long postId, Long userId) {
-        String userSetKey = LIKE_USER_SET_KEY.formatted(postId);
-        String likeCntKey = LIKE_CNT_KEY.formatted(postId);
-        DefaultRedisScript<Long> script = new DefaultRedisScript<>(TOGGLE_LIKE_SCRIPT, Long.class);
+        DefaultRedisScript<Long> script =
+                new DefaultRedisScript<>(TOGGLE_LIKE_SCRIPT, Long.class);
 
         Long result = redisTemplate.execute(
                 script,
-                List.of(userSetKey, likeCntKey, LIKE_DIRTY_SET_KEY),
+                List.of(
+                        LIKE_USER_SET_KEY.formatted(postId),
+                        LIKE_CNT_KEY.formatted(postId),
+                        LIKE_DIRTY_SET_KEY
+                ),
                 userId.toString(),
                 postId.toString()
         );
@@ -81,24 +106,12 @@ public class PostRedisService {
         return value == null ? null : Long.parseLong(value);
     }
 
-    public Set<String> getDirtyPostIds() {
-        return redisTemplate.opsForSet().members(DIRTY_SET_KEY);
-    }
-
     public Set<String> getViewDirtyPostIds() {
         return redisTemplate.opsForSet().members(VIEW_DIRTY_SET_KEY);
     }
 
     public Set<String> getLikeDirtyPostIds() {
         return redisTemplate.opsForSet().members(LIKE_DIRTY_SET_KEY);
-    }
-
-    public void clearDirtySet() {
-        redisTemplate.delete(DIRTY_SET_KEY);
-    }
-
-    public void removeDirty(Long postId) {
-        redisTemplate.opsForSet().remove(DIRTY_SET_KEY, postId.toString());
     }
 
     public void removeViewDirty(Long postId) {
@@ -109,11 +122,44 @@ public class PostRedisService {
         redisTemplate.opsForSet().remove(LIKE_DIRTY_SET_KEY, postId.toString());
     }
 
-    private void markViewAsDirty(Long postId) {
-        redisTemplate.opsForSet().add(VIEW_DIRTY_SET_KEY, postId.toString());
+    public boolean removeViewDirtyIfUnchanged(Long postId, Long syncedCount) {
+        return removeDirtyIfUnchanged(
+                VIEW_KEY.formatted(postId),
+                VIEW_DIRTY_SET_KEY,
+                postId,
+                syncedCount
+        );
     }
 
-    private void markLikeAsDirty(Long postId) {
-        redisTemplate.opsForSet().add(LIKE_DIRTY_SET_KEY, postId.toString());
+    public boolean removeLikeDirtyIfUnchanged(Long postId, Long syncedCount) {
+        return removeDirtyIfUnchanged(
+                LIKE_CNT_KEY.formatted(postId),
+                LIKE_DIRTY_SET_KEY,
+                postId,
+                syncedCount
+        );
+    }
+
+    private boolean removeDirtyIfUnchanged(
+            String countKey,
+            String dirtySetKey,
+            Long postId,
+            Long syncedCount
+    ) {
+        if (syncedCount == null) {
+            return false;
+        }
+
+        DefaultRedisScript<Long> script =
+                new DefaultRedisScript<>(REMOVE_DIRTY_IF_UNCHANGED_SCRIPT, Long.class);
+
+        Long result = redisTemplate.execute(
+                script,
+                List.of(countKey, dirtySetKey),
+                syncedCount.toString(),
+                postId.toString()
+        );
+
+        return REMOVED.equals(result);
     }
 }
