@@ -1,6 +1,8 @@
 package com.example.my_project_1.outbox.repository;
 
 import com.example.my_project_1.outbox.domain.OutboxEvent;
+import com.example.my_project_1.outbox.domain.OutboxStatus;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -13,6 +15,8 @@ import java.util.List;
 public interface OutboxRepository extends JpaRepository<OutboxEvent, Long> {
 
     boolean existsByEventKey(String eventKey);
+
+    Page<OutboxEvent> findAllByStatus(OutboxStatus status, Pageable pageable);
 
     @Query("""
             SELECT o.id
