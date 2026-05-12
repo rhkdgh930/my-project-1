@@ -8,6 +8,8 @@ import com.example.my_project_1.common.utils.PageResponse;
 import com.example.my_project_1.post.domain.Post;
 import com.example.my_project_1.post.repository.PostRepository;
 import com.example.my_project_1.post.service.PostRedisService;
+import com.example.my_project_1.post.service.request.PostSearchCondition;
+import com.example.my_project_1.post.service.request.PostSortType;
 import com.example.my_project_1.post.service.response.PostDetailResponse;
 import com.example.my_project_1.post.service.response.PostListResponse;
 import com.example.my_project_1.user.client.AuthorStatus;
@@ -61,14 +63,14 @@ class PostQueryServiceImplTest {
 
         when(boardRepository.findByIdAndDeletedAtIsNull(boardId))
                 .thenReturn(Optional.ofNullable(Board.create("board", "description")));
-        when(postRepository.findAllActiveByBoardId(boardId, pageable))
+        when(postRepository.searchActivePosts(boardId, null, pageable))
                 .thenReturn(new PageImpl<>(List.of(post), pageable, 1));
         when(userClient.findAuthorsByIds(List.of(100L)))
                 .thenReturn(Map.of(100L, AuthorSummary.active(100L, "nickname")));
         when(postRedisService.getViewOrNull(10L)).thenReturn(3L);
         when(postRedisService.getLikeOrNull(10L)).thenReturn(2L);
 
-        PageResponse<PostListResponse> response = postQueryService.getPosts(boardId, pageable);
+        PageResponse<PostListResponse> response = postQueryService.getPosts(boardId, null, pageable);
 
         assertThat(response.getContent()).hasSize(1);
         assertThat(response.getContent().get(0).getPostId()).isEqualTo(10L);
@@ -76,7 +78,7 @@ class PostQueryServiceImplTest {
         assertThat(response.getContent().get(0).getAuthor().id()).isEqualTo(100L);
         assertThat(response.getContent().get(0).getAuthor().displayName()).isEqualTo("nickname");
         assertThat(response.getContent().get(0).getAuthor().status()).isEqualTo(AuthorStatus.ACTIVE);
-        verify(postRepository).findAllActiveByBoardId(boardId, pageable);
+        verify(postRepository).searchActivePosts(boardId, null, pageable);
     }
 
     @Test
@@ -89,14 +91,14 @@ class PostQueryServiceImplTest {
 
         when(boardRepository.findByIdAndDeletedAtIsNull(boardId))
                 .thenReturn(Optional.ofNullable(Board.create("board", "description")));
-        when(postRepository.findAllActiveByBoardId(boardId, pageable))
+        when(postRepository.searchActivePosts(boardId, null, pageable))
                 .thenReturn(new PageImpl<>(List.of(post), pageable, 1));
         when(userClient.findAuthorsByIds(List.of(100L)))
                 .thenReturn(Map.of(100L, AuthorSummary.active(100L, "nickname")));
         when(postRedisService.getViewOrNull(10L)).thenReturn(null);
         when(postRedisService.getLikeOrNull(10L)).thenReturn(null);
 
-        PageResponse<PostListResponse> response = postQueryService.getPosts(boardId, pageable);
+        PageResponse<PostListResponse> response = postQueryService.getPosts(boardId, null, pageable);
 
         assertThat(response.getContent()).hasSize(1);
         assertThat(response.getContent().get(0).getViewCount()).isEqualTo(100L);
@@ -111,10 +113,10 @@ class PostQueryServiceImplTest {
 
         when(boardRepository.findByIdAndDeletedAtIsNull(boardId))
                 .thenReturn(Optional.ofNullable(Board.create("board", "description")));
-        when(postRepository.findAllActiveByBoardId(boardId, pageable))
+        when(postRepository.searchActivePosts(boardId, null, pageable))
                 .thenReturn(new PageImpl<>(List.of(), pageable, 25));
 
-        PageResponse<PostListResponse> response = postQueryService.getPosts(boardId, pageable);
+        PageResponse<PostListResponse> response = postQueryService.getPosts(boardId, null, pageable);
 
         assertThat(response.getContent()).isEmpty();
         assertThat(response.getPageNumber()).isEqualTo(2);
@@ -124,6 +126,27 @@ class PostQueryServiceImplTest {
         verify(userClient, never()).findAuthorsByIds(any());
         verify(postRedisService, never()).getViewOrNull(any());
         verify(postRedisService, never()).getLikeOrNull(any());
+    }
+
+    @Test
+    @DisplayName("post list passes search condition to custom repository")
+    void getPosts_passesSearchConditionToCustomRepository() {
+        Long boardId = 1L;
+        Pageable pageable = PageRequest.of(0, 10);
+        PostSearchCondition condition = new PostSearchCondition();
+        condition.setKeyword("redis");
+        condition.setSortType(PostSortType.LIKE_COUNT);
+
+        when(boardRepository.findByIdAndDeletedAtIsNull(boardId))
+                .thenReturn(Optional.ofNullable(Board.create("board", "description")));
+        when(postRepository.searchActivePosts(boardId, condition, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        PageResponse<PostListResponse> response = postQueryService.getPosts(boardId, condition, pageable);
+
+        assertThat(response.getContent()).isEmpty();
+        verify(postRepository).searchActivePosts(boardId, condition, pageable);
+        verify(userClient, never()).findAuthorsByIds(any());
     }
 
     @Test
@@ -182,11 +205,11 @@ class PostQueryServiceImplTest {
 
         when(boardRepository.findByIdAndDeletedAtIsNull(boardId))
                 .thenReturn(Optional.ofNullable(Board.create("board", "description")));
-        when(postRepository.findAllActiveByBoardId(boardId, pageable))
+        when(postRepository.searchActivePosts(boardId, null, pageable))
                 .thenReturn(new PageImpl<>(List.of(post), pageable, 1));
         when(userClient.findAuthorsByIds(List.of(100L))).thenReturn(Map.of());
 
-        PageResponse<PostListResponse> response = postQueryService.getPosts(boardId, pageable);
+        PageResponse<PostListResponse> response = postQueryService.getPosts(boardId, null, pageable);
 
         PostListResponse postResponse = response.getContent().get(0);
         assertThat(postResponse.getNickname()).isEqualTo("알 수 없는 사용자");
@@ -204,12 +227,12 @@ class PostQueryServiceImplTest {
 
         when(boardRepository.findByIdAndDeletedAtIsNull(boardId))
                 .thenReturn(Optional.ofNullable(Board.create("board", "description")));
-        when(postRepository.findAllActiveByBoardId(boardId, pageable))
+        when(postRepository.searchActivePosts(boardId, null, pageable))
                 .thenReturn(new PageImpl<>(List.of(post), pageable, 1));
         when(userClient.findAuthorsByIds(List.of(100L)))
                 .thenThrow(new RuntimeException("user lookup failed"));
 
-        PageResponse<PostListResponse> response = postQueryService.getPosts(boardId, pageable);
+        PageResponse<PostListResponse> response = postQueryService.getPosts(boardId, null, pageable);
 
         PostListResponse postResponse = response.getContent().get(0);
         assertThat(postResponse.getPostId()).isEqualTo(10L);

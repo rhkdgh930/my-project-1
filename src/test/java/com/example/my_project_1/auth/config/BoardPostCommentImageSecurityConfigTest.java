@@ -31,6 +31,7 @@ import com.example.my_project_1.image.service.ImageUploadService;
 import com.example.my_project_1.post.controller.PostController;
 import com.example.my_project_1.post.service.PostCommandService;
 import com.example.my_project_1.post.service.PostQueryService;
+import com.example.my_project_1.post.service.request.PostSearchCondition;
 import com.example.my_project_1.user.controller.UserController;
 import com.example.my_project_1.user.domain.AccountStatus;
 import com.example.my_project_1.user.domain.UserStatus;
@@ -167,7 +168,7 @@ class BoardPostCommentImageSecurityConfigTest {
     @DisplayName("Board, Post, Comment 조회 API는 인증 없이 접근할 수 있다.")
     void readApis_arePermitAll() throws Exception {
         when(boardQueryService.findAllBoards()).thenReturn(List.of());
-        when(postQueryService.getPosts(eq(1L), any(Pageable.class)))
+        when(postQueryService.getPosts(eq(1L), any(PostSearchCondition.class), any(Pageable.class)))
                 .thenReturn(new PageResponse<>(List.of(), 0, 20, 0, 0, true));
         when(commentQueryService.getComments(1L)).thenReturn(List.of());
 
