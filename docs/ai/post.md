@@ -23,6 +23,20 @@
 
 ### Post Query
 
+- 게시글 목록 조회는 `PostRepository.searchActivePosts(boardId, condition, pageable)` QueryDSL 쿼리를 사용한다.
+- 검색 조건은 `keyword`, `searchType`, `sortType`이다.
+- `searchType`은 `TITLE`, `CONTENT`, `TITLE_CONTENT`를 지원하며 기본값은 `TITLE_CONTENT`이다.
+- `sortType`은 `LATEST`, `OLDEST`, `VIEW_COUNT`, `LIKE_COUNT`를 지원하며 기본값은 `LATEST`이다.
+- `keyword`가 없거나 blank이면 검색 조건 없이 active post 목록을 조회한다.
+- active 조건은 `post.deletedAt IS NULL AND post.board.deletedAt IS NULL`이다.
+- 정렬 조건:
+  - `LATEST`: `createdAt desc`, `id desc`
+  - `OLDEST`: `createdAt asc`, `id asc`
+  - `VIEW_COUNT`: DB `viewCount desc`, `id desc`
+  - `LIKE_COUNT`: DB `likeCount desc`, `id desc`
+- 조회수/좋아요 정렬은 Redis 최신값이 아니라 DB에 마지막 sync된 count 기준이다.
+- 응답의 `viewCount`/`likeCount`는 기존처럼 Redis 최신값이 있으면 Redis 값으로 보정될 수 있다.
+
 - `PostQueryServiceImpl.getPosts`는 board 존재와 삭제 여부를 먼저 검증한다.
 - 빈 page에서도 `Page.empty(pageable)`로 조기 반환하지 않는다.
 - repository가 반환한 원본 `Page<Post>`의 `page.map(...)` 흐름을 유지한다.
@@ -70,6 +84,8 @@
 - scheduler는 count null 시 dirty marker를 유지하는지 검증한다.
 
 ## TODO / 운영 전 개선
+
+- `CONTENT` 검색은 `@Lob` 본문에 LIKE 검색을 수행하므로 대량 데이터에서는 full-text index 또는 search engine 도입을 검토한다.
 
 - Redis count key 유실이 반복되면 dirty marker가 계속 남을 수 있다.
 - stale dirty marker 감지를 위한 운영 로그, metric, admin 진단 기능을 보강한다.
