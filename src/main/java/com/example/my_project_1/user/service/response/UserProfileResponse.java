@@ -19,7 +19,7 @@ public class UserProfileResponse {
     @Schema(description = "자기소개", example = "백엔드 개발자입니다.", nullable = true)
     private String introduce;
 
-    @Schema(description = "프로필 이미지 URL", example = "http://localhost:8080/images/default.png", nullable = true)
+    @Schema(description = "프로필 이미지 URL", example = "/images/550e8400-e29b-41d4-a716-446655440000.png", nullable = true)
     private String profileImageUrl;
 
     public static UserProfileResponse from(User user) {
