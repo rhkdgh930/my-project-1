@@ -69,7 +69,7 @@ class PostQueryServiceImplTest {
         when(postRepository.searchActivePosts(boardId, null, pageable))
                 .thenReturn(new PageImpl<>(List.of(post), pageable, 1));
         when(userClient.findAuthorsByIds(List.of(100L)))
-                .thenReturn(Map.of(100L, AuthorSummary.active(100L, "nickname")));
+                .thenReturn(Map.of(100L, AuthorSummary.active(100L, "nickname", "/images/profile.png")));
         when(postRedisService.getViewOrNull(10L)).thenReturn(3L);
 
         PageResponse<PostListResponse> response = postQueryService.getPosts(boardId, null, pageable);
@@ -80,6 +80,7 @@ class PostQueryServiceImplTest {
         assertThat(response.getContent().get(0).getAuthor().id()).isEqualTo(100L);
         assertThat(response.getContent().get(0).getAuthor().displayName()).isEqualTo("nickname");
         assertThat(response.getContent().get(0).getAuthor().status()).isEqualTo(AuthorStatus.ACTIVE);
+        assertThat(response.getContent().get(0).getAuthor().profileImageUrl()).isEqualTo("/images/profile.png");
         assertThat(response.getContent().get(0).getViewCount()).isEqualTo(3L);
         assertThat(response.getContent().get(0).getLikeCount()).isEqualTo(0L);
         verify(postRepository).searchActivePosts(boardId, null, pageable);
@@ -160,7 +161,7 @@ class PostQueryServiceImplTest {
 
         when(postRepository.findActiveById(postId)).thenReturn(Optional.of(post));
         when(userClient.findAuthorsByIds(List.of(100L)))
-                .thenReturn(Map.of(100L, AuthorSummary.active(100L, "nickname")));
+                .thenReturn(Map.of(100L, AuthorSummary.active(100L, "nickname", "/images/profile.png")));
         when(postRedisService.getViewOrNull(postId)).thenReturn(4L);
 
         PostDetailResponse response = postQueryService.getPostDetail(boardId, postId);
@@ -174,6 +175,7 @@ class PostQueryServiceImplTest {
         assertThat(response.getAuthor().id()).isEqualTo(100L);
         assertThat(response.getAuthor().displayName()).isEqualTo("nickname");
         assertThat(response.getAuthor().status()).isEqualTo(AuthorStatus.ACTIVE);
+        assertThat(response.getAuthor().profileImageUrl()).isEqualTo("/images/profile.png");
         InOrder inOrder = inOrder(postRepository, postRedisService);
         inOrder.verify(postRepository).findActiveById(postId);
         inOrder.verify(postRedisService).increaseView(postId);
