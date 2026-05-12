@@ -9,6 +9,7 @@ import com.example.my_project_1.post.service.PostQueryService;
 import com.example.my_project_1.post.service.request.PostCreateRequest;
 import com.example.my_project_1.post.service.request.PostUpdateRequest;
 import com.example.my_project_1.post.service.response.PostDetailResponse;
+import com.example.my_project_1.post.service.response.PostLikeResponse;
 import com.example.my_project_1.post.service.response.PostListResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -163,12 +164,12 @@ public class PostController {
 
     @Operation(
             summary = "게시글 좋아요 토글",
-            description = "활성 게시글의 좋아요를 토글합니다. 삭제된 Board 아래 Post는 좋아요 대상이 아닙니다. 응답 boolean은 토글 후 좋아요 여부입니다.",
+            description = "활성 게시글의 좋아요를 토글합니다. 삭제된 Board 아래 Post는 좋아요 대상이 아닙니다. 응답은 토글 후 좋아요 여부와 응답 시점 기준 likeCount입니다.",
             security = @SecurityRequirement(name = "jwtAuth")
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "좋아요 토글 성공",
-                    content = @Content(schema = @Schema(implementation = Boolean.class))),
+                    content = @Content(schema = @Schema(implementation = PostLikeResponse.class))),
             @ApiResponse(responseCode = "400", description = "board-post 관계 불일치",
                     content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
             @ApiResponse(responseCode = "401", description = "인증 실패",
@@ -177,7 +178,7 @@ public class PostController {
                     content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
     })
     @PostMapping("/{postId}/like")
-    public boolean like(
+    public PostLikeResponse like(
             @Parameter(description = "게시판 ID", example = "1", required = true)
             @PathVariable Long boardId,
             @Parameter(description = "게시글 ID", example = "10", required = true)

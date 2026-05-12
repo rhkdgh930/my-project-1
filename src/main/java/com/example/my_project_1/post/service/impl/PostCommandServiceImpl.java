@@ -19,6 +19,7 @@ import com.example.my_project_1.post.service.PostRedisService;
 import com.example.my_project_1.post.service.request.PostCreateRequest;
 import com.example.my_project_1.post.service.request.PostUpdateRequest;
 import com.example.my_project_1.post.service.response.PostDetailResponse;
+import com.example.my_project_1.post.service.response.PostLikeResponse;
 import com.example.my_project_1.user.client.AuthorSummary;
 import com.example.my_project_1.user.client.UserClient;
 import lombok.RequiredArgsConstructor;
@@ -126,7 +127,7 @@ public class PostCommandServiceImpl implements PostCommandService {
     }
 
     @Override
-    public boolean like(Long boardId, Long postId, Long userId) {
+    public PostLikeResponse like(Long boardId, Long postId, Long userId) {
         Post post = postRepository.findActiveById(postId)
                 .orElseThrow(() -> new CustomException(ErrorCode.POST_NOT_FOUND));
 
@@ -134,7 +135,10 @@ public class PostCommandServiceImpl implements PostCommandService {
             throw new CustomException(ErrorCode.INVALID_BOARD_POST_RELATION);
         }
 
-        return postRedisService.toggleLike(postId, userId);
+        boolean liked = postRedisService.toggleLike(postId, userId);
+        Long redisLikeCount = postRedisService.getLikeOrNull(postId);
+        long likeCount = redisLikeCount != null ? redisLikeCount : post.getLikeCount();
+        return PostLikeResponse.of(liked, likeCount);
     }
 
     private AuthorSummary getAuthorOrUnknown(Long userId) {
