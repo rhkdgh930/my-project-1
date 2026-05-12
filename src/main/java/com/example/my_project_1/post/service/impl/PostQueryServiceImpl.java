@@ -8,6 +8,7 @@ import com.example.my_project_1.post.domain.Post;
 import com.example.my_project_1.post.repository.PostRepository;
 import com.example.my_project_1.post.service.PostQueryService;
 import com.example.my_project_1.post.service.PostRedisService;
+import com.example.my_project_1.post.service.request.PostSearchCondition;
 import com.example.my_project_1.post.service.response.PostListResponse;
 import com.example.my_project_1.post.service.response.PostDetailResponse;
 import com.example.my_project_1.user.client.AuthorSummary;
@@ -34,10 +35,18 @@ public class PostQueryServiceImpl implements PostQueryService {
     private final PostRedisService postRedisService;
 
     @Override
-    public PageResponse<PostListResponse> getPosts(Long boardId, Pageable pageable) {
+    public PageResponse<PostListResponse> getPosts(
+            Long boardId,
+            PostSearchCondition condition,
+            Pageable pageable
+    ) {
         validateBoard(boardId);
 
-        Page<Post> page = postRepository.findAllActiveByBoardId(boardId, pageable);
+        Page<Post> page = postRepository.searchActivePosts(
+                boardId,
+                condition,
+                pageable
+        );
 
         List<Long> authorIds = page.getContent().stream()
                 .map(Post::getUserId)

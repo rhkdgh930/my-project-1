@@ -7,6 +7,7 @@ import com.example.my_project_1.common.utils.PageResponse;
 import com.example.my_project_1.post.service.PostCommandService;
 import com.example.my_project_1.post.service.PostQueryService;
 import com.example.my_project_1.post.service.request.PostCreateRequest;
+import com.example.my_project_1.post.service.request.PostSearchCondition;
 import com.example.my_project_1.post.service.request.PostUpdateRequest;
 import com.example.my_project_1.post.service.response.PostDetailResponse;
 import com.example.my_project_1.post.service.response.PostLikeResponse;
@@ -123,7 +124,14 @@ public class PostController {
 
     @Operation(
             summary = "게시글 목록 조회",
-            description = "삭제되지 않은 Board의 활성 게시글 목록을 페이징 조회합니다. Public API입니다. 응답은 PageResponse<PostListResponse> 형태이며 viewCount/likeCount는 응답 시점 기준 값입니다."
+            description = """
+                삭제되지 않은 Board의 활성 게시글 목록을 페이징 조회합니다.
+                keyword/searchType으로 제목 또는 본문 검색이 가능하고,
+                sortType으로 최신순/오래된순/조회수순/좋아요순 정렬이 가능합니다.
+                조회수/좋아요 정렬은 DB에 마지막 동기화된 count 기준이며,
+                응답의 viewCount/likeCount는 Redis 최신값으로 보정될 수 있습니다.
+                Public API입니다.
+                """
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "게시글 목록 조회 성공",
@@ -135,10 +143,10 @@ public class PostController {
     public PageResponse<PostListResponse> getPosts(
             @Parameter(description = "게시판 ID", example = "1", required = true)
             @PathVariable Long boardId,
-            @ParameterObject
-            Pageable pageable
+            @ParameterObject PostSearchCondition condition,
+            @ParameterObject Pageable pageable
     ) {
-        return postQueryService.getPosts(boardId, pageable);
+        return postQueryService.getPosts(boardId, condition, pageable);
     }
 
     @Operation(
