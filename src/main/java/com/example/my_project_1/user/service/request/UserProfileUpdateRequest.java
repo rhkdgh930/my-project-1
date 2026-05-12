@@ -11,7 +11,7 @@ public class UserProfileUpdateRequest {
     @Size(max = 500)
     private String introduce;
 
-    @Schema(description = "프로필 이미지 URL", example = "http://localhost:8080/images/default.png")
+    @Schema(description = "프로필 이미지 URL. 내부 업로드 이미지인 /images/{uuid}.{ext} 형식만 허용합니다.", example = "/images/550e8400-e29b-41d4-a716-446655440000.png")
     @Size(max = 2048)
     private String profileImageUrl;
 }

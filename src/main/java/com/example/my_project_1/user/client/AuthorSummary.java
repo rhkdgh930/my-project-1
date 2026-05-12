@@ -13,7 +13,7 @@ public record AuthorSummary(
         @Schema(description = "작성자 표시 상태")
         AuthorStatus status,
 
-        @Schema(description = "ACTIVE author profile image URL. Masked author states always return null.", example = "/images/profile.png", nullable = true)
+        @Schema(description = "ACTIVE author profile image URL. Masked author states always return null.", example = "/images/550e8400-e29b-41d4-a716-446655440000.png", nullable = true)
         String profileImageUrl
 ) {
     private static final String WITHDRAWN_DISPLAY_NAME = "탈퇴한 사용자";
