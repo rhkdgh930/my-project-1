@@ -8,10 +8,11 @@ import com.example.my_project_1.common.utils.DataSerializer;
 import com.example.my_project_1.outbox.domain.OutboxEventType;
 import com.example.my_project_1.outbox.service.OutboxPublisher;
 import com.example.my_project_1.post.domain.Post;
+import com.example.my_project_1.post.domain.PostLike;
+import com.example.my_project_1.post.repository.PostLikeRepository;
 import com.example.my_project_1.post.event.PostDeletedOutboxEvent;
 import com.example.my_project_1.post.event.PostUpdatedOutboxEvent;
 import com.example.my_project_1.post.repository.PostRepository;
-import com.example.my_project_1.post.service.PostRedisService;
 import com.example.my_project_1.post.service.request.PostCreateRequest;
 import com.example.my_project_1.post.service.request.PostUpdateRequest;
 import com.example.my_project_1.post.service.response.PostDetailResponse;
@@ -40,6 +41,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
 
 class PostCommandServiceImplTest {
 
@@ -51,7 +53,7 @@ class PostCommandServiceImplTest {
 
     private BoardRepository boardRepository;
     private PostRepository postRepository;
-    private PostRedisService postRedisService;
+    private PostLikeRepository postLikeRepository;
     private UserClient userClient;
     private OutboxPublisher outboxPublisher;
     private PostCommandServiceImpl postCommandService;
@@ -60,14 +62,14 @@ class PostCommandServiceImplTest {
     void setUp() {
         boardRepository = mock(BoardRepository.class);
         postRepository = mock(PostRepository.class);
-        postRedisService = mock(PostRedisService.class);
+        postLikeRepository = mock(PostLikeRepository.class);
         userClient = mock(UserClient.class);
         outboxPublisher = mock(OutboxPublisher.class);
 
         postCommandService = new PostCommandServiceImpl(
                 boardRepository,
                 postRepository,
-                postRedisService,
+                postLikeRepository,
                 userClient,
                 outboxPublisher,
                 CLOCK
@@ -351,46 +353,50 @@ class PostCommandServiceImplTest {
     }
 
     @Test
-    @DisplayName("like returns liked state and Redis like count without increasing view count")
-    void like_returnsLikedStateAndRedisLikeCountWithoutIncreasingViewCount() {
+    @DisplayName("like는 기존 row가 없으면 post_like를 저장하고 likeCount를 1 증가시킨다.")
+    void like_insertsPostLikeAndIncrementsLikeCountWhenRowDoesNotExist() {
         Long boardId = 1L;
         Long postId = 10L;
         Long userId = 100L;
         Post post = post(boardId, postId, userId);
         post.updateCounts(3L, 7L);
 
-        when(postRepository.findActiveById(postId)).thenReturn(Optional.of(post));
-        when(postRedisService.toggleLike(postId, userId)).thenReturn(true);
-        when(postRedisService.getLikeOrNull(postId)).thenReturn(11L);
+        when(postRepository.findActiveByIdForUpdate(postId)).thenReturn(Optional.of(post));
+        when(postLikeRepository.findByPostIdAndUserId(postId, userId)).thenReturn(Optional.empty());
+        when(postRepository.updateLikeCountDelta(postId, 1L)).thenReturn(1);
+        when(postRepository.findLikeCountById(postId)).thenReturn(Optional.of(8L));
 
         PostLikeResponse response = postCommandService.like(boardId, postId, userId);
 
         assertThat(response.isLiked()).isTrue();
-        assertThat(response.getLikeCount()).isEqualTo(11L);
-        verify(postRepository).findActiveById(postId);
-        verify(postRedisService).toggleLike(postId, userId);
-        verify(postRedisService).getLikeOrNull(postId);
-        verify(postRedisService, never()).increaseView(postId);
+        assertThat(response.getLikeCount()).isEqualTo(8L);
+        verify(postRepository).findActiveByIdForUpdate(postId);
+        verify(postLikeRepository).saveAndFlush(any(PostLike.class));
+        verify(postRepository).updateLikeCountDelta(postId, 1L);
     }
 
     @Test
-    @DisplayName("like falls back to DB like count when Redis like count is missing")
-    void like_fallsBackToDbLikeCountWhenRedisLikeCountIsMissing() {
+    @DisplayName("like는 기존 row가 있으면 post_like를 삭제하고 likeCount를 1 감소시킨다.")
+    void like_deletesPostLikeAndDecrementsLikeCountWhenRowExists() {
         Long boardId = 1L;
         Long postId = 10L;
         Long userId = 100L;
         Post post = post(boardId, postId, userId);
+        PostLike postLike = PostLike.create(post, userId);
         post.updateCounts(3L, 7L);
 
-        when(postRepository.findActiveById(postId)).thenReturn(Optional.of(post));
-        when(postRedisService.toggleLike(postId, userId)).thenReturn(false);
-        when(postRedisService.getLikeOrNull(postId)).thenReturn(null);
+        when(postRepository.findActiveByIdForUpdate(postId)).thenReturn(Optional.of(post));
+        when(postLikeRepository.findByPostIdAndUserId(postId, userId)).thenReturn(Optional.of(postLike));
+        when(postRepository.updateLikeCountDelta(postId, -1L)).thenReturn(1);
+        when(postRepository.findLikeCountById(postId)).thenReturn(Optional.of(6L));
 
         PostLikeResponse response = postCommandService.like(boardId, postId, userId);
 
         assertThat(response.isLiked()).isFalse();
-        assertThat(response.getLikeCount()).isEqualTo(7L);
-        verify(postRedisService, never()).increaseView(postId);
+        assertThat(response.getLikeCount()).isEqualTo(6L);
+        verify(postLikeRepository).delete(postLike);
+        verify(postLikeRepository, never()).saveAndFlush(any(PostLike.class));
+        verify(postRepository).updateLikeCountDelta(postId, -1L);
     }
 
     @Test
@@ -402,15 +408,152 @@ class PostCommandServiceImplTest {
         Long userId = 100L;
         Post post = post(actualBoardId, postId, userId);
 
-        when(postRepository.findActiveById(postId)).thenReturn(Optional.of(post));
+        when(postRepository.findActiveByIdForUpdate(postId)).thenReturn(Optional.of(post));
 
         assertThatThrownBy(() -> postCommandService.like(boardId, postId, userId))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.INVALID_BOARD_POST_RELATION);
 
-        verify(postRedisService, never()).toggleLike(postId, userId);
-        verify(postRedisService, never()).increaseView(postId);
+        verify(postLikeRepository, never()).findByPostIdAndUserId(postId, userId);
+        verify(postRepository, never()).updateLikeCountDelta(postId, 1L);
+    }
+
+    @Test
+    @DisplayName("like는 active post가 아니면 POST_NOT_FOUND로 거절한다.")
+    void like_rejectsWhenActivePostNotFound() {
+        Long boardId = 1L;
+        Long postId = 10L;
+        Long userId = 100L;
+
+        when(postRepository.findActiveByIdForUpdate(postId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> postCommandService.like(boardId, postId, userId))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.POST_NOT_FOUND);
+
+        verify(postLikeRepository, never()).findByPostIdAndUserId(postId, userId);
+    }
+
+    @Test
+    @DisplayName("PUT like는 기존 row가 없으면 post_like를 저장하고 likeCount를 1 증가시킨다.")
+    void likeIdempotently_insertsPostLikeAndIncrementsLikeCountWhenRowDoesNotExist() {
+        Long boardId = 1L;
+        Long postId = 10L;
+        Long userId = 100L;
+        Post post = post(boardId, postId, userId);
+
+        when(postRepository.findActiveByIdForUpdate(postId)).thenReturn(Optional.of(post));
+        when(postLikeRepository.findByPostIdAndUserId(postId, userId)).thenReturn(Optional.empty());
+        when(postRepository.updateLikeCountDelta(postId, 1L)).thenReturn(1);
+        when(postRepository.findLikeCountById(postId)).thenReturn(Optional.of(8L));
+
+        PostLikeResponse response = postCommandService.likeIdempotently(boardId, postId, userId);
+
+        assertThat(response.isLiked()).isTrue();
+        assertThat(response.getLikeCount()).isEqualTo(8L);
+        verify(postLikeRepository).saveAndFlush(any(PostLike.class));
+        verify(postRepository).updateLikeCountDelta(postId, 1L);
+    }
+
+    @Test
+    @DisplayName("PUT like는 기존 row가 있으면 중복 저장 없이 likeCount를 유지한다.")
+    void likeIdempotently_keepsLikeCountWhenRowAlreadyExists() {
+        Long boardId = 1L;
+        Long postId = 10L;
+        Long userId = 100L;
+        Post post = post(boardId, postId, userId);
+        PostLike postLike = PostLike.create(post, userId);
+
+        when(postRepository.findActiveByIdForUpdate(postId)).thenReturn(Optional.of(post));
+        when(postLikeRepository.findByPostIdAndUserId(postId, userId)).thenReturn(Optional.of(postLike));
+        when(postRepository.findLikeCountById(postId)).thenReturn(Optional.of(7L));
+
+        PostLikeResponse response = postCommandService.likeIdempotently(boardId, postId, userId);
+
+        assertThat(response.isLiked()).isTrue();
+        assertThat(response.getLikeCount()).isEqualTo(7L);
+        verify(postLikeRepository, never()).saveAndFlush(any(PostLike.class));
+        verify(postRepository, never()).updateLikeCountDelta(postId, 1L);
+    }
+
+    @Test
+    @DisplayName("DELETE like는 기존 row가 있으면 post_like를 삭제하고 likeCount를 1 감소시킨다.")
+    void unlikeIdempotently_deletesPostLikeAndDecrementsLikeCountWhenRowExists() {
+        Long boardId = 1L;
+        Long postId = 10L;
+        Long userId = 100L;
+        Post post = post(boardId, postId, userId);
+        PostLike postLike = PostLike.create(post, userId);
+
+        when(postRepository.findActiveByIdForUpdate(postId)).thenReturn(Optional.of(post));
+        when(postLikeRepository.findByPostIdAndUserId(postId, userId)).thenReturn(Optional.of(postLike));
+        when(postRepository.updateLikeCountDelta(postId, -1L)).thenReturn(1);
+        when(postRepository.findLikeCountById(postId)).thenReturn(Optional.of(6L));
+
+        PostLikeResponse response = postCommandService.unlikeIdempotently(boardId, postId, userId);
+
+        assertThat(response.isLiked()).isFalse();
+        assertThat(response.getLikeCount()).isEqualTo(6L);
+        verify(postLikeRepository).delete(postLike);
+        verify(postRepository).updateLikeCountDelta(postId, -1L);
+    }
+
+    @Test
+    @DisplayName("DELETE like는 기존 row가 없으면 likeCount를 유지한다.")
+    void unlikeIdempotently_keepsLikeCountWhenRowDoesNotExist() {
+        Long boardId = 1L;
+        Long postId = 10L;
+        Long userId = 100L;
+        Post post = post(boardId, postId, userId);
+
+        when(postRepository.findActiveByIdForUpdate(postId)).thenReturn(Optional.of(post));
+        when(postLikeRepository.findByPostIdAndUserId(postId, userId)).thenReturn(Optional.empty());
+        when(postRepository.findLikeCountById(postId)).thenReturn(Optional.of(7L));
+
+        PostLikeResponse response = postCommandService.unlikeIdempotently(boardId, postId, userId);
+
+        assertThat(response.isLiked()).isFalse();
+        assertThat(response.getLikeCount()).isEqualTo(7L);
+        verify(postLikeRepository, never()).delete(any(PostLike.class));
+        verify(postRepository, never()).updateLikeCountDelta(postId, -1L);
+    }
+
+    @Test
+    @DisplayName("PUT like는 board-post 관계가 다르면 INVALID_BOARD_POST_RELATION으로 거절한다.")
+    void likeIdempotently_rejectsWhenBoardPostRelationMismatch() {
+        Long boardId = 1L;
+        Long actualBoardId = 2L;
+        Long postId = 10L;
+        Long userId = 100L;
+        Post post = post(actualBoardId, postId, userId);
+
+        when(postRepository.findActiveByIdForUpdate(postId)).thenReturn(Optional.of(post));
+
+        assertThatThrownBy(() -> postCommandService.likeIdempotently(boardId, postId, userId))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.INVALID_BOARD_POST_RELATION);
+
+        verify(postLikeRepository, never()).findByPostIdAndUserId(postId, userId);
+    }
+
+    @Test
+    @DisplayName("DELETE like는 active post가 아니면 POST_NOT_FOUND로 거절한다.")
+    void unlikeIdempotently_rejectsWhenActivePostNotFound() {
+        Long boardId = 1L;
+        Long postId = 10L;
+        Long userId = 100L;
+
+        when(postRepository.findActiveByIdForUpdate(postId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> postCommandService.unlikeIdempotently(boardId, postId, userId))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.POST_NOT_FOUND);
+
+        verify(postLikeRepository, never()).findByPostIdAndUserId(postId, userId);
     }
 
     private static Post post(Long boardId, Long postId, Long userId) {

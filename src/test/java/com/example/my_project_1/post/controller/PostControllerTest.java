@@ -7,6 +7,7 @@ import com.example.my_project_1.post.service.PostQueryService;
 import com.example.my_project_1.post.service.request.PostSearchCondition;
 import com.example.my_project_1.post.service.request.PostSearchType;
 import com.example.my_project_1.post.service.request.PostSortType;
+import com.example.my_project_1.post.service.response.PostDetailResponse;
 import com.example.my_project_1.post.service.response.PostLikeResponse;
 import com.example.my_project_1.post.service.response.PostListResponse;
 import org.junit.jupiter.api.DisplayName;
@@ -45,6 +46,77 @@ class PostControllerTest {
         assertThat(actual.isLiked()).isTrue();
         assertThat(actual.getLikeCount()).isEqualTo(12L);
         verify(postCommandService).like(boardId, postId, userId);
+    }
+
+    @Test
+    @DisplayName("PUT like returns liked state and current like count")
+    void likeIdempotently_returnsPostLikeResponse() {
+        Long boardId = 1L;
+        Long postId = 10L;
+        Long userId = 100L;
+        UserDetailsImpl userDetails = mock(UserDetailsImpl.class);
+        PostLikeResponse response = PostLikeResponse.of(true, 12L);
+
+        when(userDetails.getUserId()).thenReturn(userId);
+        when(postCommandService.likeIdempotently(boardId, postId, userId)).thenReturn(response);
+
+        PostLikeResponse actual = postController.likeIdempotently(boardId, postId, userDetails);
+
+        assertThat(actual.isLiked()).isTrue();
+        assertThat(actual.getLikeCount()).isEqualTo(12L);
+        verify(postCommandService).likeIdempotently(boardId, postId, userId);
+    }
+
+    @Test
+    @DisplayName("DELETE like returns unliked state and current like count")
+    void unlikeIdempotently_returnsPostLikeResponse() {
+        Long boardId = 1L;
+        Long postId = 10L;
+        Long userId = 100L;
+        UserDetailsImpl userDetails = mock(UserDetailsImpl.class);
+        PostLikeResponse response = PostLikeResponse.of(false, 11L);
+
+        when(userDetails.getUserId()).thenReturn(userId);
+        when(postCommandService.unlikeIdempotently(boardId, postId, userId)).thenReturn(response);
+
+        PostLikeResponse actual = postController.unlikeIdempotently(boardId, postId, userDetails);
+
+        assertThat(actual.isLiked()).isFalse();
+        assertThat(actual.getLikeCount()).isEqualTo(11L);
+        verify(postCommandService).unlikeIdempotently(boardId, postId, userId);
+    }
+
+    @Test
+    @DisplayName("read passes nullable current user id to query service")
+    void read_passesNullableCurrentUserId() {
+        Long boardId = 1L;
+        Long postId = 10L;
+        PostDetailResponse response = mock(PostDetailResponse.class);
+
+        when(postQueryService.getPostDetail(boardId, postId, null)).thenReturn(response);
+
+        PostDetailResponse actual = postController.read(boardId, postId, null);
+
+        assertThat(actual).isSameAs(response);
+        verify(postQueryService).getPostDetail(boardId, postId, null);
+    }
+
+    @Test
+    @DisplayName("read passes authenticated current user id to query service")
+    void read_passesAuthenticatedCurrentUserId() {
+        Long boardId = 1L;
+        Long postId = 10L;
+        Long userId = 100L;
+        UserDetailsImpl userDetails = mock(UserDetailsImpl.class);
+        PostDetailResponse response = mock(PostDetailResponse.class);
+
+        when(userDetails.getUserId()).thenReturn(userId);
+        when(postQueryService.getPostDetail(boardId, postId, userId)).thenReturn(response);
+
+        PostDetailResponse actual = postController.read(boardId, postId, userDetails);
+
+        assertThat(actual).isSameAs(response);
+        verify(postQueryService).getPostDetail(boardId, postId, userId);
     }
 
     @Test

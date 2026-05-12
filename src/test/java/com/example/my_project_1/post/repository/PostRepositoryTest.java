@@ -3,6 +3,7 @@ package com.example.my_project_1.post.repository;
 import com.example.my_project_1.board.domain.Board;
 import com.example.my_project_1.common.config.QueryDslConfig;
 import com.example.my_project_1.post.domain.Post;
+import com.example.my_project_1.post.domain.PostLike;
 import com.example.my_project_1.post.service.request.PostSearchCondition;
 import com.example.my_project_1.post.service.request.PostSearchType;
 import com.example.my_project_1.post.service.request.PostSortType;
@@ -14,10 +15,12 @@ import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @DataJpaTest(properties = {
         "spring.jpa.hibernate.ddl-auto=create-drop",
@@ -30,6 +33,9 @@ class PostRepositoryTest {
 
     @Autowired
     private PostRepository postRepository;
+
+    @Autowired
+    private PostLikeRepository postLikeRepository;
 
     @Autowired
     private TestEntityManager entityManager;
@@ -127,6 +133,52 @@ class PostRepositoryTest {
         assertThat(sorted(board, PostSortType.OLDEST, 1, 1).getContent())
                 .extracting(Post::getId)
                 .containsExactly(highView.getId());
+    }
+
+    @Test
+    @DisplayName("post_like는 postId와 userId 조합을 unique로 보장한다.")
+    void postLike_enforcesUniquePostAndUser() {
+        Post post = postRepository.save(post(board("like-board"), 100L, "title", "content"));
+        postLikeRepository.saveAndFlush(PostLike.create(post, 200L));
+
+        assertThatThrownBy(() -> postLikeRepository.saveAndFlush(PostLike.create(post, 200L)))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    @DisplayName("post_like는 다른 사용자의 좋아요 row를 별도로 유지한다.")
+    void postLike_keepsOtherUsersLikes() {
+        Post post = postRepository.save(post(board("multi-like-board"), 100L, "title", "content"));
+        PostLike first = postLikeRepository.saveAndFlush(PostLike.create(post, 200L));
+        PostLike second = postLikeRepository.saveAndFlush(PostLike.create(post, 201L));
+
+        postLikeRepository.delete(first);
+        postLikeRepository.flush();
+
+        assertThat(postLikeRepository.findById(second.getId())).isPresent();
+        assertThat(postLikeRepository.existsByPostIdAndUserId(post.getId(), 200L)).isFalse();
+        assertThat(postLikeRepository.existsByPostIdAndUserId(post.getId(), 201L)).isTrue();
+    }
+
+    @Test
+    @DisplayName("updateLikeCountDelta는 likeCount를 원자적으로 증감하고 음수로 만들지 않는다.")
+    void updateLikeCountDelta_updatesAtomicallyAndDoesNotGoNegative() {
+        Post post = postRepository.save(post(board("delta-board"), 100L, "title", "content"));
+        post.updateCounts(0L, 0L);
+        postRepository.flush();
+        entityManager.clear();
+
+        postRepository.updateLikeCountDelta(post.getId(), -1L);
+        entityManager.clear();
+
+        assertThat(postRepository.findById(post.getId()).orElseThrow().getLikeCount()).isZero();
+
+        postRepository.updateLikeCountDelta(post.getId(), 1L);
+        postRepository.updateLikeCountDelta(post.getId(), 1L);
+        postRepository.updateLikeCountDelta(post.getId(), -1L);
+        entityManager.clear();
+
+        assertThat(postRepository.findById(post.getId()).orElseThrow().getLikeCount()).isEqualTo(1L);
     }
 
     private Page<Post> search(

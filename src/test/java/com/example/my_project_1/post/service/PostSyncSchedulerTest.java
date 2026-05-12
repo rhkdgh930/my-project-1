@@ -32,35 +32,14 @@ class PostSyncSchedulerTest {
     void sync_updatesOnlyViewCountForViewDirtyPost() {
         Long postId = 10L;
         when(redisService.getViewDirtyPostIds()).thenReturn(Set.of(postId.toString()));
-        when(redisService.getLikeDirtyPostIds()).thenReturn(Set.of());
         when(redisService.getViewOrNull(postId)).thenReturn(100L);
 
         scheduler.sync();
 
         verify(postRepository).updateViewCount(postId, 100L);
-        verify(postRepository, never()).updateLikeCount(anyLong(), anyLong());
         verify(postRepository, never()).updateCounts(anyLong(), anyLong(), anyLong());
         verify(redisService).removeViewDirtyIfUnchanged(postId, 100L);
         verify(redisService, never()).removeViewDirty(postId);
-        verify(redisService, never()).removeLikeDirty(postId);
-    }
-
-    @Test
-    @DisplayName("sync는 like dirty post의 like count만 갱신한다.")
-    void sync_updatesOnlyLikeCountForLikeDirtyPost() {
-        Long postId = 10L;
-        when(redisService.getViewDirtyPostIds()).thenReturn(Set.of());
-        when(redisService.getLikeDirtyPostIds()).thenReturn(Set.of(postId.toString()));
-        when(redisService.getLikeOrNull(postId)).thenReturn(5L);
-
-        scheduler.sync();
-
-        verify(postRepository, never()).updateViewCount(anyLong(), anyLong());
-        verify(postRepository).updateLikeCount(postId, 5L);
-        verify(postRepository, never()).updateCounts(anyLong(), anyLong(), anyLong());
-        verify(redisService, never()).removeViewDirty(postId);
-        verify(redisService).removeLikeDirtyIfUnchanged(postId, 5L);
-        verify(redisService, never()).removeLikeDirty(postId);
     }
 
     @Test
@@ -68,7 +47,6 @@ class PostSyncSchedulerTest {
     void sync_keepsViewDirtyMarkerWhenRedisViewCountIsMissing() {
         Long postId = 10L;
         when(redisService.getViewDirtyPostIds()).thenReturn(Set.of(postId.toString()));
-        when(redisService.getLikeDirtyPostIds()).thenReturn(Set.of());
         when(redisService.getViewOrNull(postId)).thenReturn(null);
 
         scheduler.sync();
@@ -79,26 +57,10 @@ class PostSyncSchedulerTest {
     }
 
     @Test
-    @DisplayName("sync는 redis like count가 없으면 like dirty marker를 유지한다.")
-    void sync_keepsLikeDirtyMarkerWhenRedisLikeCountIsMissing() {
-        Long postId = 10L;
-        when(redisService.getViewDirtyPostIds()).thenReturn(Set.of());
-        when(redisService.getLikeDirtyPostIds()).thenReturn(Set.of(postId.toString()));
-        when(redisService.getLikeOrNull(postId)).thenReturn(null);
-
-        scheduler.sync();
-
-        verify(postRepository, never()).updateLikeCount(anyLong(), anyLong());
-        verify(redisService, never()).removeLikeDirty(postId);
-        verify(redisService, never()).removeLikeDirtyIfUnchanged(anyLong(), anyLong());
-    }
-
-    @Test
     @DisplayName("sync는 view DB 갱신 실패 시 view dirty marker를 유지한다.")
     void sync_keepsViewDirtyMarkerWhenViewDbUpdateFails() {
         Long postId = 10L;
         when(redisService.getViewDirtyPostIds()).thenReturn(Set.of(postId.toString()));
-        when(redisService.getLikeDirtyPostIds()).thenReturn(Set.of());
         when(redisService.getViewOrNull(postId)).thenReturn(100L);
         doThrow(new RuntimeException("db fail"))
                 .when(postRepository).updateViewCount(postId, 100L);
@@ -110,27 +72,10 @@ class PostSyncSchedulerTest {
     }
 
     @Test
-    @DisplayName("sync는 like DB 갱신 실패 시 like dirty marker를 유지한다.")
-    void sync_keepsLikeDirtyMarkerWhenLikeDbUpdateFails() {
-        Long postId = 10L;
-        when(redisService.getViewDirtyPostIds()).thenReturn(Set.of());
-        when(redisService.getLikeDirtyPostIds()).thenReturn(Set.of(postId.toString()));
-        when(redisService.getLikeOrNull(postId)).thenReturn(5L);
-        doThrow(new RuntimeException("db fail"))
-                .when(postRepository).updateLikeCount(postId, 5L);
-
-        scheduler.sync();
-
-        verify(redisService, never()).removeLikeDirty(postId);
-        verify(redisService, never()).removeLikeDirtyIfUnchanged(anyLong(), anyLong());
-    }
-
-    @Test
     @DisplayName("sync는 removeViewDirtyIfUnchanged가 false여도 실패하지 않는다.")
     void sync_continuesWhenRemoveViewDirtyIfUnchangedReturnsFalse() {
         Long postId = 10L;
         when(redisService.getViewDirtyPostIds()).thenReturn(Set.of(postId.toString()));
-        when(redisService.getLikeDirtyPostIds()).thenReturn(Set.of());
         when(redisService.getViewOrNull(postId)).thenReturn(100L);
         when(redisService.removeViewDirtyIfUnchanged(postId, 100L)).thenReturn(false);
 

@@ -6,6 +6,7 @@ import com.example.my_project_1.common.exception.CustomException;
 import com.example.my_project_1.common.exception.ErrorCode;
 import com.example.my_project_1.common.utils.PageResponse;
 import com.example.my_project_1.post.domain.Post;
+import com.example.my_project_1.post.repository.PostLikeRepository;
 import com.example.my_project_1.post.repository.PostRepository;
 import com.example.my_project_1.post.service.PostRedisService;
 import com.example.my_project_1.post.service.request.PostSearchCondition;
@@ -41,6 +42,7 @@ class PostQueryServiceImplTest {
 
     private BoardRepository boardRepository;
     private PostRepository postRepository;
+    private PostLikeRepository postLikeRepository;
     private UserClient userClient;
     private PostRedisService postRedisService;
     private PostQueryServiceImpl postQueryService;
@@ -49,9 +51,10 @@ class PostQueryServiceImplTest {
     void setUp() {
         boardRepository = mock(BoardRepository.class);
         postRepository = mock(PostRepository.class);
+        postLikeRepository = mock(PostLikeRepository.class);
         userClient = mock(UserClient.class);
         postRedisService = mock(PostRedisService.class);
-        postQueryService = new PostQueryServiceImpl(boardRepository, postRepository, userClient, postRedisService);
+        postQueryService = new PostQueryServiceImpl(boardRepository, postRepository, postLikeRepository, userClient, postRedisService);
     }
 
     @Test
@@ -68,7 +71,6 @@ class PostQueryServiceImplTest {
         when(userClient.findAuthorsByIds(List.of(100L)))
                 .thenReturn(Map.of(100L, AuthorSummary.active(100L, "nickname")));
         when(postRedisService.getViewOrNull(10L)).thenReturn(3L);
-        when(postRedisService.getLikeOrNull(10L)).thenReturn(2L);
 
         PageResponse<PostListResponse> response = postQueryService.getPosts(boardId, null, pageable);
 
@@ -78,6 +80,8 @@ class PostQueryServiceImplTest {
         assertThat(response.getContent().get(0).getAuthor().id()).isEqualTo(100L);
         assertThat(response.getContent().get(0).getAuthor().displayName()).isEqualTo("nickname");
         assertThat(response.getContent().get(0).getAuthor().status()).isEqualTo(AuthorStatus.ACTIVE);
+        assertThat(response.getContent().get(0).getViewCount()).isEqualTo(3L);
+        assertThat(response.getContent().get(0).getLikeCount()).isEqualTo(0L);
         verify(postRepository).searchActivePosts(boardId, null, pageable);
     }
 
@@ -96,7 +100,6 @@ class PostQueryServiceImplTest {
         when(userClient.findAuthorsByIds(List.of(100L)))
                 .thenReturn(Map.of(100L, AuthorSummary.active(100L, "nickname")));
         when(postRedisService.getViewOrNull(10L)).thenReturn(null);
-        when(postRedisService.getLikeOrNull(10L)).thenReturn(null);
 
         PageResponse<PostListResponse> response = postQueryService.getPosts(boardId, null, pageable);
 
@@ -125,7 +128,6 @@ class PostQueryServiceImplTest {
         assertThat(response.getTotalPages()).isEqualTo(3);
         verify(userClient, never()).findAuthorsByIds(any());
         verify(postRedisService, never()).getViewOrNull(any());
-        verify(postRedisService, never()).getLikeOrNull(any());
     }
 
     @Test
@@ -160,12 +162,13 @@ class PostQueryServiceImplTest {
         when(userClient.findAuthorsByIds(List.of(100L)))
                 .thenReturn(Map.of(100L, AuthorSummary.active(100L, "nickname")));
         when(postRedisService.getViewOrNull(postId)).thenReturn(4L);
-        when(postRedisService.getLikeOrNull(postId)).thenReturn(2L);
 
         PostDetailResponse response = postQueryService.getPostDetail(boardId, postId);
 
         assertThat(response.getPostId()).isEqualTo(postId);
         assertThat(response.getViewCount()).isEqualTo(4L);
+        assertThat(response.getLikeCount()).isEqualTo(0L);
+        assertThat(response.isLikedByMe()).isFalse();
         assertThat(response.getNickname()).isEqualTo("nickname");
         assertThat(response.getUserId()).isEqualTo(100L);
         assertThat(response.getAuthor().id()).isEqualTo(100L);
@@ -177,7 +180,7 @@ class PostQueryServiceImplTest {
     }
 
     @Test
-    @DisplayName("post detail은 redis like가 없으면 redis view와 DB like를 사용한다.")
+    @DisplayName("post detail은 redis view와 DB like를 사용한다.")
     void getPostDetail_usesRedisViewAndDbLikeWhenRedisLikeIsMissing() {
         Long boardId = 1L;
         Long postId = 10L;
@@ -188,12 +191,69 @@ class PostQueryServiceImplTest {
         when(userClient.findAuthorsByIds(List.of(100L)))
                 .thenReturn(Map.of(100L, AuthorSummary.active(100L, "nickname")));
         when(postRedisService.getViewOrNull(postId)).thenReturn(101L);
-        when(postRedisService.getLikeOrNull(postId)).thenReturn(null);
 
         PostDetailResponse response = postQueryService.getPostDetail(boardId, postId);
 
         assertThat(response.getViewCount()).isEqualTo(101L);
         assertThat(response.getLikeCount()).isEqualTo(5L);
+    }
+
+    @Test
+    @DisplayName("비로그인 상세 조회는 likedByMe=false를 반환하고 좋아요 여부를 조회하지 않는다.")
+    void getPostDetail_returnsFalseLikedByMeForAnonymousUser() {
+        Long boardId = 1L;
+        Long postId = 10L;
+        Post post = post(boardId, postId, 100L);
+
+        when(postRepository.findActiveById(postId)).thenReturn(Optional.of(post));
+        when(userClient.findAuthorsByIds(List.of(100L)))
+                .thenReturn(Map.of(100L, AuthorSummary.active(100L, "nickname")));
+
+        PostDetailResponse response = postQueryService.getPostDetail(boardId, postId, null);
+
+        assertThat(response.isLikedByMe()).isFalse();
+        verify(postLikeRepository, never()).existsByPostIdAndUserId(any(), any());
+        verify(postRedisService).increaseView(postId);
+    }
+
+    @Test
+    @DisplayName("로그인 사용자가 좋아요한 게시글 상세 조회는 likedByMe=true를 반환한다.")
+    void getPostDetail_returnsTrueLikedByMeWhenUserLikedPost() {
+        Long boardId = 1L;
+        Long postId = 10L;
+        Long currentUserId = 200L;
+        Post post = post(boardId, postId, 100L);
+
+        when(postRepository.findActiveById(postId)).thenReturn(Optional.of(post));
+        when(userClient.findAuthorsByIds(List.of(100L)))
+                .thenReturn(Map.of(100L, AuthorSummary.active(100L, "nickname")));
+        when(postLikeRepository.existsByPostIdAndUserId(postId, currentUserId)).thenReturn(true);
+
+        PostDetailResponse response = postQueryService.getPostDetail(boardId, postId, currentUserId);
+
+        assertThat(response.isLikedByMe()).isTrue();
+        verify(postLikeRepository).existsByPostIdAndUserId(postId, currentUserId);
+        verify(postRedisService).increaseView(postId);
+    }
+
+    @Test
+    @DisplayName("로그인 사용자가 좋아요하지 않은 게시글 상세 조회는 likedByMe=false를 반환한다.")
+    void getPostDetail_returnsFalseLikedByMeWhenUserDidNotLikePost() {
+        Long boardId = 1L;
+        Long postId = 10L;
+        Long currentUserId = 200L;
+        Post post = post(boardId, postId, 100L);
+
+        when(postRepository.findActiveById(postId)).thenReturn(Optional.of(post));
+        when(userClient.findAuthorsByIds(List.of(100L)))
+                .thenReturn(Map.of(100L, AuthorSummary.active(100L, "nickname")));
+        when(postLikeRepository.existsByPostIdAndUserId(postId, currentUserId)).thenReturn(false);
+
+        PostDetailResponse response = postQueryService.getPostDetail(boardId, postId, currentUserId);
+
+        assertThat(response.isLikedByMe()).isFalse();
+        verify(postLikeRepository).existsByPostIdAndUserId(postId, currentUserId);
+        verify(postRedisService).increaseView(postId);
     }
 
     @Test
@@ -311,6 +371,7 @@ class PostQueryServiceImplTest {
                 .isEqualTo(ErrorCode.POST_NOT_FOUND);
 
         verify(postRedisService, never()).increaseView(postId);
+        verify(postLikeRepository, never()).existsByPostIdAndUserId(any(), any());
     }
 
     private static Post post(Long boardId, Long postId, Long userId) {

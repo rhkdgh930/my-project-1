@@ -66,6 +66,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -198,6 +199,10 @@ class BoardPostCommentImageSecurityConfigTest {
         mockMvc.perform(delete("/api/boards/1/posts/1"))
                 .andExpect(status().isUnauthorized());
         mockMvc.perform(post("/api/boards/1/posts/1/like"))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(put("/api/boards/1/posts/1/like"))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(delete("/api/boards/1/posts/1/like"))
                 .andExpect(status().isUnauthorized());
         mockMvc.perform(post("/api/posts/1/comments")
                         .contentType("application/json")
