@@ -23,6 +23,8 @@ import static org.mockito.Mockito.when;
 
 class LocalUserClientTest {
 
+    private static final String PROFILE_IMAGE_URL = "/images/550e8400-e29b-41d4-a716-446655440000.png";
+
     private final Clock clock = Clock.fixed(
             Instant.parse("2026-01-01T00:00:00Z"),
             ZoneId.of("UTC")
@@ -44,7 +46,7 @@ class LocalUserClientTest {
     @DisplayName("작성자 조회는 활성 사용자의 nickname과 ACTIVE 상태를 반환한다.")
     void findAuthorsByIds_returnsActiveAuthor() {
         User user = user(1L, "active@example.com", "active");
-        user.updateProfile("hello", "/images/profile.png");
+        user.updateProfile("hello", PROFILE_IMAGE_URL);
         when(userRepository.findAllById(List.of(1L))).thenReturn(List.of(user));
 
         Map<Long, AuthorSummary> authors = userClient.findAuthorsByIds(List.of(1L));
@@ -53,7 +55,7 @@ class LocalUserClientTest {
         assertThat(author.id()).isEqualTo(1L);
         assertThat(author.displayName()).isEqualTo("active");
         assertThat(author.status()).isEqualTo(AuthorStatus.ACTIVE);
-        assertThat(author.profileImageUrl()).isEqualTo("/images/profile.png");
+        assertThat(author.profileImageUrl()).isEqualTo(PROFILE_IMAGE_URL);
     }
 
     @Test

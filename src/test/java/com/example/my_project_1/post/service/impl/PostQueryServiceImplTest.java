@@ -40,6 +40,8 @@ import static org.mockito.ArgumentMatchers.any;
 
 class PostQueryServiceImplTest {
 
+    private static final String PROFILE_IMAGE_URL = "/images/550e8400-e29b-41d4-a716-446655440000.png";
+
     private BoardRepository boardRepository;
     private PostRepository postRepository;
     private PostLikeRepository postLikeRepository;
@@ -69,7 +71,7 @@ class PostQueryServiceImplTest {
         when(postRepository.searchActivePosts(boardId, null, pageable))
                 .thenReturn(new PageImpl<>(List.of(post), pageable, 1));
         when(userClient.findAuthorsByIds(List.of(100L)))
-                .thenReturn(Map.of(100L, AuthorSummary.active(100L, "nickname", "/images/profile.png")));
+                .thenReturn(Map.of(100L, AuthorSummary.active(100L, "nickname", PROFILE_IMAGE_URL)));
         when(postRedisService.getViewOrNull(10L)).thenReturn(3L);
 
         PageResponse<PostListResponse> response = postQueryService.getPosts(boardId, null, pageable);
@@ -80,7 +82,7 @@ class PostQueryServiceImplTest {
         assertThat(response.getContent().get(0).getAuthor().id()).isEqualTo(100L);
         assertThat(response.getContent().get(0).getAuthor().displayName()).isEqualTo("nickname");
         assertThat(response.getContent().get(0).getAuthor().status()).isEqualTo(AuthorStatus.ACTIVE);
-        assertThat(response.getContent().get(0).getAuthor().profileImageUrl()).isEqualTo("/images/profile.png");
+        assertThat(response.getContent().get(0).getAuthor().profileImageUrl()).isEqualTo(PROFILE_IMAGE_URL);
         assertThat(response.getContent().get(0).getViewCount()).isEqualTo(3L);
         assertThat(response.getContent().get(0).getLikeCount()).isEqualTo(0L);
         verify(postRepository).searchActivePosts(boardId, null, pageable);
@@ -161,7 +163,7 @@ class PostQueryServiceImplTest {
 
         when(postRepository.findActiveById(postId)).thenReturn(Optional.of(post));
         when(userClient.findAuthorsByIds(List.of(100L)))
-                .thenReturn(Map.of(100L, AuthorSummary.active(100L, "nickname", "/images/profile.png")));
+                .thenReturn(Map.of(100L, AuthorSummary.active(100L, "nickname", PROFILE_IMAGE_URL)));
         when(postRedisService.getViewOrNull(postId)).thenReturn(4L);
 
         PostDetailResponse response = postQueryService.getPostDetail(boardId, postId);
@@ -175,7 +177,7 @@ class PostQueryServiceImplTest {
         assertThat(response.getAuthor().id()).isEqualTo(100L);
         assertThat(response.getAuthor().displayName()).isEqualTo("nickname");
         assertThat(response.getAuthor().status()).isEqualTo(AuthorStatus.ACTIVE);
-        assertThat(response.getAuthor().profileImageUrl()).isEqualTo("/images/profile.png");
+        assertThat(response.getAuthor().profileImageUrl()).isEqualTo(PROFILE_IMAGE_URL);
         InOrder inOrder = inOrder(postRepository, postRedisService);
         inOrder.verify(postRepository).findActiveById(postId);
         inOrder.verify(postRedisService).increaseView(postId);

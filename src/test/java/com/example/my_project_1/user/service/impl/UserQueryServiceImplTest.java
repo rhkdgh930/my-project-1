@@ -44,7 +44,7 @@ class UserQueryServiceImplTest {
         assertThat(response.getUserStatus()).isEqualTo("ACTIVE");
         assertThat(response.getAccountStatus()).isEqualTo("NORMAL");
         assertThat(response.getIntroduce()).isEqualTo("자기소개를 입력해주세요.");
-        assertThat(response.getProfileImageUrl()).isEqualTo("http://localhost:8080/images/default.png");
+        assertThat(response.getProfileImageUrl()).isNull();
         assertThat(response.isEmailVerified()).isTrue();
         assertThat(response.getLastLoginAt()).isEqualTo(LocalDateTime.parse("2026-01-01T00:00:00"));
         assertThat(Arrays.stream(UserMeResponse.class.getDeclaredFields()).map(Field::getName))
