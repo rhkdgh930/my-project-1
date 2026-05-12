@@ -15,6 +15,7 @@ import com.example.my_project_1.post.service.PostRedisService;
 import com.example.my_project_1.post.service.request.PostCreateRequest;
 import com.example.my_project_1.post.service.request.PostUpdateRequest;
 import com.example.my_project_1.post.service.response.PostDetailResponse;
+import com.example.my_project_1.post.service.response.PostLikeResponse;
 import com.example.my_project_1.user.client.AuthorStatus;
 import com.example.my_project_1.user.client.AuthorSummary;
 import com.example.my_project_1.user.client.UserClient;
@@ -350,20 +351,66 @@ class PostCommandServiceImplTest {
     }
 
     @Test
-    @DisplayName("like는 active post 조회를 사용한다.")
-    void like_usesActivePostLookup() {
+    @DisplayName("like returns liked state and Redis like count without increasing view count")
+    void like_returnsLikedStateAndRedisLikeCountWithoutIncreasingViewCount() {
         Long boardId = 1L;
         Long postId = 10L;
         Long userId = 100L;
         Post post = post(boardId, postId, userId);
+        post.updateCounts(3L, 7L);
 
         when(postRepository.findActiveById(postId)).thenReturn(Optional.of(post));
         when(postRedisService.toggleLike(postId, userId)).thenReturn(true);
+        when(postRedisService.getLikeOrNull(postId)).thenReturn(11L);
 
-        boolean liked = postCommandService.like(boardId, postId, userId);
+        PostLikeResponse response = postCommandService.like(boardId, postId, userId);
 
-        assertThat(liked).isTrue();
+        assertThat(response.isLiked()).isTrue();
+        assertThat(response.getLikeCount()).isEqualTo(11L);
         verify(postRepository).findActiveById(postId);
+        verify(postRedisService).toggleLike(postId, userId);
+        verify(postRedisService).getLikeOrNull(postId);
+        verify(postRedisService, never()).increaseView(postId);
+    }
+
+    @Test
+    @DisplayName("like falls back to DB like count when Redis like count is missing")
+    void like_fallsBackToDbLikeCountWhenRedisLikeCountIsMissing() {
+        Long boardId = 1L;
+        Long postId = 10L;
+        Long userId = 100L;
+        Post post = post(boardId, postId, userId);
+        post.updateCounts(3L, 7L);
+
+        when(postRepository.findActiveById(postId)).thenReturn(Optional.of(post));
+        when(postRedisService.toggleLike(postId, userId)).thenReturn(false);
+        when(postRedisService.getLikeOrNull(postId)).thenReturn(null);
+
+        PostLikeResponse response = postCommandService.like(boardId, postId, userId);
+
+        assertThat(response.isLiked()).isFalse();
+        assertThat(response.getLikeCount()).isEqualTo(7L);
+        verify(postRedisService, never()).increaseView(postId);
+    }
+
+    @Test
+    @DisplayName("like rejects mismatched board-post relation before toggling like")
+    void like_rejectsWhenBoardPostRelationMismatch() {
+        Long boardId = 1L;
+        Long actualBoardId = 2L;
+        Long postId = 10L;
+        Long userId = 100L;
+        Post post = post(actualBoardId, postId, userId);
+
+        when(postRepository.findActiveById(postId)).thenReturn(Optional.of(post));
+
+        assertThatThrownBy(() -> postCommandService.like(boardId, postId, userId))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.INVALID_BOARD_POST_RELATION);
+
+        verify(postRedisService, never()).toggleLike(postId, userId);
+        verify(postRedisService, never()).increaseView(postId);
     }
 
     private static Post post(Long boardId, Long postId, Long userId) {
