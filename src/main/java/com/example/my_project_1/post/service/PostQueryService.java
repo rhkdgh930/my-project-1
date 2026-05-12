@@ -13,4 +13,5 @@ public interface PostQueryService {
             Pageable pageable
     );
     PostDetailResponse getPostDetail(Long boardId, Long postId);
+    PostDetailResponse getPostDetail(Long boardId, Long postId, Long currentUserId);
 }

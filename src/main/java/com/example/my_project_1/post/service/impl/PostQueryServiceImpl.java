@@ -5,6 +5,7 @@ import com.example.my_project_1.common.exception.CustomException;
 import com.example.my_project_1.common.exception.ErrorCode;
 import com.example.my_project_1.common.utils.PageResponse;
 import com.example.my_project_1.post.domain.Post;
+import com.example.my_project_1.post.repository.PostLikeRepository;
 import com.example.my_project_1.post.repository.PostRepository;
 import com.example.my_project_1.post.service.PostQueryService;
 import com.example.my_project_1.post.service.PostRedisService;
@@ -31,6 +32,7 @@ public class PostQueryServiceImpl implements PostQueryService {
 
     private final BoardRepository boardRepository;
     private final PostRepository postRepository;
+    private final PostLikeRepository postLikeRepository;
     private final UserClient userClient;
     private final PostRedisService postRedisService;
 
@@ -66,7 +68,7 @@ public class PostQueryServiceImpl implements PostQueryService {
             PostListResponse response = PostListResponse.from(post, author);
             response.updateCounts(
                     countOrDefault(postRedisService.getViewOrNull(post.getId()), post.getViewCount()),
-                    countOrDefault(postRedisService.getLikeOrNull(post.getId()), post.getLikeCount())
+                    post.getLikeCount()
             );
             return response;
         });
@@ -81,6 +83,11 @@ public class PostQueryServiceImpl implements PostQueryService {
 
     @Override
     public PostDetailResponse getPostDetail(Long boardId, Long postId) {
+        return getPostDetail(boardId, postId, null);
+    }
+
+    @Override
+    public PostDetailResponse getPostDetail(Long boardId, Long postId, Long currentUserId) {
         Post post = postRepository.findActiveById(postId)
                 .orElseThrow(() -> new CustomException(ErrorCode.POST_NOT_FOUND));
 
@@ -96,9 +103,14 @@ public class PostQueryServiceImpl implements PostQueryService {
         PostDetailResponse response = PostDetailResponse.from(post, author);
         response.updateCounts(
                 countOrDefault(postRedisService.getViewOrNull(postId), post.getViewCount()),
-                countOrDefault(postRedisService.getLikeOrNull(postId), post.getLikeCount())
+                post.getLikeCount()
         );
+        response.updateLikedByMe(isLikedByMe(postId, currentUserId));
         return response;
+    }
+
+    private boolean isLikedByMe(Long postId, Long currentUserId) {
+        return currentUserId != null && postLikeRepository.existsByPostIdAndUserId(postId, currentUserId);
     }
 
     private long countOrDefault(Long redisCount, long dbCount) {

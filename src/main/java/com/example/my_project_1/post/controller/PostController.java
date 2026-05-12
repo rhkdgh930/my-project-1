@@ -128,8 +128,8 @@ public class PostController {
                 삭제되지 않은 Board의 활성 게시글 목록을 페이징 조회합니다.
                 keyword/searchType으로 제목 또는 본문 검색이 가능하고,
                 sortType으로 최신순/오래된순/조회수순/좋아요순 정렬이 가능합니다.
-                조회수/좋아요 정렬은 DB에 마지막 동기화된 count 기준이며,
-                응답의 viewCount/likeCount는 Redis 최신값으로 보정될 수 있습니다.
+                조회수 정렬은 DB에 마지막 동기화된 count 기준이고 좋아요 정렬은 DB likeCount 기준입니다.
+                응답의 viewCount는 Redis 최신값으로 보정될 수 있으며 likeCount는 DB 기준입니다.
                 Public API입니다.
                 """
     )
@@ -151,7 +151,7 @@ public class PostController {
 
     @Operation(
             summary = "게시글 상세 조회",
-            description = "활성 게시글 상세를 조회합니다. Public API입니다. 조회 시 view count가 증가하며 viewCount/likeCount는 응답 시점 기준 값입니다."
+            description = "활성 게시글 상세를 조회합니다. Public API입니다. 조회 시 view count가 증가하며 viewCount는 Redis 보정값, likeCount는 DB 기준 값입니다."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "게시글 상세 조회 성공",
@@ -166,13 +166,15 @@ public class PostController {
             @Parameter(description = "게시판 ID", example = "1", required = true)
             @PathVariable Long boardId,
             @Parameter(description = "게시글 ID", example = "10", required = true)
-            @PathVariable Long postId) {
-        return postQueryService.getPostDetail(boardId, postId);
+            @PathVariable Long postId,
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
+        Long currentUserId = userDetails == null ? null : userDetails.getUserId();
+        return postQueryService.getPostDetail(boardId, postId, currentUserId);
     }
 
     @Operation(
             summary = "게시글 좋아요 토글",
-            description = "활성 게시글의 좋아요를 토글합니다. 삭제된 Board 아래 Post는 좋아요 대상이 아닙니다. 응답은 토글 후 좋아요 여부와 응답 시점 기준 likeCount입니다.",
+            description = "활성 게시글의 좋아요를 토글합니다. 비멱등 API이므로 신규 클라이언트는 PUT/DELETE like API 사용을 권장합니다. 삭제된 Board 아래 Post는 좋아요 대상이 아닙니다. 응답은 토글 후 좋아요 여부와 응답 시점 기준 likeCount입니다.",
             security = @SecurityRequirement(name = "jwtAuth")
     )
     @ApiResponses({
@@ -195,5 +197,59 @@ public class PostController {
     ) {
         Long userId = userDetails.getUserId();
         return postCommandService.like(boardId, postId, userId);
+    }
+
+    @Operation(
+            summary = "게시글 좋아요 설정",
+            description = "활성 게시글을 좋아요 상태로 만듭니다. 멱등 API이므로 이미 좋아요 상태여도 성공합니다. 삭제된 Board 아래 Post는 좋아요 대상이 아닙니다.",
+            security = @SecurityRequirement(name = "jwtAuth")
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "좋아요 설정 성공",
+                    content = @Content(schema = @Schema(implementation = PostLikeResponse.class))),
+            @ApiResponse(responseCode = "400", description = "board-post 관계 불일치",
+                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
+            @ApiResponse(responseCode = "401", description = "인증 실패",
+                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
+            @ApiResponse(responseCode = "404", description = "게시글 없음, 삭제된 게시글, 또는 삭제된 Board 아래 게시글",
+                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
+    })
+    @PutMapping("/{postId}/like")
+    public PostLikeResponse likeIdempotently(
+            @Parameter(description = "게시판 ID", example = "1", required = true)
+            @PathVariable Long boardId,
+            @Parameter(description = "게시글 ID", example = "10", required = true)
+            @PathVariable Long postId,
+            @AuthenticationPrincipal UserDetailsImpl userDetails
+    ) {
+        Long userId = userDetails.getUserId();
+        return postCommandService.likeIdempotently(boardId, postId, userId);
+    }
+
+    @Operation(
+            summary = "게시글 좋아요 취소",
+            description = "활성 게시글을 좋아요가 아닌 상태로 만듭니다. 멱등 API이므로 이미 좋아요가 아니어도 성공합니다. 삭제된 Board 아래 Post는 좋아요 대상이 아닙니다.",
+            security = @SecurityRequirement(name = "jwtAuth")
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "좋아요 취소 성공",
+                    content = @Content(schema = @Schema(implementation = PostLikeResponse.class))),
+            @ApiResponse(responseCode = "400", description = "board-post 관계 불일치",
+                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
+            @ApiResponse(responseCode = "401", description = "인증 실패",
+                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
+            @ApiResponse(responseCode = "404", description = "게시글 없음, 삭제된 게시글, 또는 삭제된 Board 아래 게시글",
+                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
+    })
+    @DeleteMapping("/{postId}/like")
+    public PostLikeResponse unlikeIdempotently(
+            @Parameter(description = "게시판 ID", example = "1", required = true)
+            @PathVariable Long boardId,
+            @Parameter(description = "게시글 ID", example = "10", required = true)
+            @PathVariable Long postId,
+            @AuthenticationPrincipal UserDetailsImpl userDetails
+    ) {
+        Long userId = userDetails.getUserId();
+        return postCommandService.unlikeIdempotently(boardId, postId, userId);
     }
 }

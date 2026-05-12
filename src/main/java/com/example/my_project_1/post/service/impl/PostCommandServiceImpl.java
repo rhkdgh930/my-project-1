@@ -10,12 +10,13 @@ import com.example.my_project_1.outbox.domain.OutboxEventKey;
 import com.example.my_project_1.outbox.domain.OutboxEventType;
 import com.example.my_project_1.outbox.service.OutboxPublisher;
 import com.example.my_project_1.post.domain.Post;
+import com.example.my_project_1.post.domain.PostLike;
+import com.example.my_project_1.post.repository.PostLikeRepository;
 import com.example.my_project_1.post.event.PostCreatedOutboxEvent;
 import com.example.my_project_1.post.event.PostDeletedOutboxEvent;
 import com.example.my_project_1.post.event.PostUpdatedOutboxEvent;
 import com.example.my_project_1.post.repository.PostRepository;
 import com.example.my_project_1.post.service.PostCommandService;
-import com.example.my_project_1.post.service.PostRedisService;
 import com.example.my_project_1.post.service.request.PostCreateRequest;
 import com.example.my_project_1.post.service.request.PostUpdateRequest;
 import com.example.my_project_1.post.service.response.PostDetailResponse;
@@ -39,7 +40,7 @@ public class PostCommandServiceImpl implements PostCommandService {
 
     private final BoardRepository boardRepository;
     private final PostRepository postRepository;
-    private final PostRedisService postRedisService;
+    private final PostLikeRepository postLikeRepository;
     private final UserClient userClient;
     private final OutboxPublisher outboxPublisher;
     private final Clock clock;
@@ -128,17 +129,67 @@ public class PostCommandServiceImpl implements PostCommandService {
 
     @Override
     public PostLikeResponse like(Long boardId, Long postId, Long userId) {
-        Post post = postRepository.findActiveById(postId)
+        Post post = findActivePostForLike(boardId, postId);
+
+        boolean liked;
+        long delta;
+
+        var existingLike = postLikeRepository.findByPostIdAndUserId(postId, userId);
+        if (existingLike.isPresent()) {
+            postLikeRepository.delete(existingLike.get());
+            liked = false;
+            delta = -1L;
+        } else {
+            postLikeRepository.saveAndFlush(PostLike.create(post, userId));
+            liked = true;
+            delta = 1L;
+        }
+
+        if (delta != 0L) {
+            postRepository.updateLikeCountDelta(postId, delta);
+        }
+        return PostLikeResponse.of(liked, getLikeCount(postId));
+    }
+
+    @Override
+    public PostLikeResponse likeIdempotently(Long boardId, Long postId, Long userId) {
+        Post post = findActivePostForLike(boardId, postId);
+
+        if (postLikeRepository.findByPostIdAndUserId(postId, userId).isEmpty()) {
+            postLikeRepository.saveAndFlush(PostLike.create(post, userId));
+            postRepository.updateLikeCountDelta(postId, 1L);
+        }
+
+        return PostLikeResponse.of(true, getLikeCount(postId));
+    }
+
+    @Override
+    public PostLikeResponse unlikeIdempotently(Long boardId, Long postId, Long userId) {
+        findActivePostForLike(boardId, postId);
+
+        var existingLike = postLikeRepository.findByPostIdAndUserId(postId, userId);
+        if (existingLike.isPresent()) {
+            postLikeRepository.delete(existingLike.get());
+            postRepository.updateLikeCountDelta(postId, -1L);
+        }
+
+        return PostLikeResponse.of(false, getLikeCount(postId));
+    }
+
+    private Post findActivePostForLike(Long boardId, Long postId) {
+        Post post = postRepository.findActiveByIdForUpdate(postId)
                 .orElseThrow(() -> new CustomException(ErrorCode.POST_NOT_FOUND));
 
         if (!post.getBoard().getId().equals(boardId)) {
             throw new CustomException(ErrorCode.INVALID_BOARD_POST_RELATION);
         }
 
-        boolean liked = postRedisService.toggleLike(postId, userId);
-        Long redisLikeCount = postRedisService.getLikeOrNull(postId);
-        long likeCount = redisLikeCount != null ? redisLikeCount : post.getLikeCount();
-        return PostLikeResponse.of(liked, likeCount);
+        return post;
+    }
+
+    private long getLikeCount(Long postId) {
+        return postRepository.findLikeCountById(postId)
+                .orElseThrow(() -> new CustomException(ErrorCode.POST_NOT_FOUND));
     }
 
     private AuthorSummary getAuthorOrUnknown(Long userId) {

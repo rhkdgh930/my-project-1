@@ -21,7 +21,6 @@ public class PostSyncScheduler {
     @Transactional
     public void sync() {
         syncViews();
-        syncLikes();
     }
 
     private void syncViews() {
@@ -48,27 +47,4 @@ public class PostSyncScheduler {
         }
     }
 
-    private void syncLikes() {
-        Set<String> dirtyIds = redisService.getLikeDirtyPostIds();
-        if (dirtyIds == null || dirtyIds.isEmpty()) {
-            return;
-        }
-
-        for (String id : dirtyIds) {
-            try {
-                Long postId = Long.parseLong(id);
-                Long likeCount = redisService.getLikeOrNull(postId);
-
-                if (likeCount == null) {
-                    continue;
-                }
-
-                postRepository.updateLikeCount(postId, likeCount);
-                redisService.removeLikeDirtyIfUnchanged(postId, likeCount);
-
-            } catch (Exception e) {
-                log.error("[LIKE_SYNC_FAIL] postId={}", id, e);
-            }
-        }
-    }
 }

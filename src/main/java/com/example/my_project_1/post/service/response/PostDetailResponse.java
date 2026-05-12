@@ -37,6 +37,9 @@ public class PostDetailResponse {
     @Schema(description = "응답 시점 기준 좋아요 수", example = "3")
     private long likeCount;
 
+    @Schema(description = "현재 로그인 사용자의 좋아요 여부. 비로그인 사용자는 false입니다.", example = "false")
+    private boolean likedByMe;
+
     @Schema(description = "작성 시각", example = "2026-05-06T10:15:30")
     private LocalDateTime createdAt;
 
@@ -57,6 +60,10 @@ public class PostDetailResponse {
         response.likeCount = post.getLikeCount();
         response.createdAt = post.getCreatedAt();
         return response;
+    }
+
+    public void updateLikedByMe(boolean likedByMe) {
+        this.likedByMe = likedByMe;
     }
 
     public void updateCounts(long viewCount, long likeCount) {

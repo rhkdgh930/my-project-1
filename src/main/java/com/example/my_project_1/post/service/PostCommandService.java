@@ -10,4 +10,6 @@ public interface PostCommandService {
     PostDetailResponse update(Long boardId, Long postId, Long userId, PostUpdateRequest request);
     void delete(Long boardId, Long postId, Long userId);
     PostLikeResponse like(Long boardId, Long postId, Long userId);
+    PostLikeResponse likeIdempotently(Long boardId, Long postId, Long userId);
+    PostLikeResponse unlikeIdempotently(Long boardId, Long postId, Long userId);
 }
