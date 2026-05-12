@@ -11,18 +11,25 @@ public record AuthorSummary(
         String displayName,
 
         @Schema(description = "작성자 표시 상태")
-        AuthorStatus status
+        AuthorStatus status,
+
+        @Schema(description = "ACTIVE author profile image URL. Masked author states always return null.", example = "/images/profile.png", nullable = true)
+        String profileImageUrl
 ) {
     private static final String WITHDRAWN_DISPLAY_NAME = "탈퇴한 사용자";
     private static final String SUSPENDED_DISPLAY_NAME = "차단된 사용자";
     private static final String UNKNOWN_DISPLAY_NAME = "알 수 없는 사용자";
 
     public static AuthorSummary active(Long userId, String nickname) {
-        return new AuthorSummary(userId, nickname, AuthorStatus.ACTIVE);
+        return active(userId, nickname, null);
+    }
+
+    public static AuthorSummary active(Long userId, String nickname, String profileImageUrl) {
+        return new AuthorSummary(userId, nickname, AuthorStatus.ACTIVE, profileImageUrl);
     }
 
     public static AuthorSummary withdrawn() {
-        return new AuthorSummary(null, WITHDRAWN_DISPLAY_NAME, AuthorStatus.WITHDRAWN);
+        return new AuthorSummary(null, WITHDRAWN_DISPLAY_NAME, AuthorStatus.WITHDRAWN, null);
     }
 
     public static AuthorSummary suspended(Long userId, String nickname) {
@@ -30,10 +37,10 @@ public record AuthorSummary(
     }
 
     public static AuthorSummary suspended(Long userId) {
-        return new AuthorSummary(userId, SUSPENDED_DISPLAY_NAME, AuthorStatus.SUSPENDED);
+        return new AuthorSummary(userId, SUSPENDED_DISPLAY_NAME, AuthorStatus.SUSPENDED, null);
     }
 
     public static AuthorSummary unknown() {
-        return new AuthorSummary(null, UNKNOWN_DISPLAY_NAME, AuthorStatus.UNKNOWN);
+        return new AuthorSummary(null, UNKNOWN_DISPLAY_NAME, AuthorStatus.UNKNOWN, null);
     }
 }

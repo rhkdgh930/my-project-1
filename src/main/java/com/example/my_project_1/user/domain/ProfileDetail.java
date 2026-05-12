@@ -6,7 +6,6 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.hibernate.validator.constraints.URL;
 
 @Embeddable
 @Getter
@@ -19,7 +18,7 @@ public class ProfileDetail {
     @Size(max = 500)
     private String introduce;
 
-    @URL
+    @Size(max = 2048)
     private String profileImageUrl;
 
     public static ProfileDetail defaultProfile() {
