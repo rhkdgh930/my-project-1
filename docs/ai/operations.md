@@ -25,7 +25,7 @@
 
 - Redis Cluster 사용 여부를 결정한다.
 - Cluster 사용 시 Auth refresh rotation/reissue history Lua key hash slot 정책을 검토한다.
-- Cluster 사용 시 Post view/like Lua multi-key hash slot 정책을 검토한다.
+- Cluster 사용 시 Post view Lua key hash slot 정책을 검토한다.
 - Redis count key 유실이 반복될 때 stale dirty marker를 감지할 metric/log/admin 진단 기능을 보강한다.
 
 ## Outbox TODO
