@@ -136,32 +136,34 @@ class PostRepositoryTest {
     }
 
     @Test
-    @DisplayName("post_like는 postId와 userId 조합을 unique로 보장한다.")
+    @DisplayName("post_like??postId? userId 議고빀??unique濡?蹂댁옣?쒕떎.")
     void postLike_enforcesUniquePostAndUser() {
         Post post = postRepository.save(post(board("like-board"), 100L, "title", "content"));
-        postLikeRepository.saveAndFlush(PostLike.create(post, 200L));
+        postLikeRepository.saveAndFlush(PostLike.create(post.getId(), 200L));
 
-        assertThatThrownBy(() -> postLikeRepository.saveAndFlush(PostLike.create(post, 200L)))
+        assertThatThrownBy(() -> postLikeRepository.saveAndFlush(PostLike.create(post.getId(), 200L)))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test
-    @DisplayName("post_like는 다른 사용자의 좋아요 row를 별도로 유지한다.")
+    @DisplayName("post_like???ㅻⅨ ?ъ슜?먯쓽 醫뗭븘??row瑜?蹂꾨룄濡??좎??쒕떎.")
     void postLike_keepsOtherUsersLikes() {
         Post post = postRepository.save(post(board("multi-like-board"), 100L, "title", "content"));
-        PostLike first = postLikeRepository.saveAndFlush(PostLike.create(post, 200L));
-        PostLike second = postLikeRepository.saveAndFlush(PostLike.create(post, 201L));
+        postLikeRepository.saveAndFlush(PostLike.create(post.getId(), 200L));
+        PostLike second = postLikeRepository.saveAndFlush(PostLike.create(post.getId(), 201L));
 
-        postLikeRepository.delete(first);
+        int deletedCount = postLikeRepository.deleteByPostIdAndUserId(post.getId(), 200L);
         postLikeRepository.flush();
 
+        assertThat(deletedCount).isEqualTo(1);
         assertThat(postLikeRepository.findById(second.getId())).isPresent();
+        assertThat(postLikeRepository.deleteByPostIdAndUserId(post.getId(), 200L)).isZero();
         assertThat(postLikeRepository.existsByPostIdAndUserId(post.getId(), 200L)).isFalse();
         assertThat(postLikeRepository.existsByPostIdAndUserId(post.getId(), 201L)).isTrue();
     }
 
     @Test
-    @DisplayName("updateLikeCountDelta는 likeCount를 원자적으로 증감하고 음수로 만들지 않는다.")
+    @DisplayName("updateLikeCountDelta??likeCount瑜??먯옄?곸쑝濡?利앷컧?섍퀬 ?뚯닔濡?留뚮뱾吏 ?딅뒗??")
     void updateLikeCountDelta_updatesAtomicallyAndDoesNotGoNegative() {
         Post post = postRepository.save(post(board("delta-board"), 100L, "title", "content"));
         post.updateCounts(0L, 0L);

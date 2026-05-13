@@ -30,22 +30,11 @@ class PostControllerTest {
     private final PostController postController = new PostController(postCommandService, postQueryService);
 
     @Test
-    @DisplayName("like returns liked state and current like count")
-    void like_returnsPostLikeResponse() {
-        Long boardId = 1L;
-        Long postId = 10L;
-        Long userId = 100L;
-        UserDetailsImpl userDetails = mock(UserDetailsImpl.class);
-        PostLikeResponse response = PostLikeResponse.of(true, 12L);
-
-        when(userDetails.getUserId()).thenReturn(userId);
-        when(postCommandService.like(boardId, postId, userId)).thenReturn(response);
-
-        PostLikeResponse actual = postController.like(boardId, postId, userDetails);
-
-        assertThat(actual.isLiked()).isTrue();
-        assertThat(actual.getLikeCount()).isEqualTo(12L);
-        verify(postCommandService).like(boardId, postId, userId);
+    @DisplayName("POST like endpoint is not exposed by controller")
+    void postLikeEndpoint_isRemoved() {
+        assertThat(List.of(PostController.class.getDeclaredMethods()))
+                .noneMatch(method -> method.isAnnotationPresent(org.springframework.web.bind.annotation.PostMapping.class)
+                        && method.getName().toLowerCase().contains("like"));
     }
 
     @Test
@@ -66,7 +55,6 @@ class PostControllerTest {
         assertThat(actual.getLikeCount()).isEqualTo(12L);
         verify(postCommandService).likeIdempotently(boardId, postId, userId);
     }
-
     @Test
     @DisplayName("DELETE like returns unliked state and current like count")
     void unlikeIdempotently_returnsPostLikeResponse() {

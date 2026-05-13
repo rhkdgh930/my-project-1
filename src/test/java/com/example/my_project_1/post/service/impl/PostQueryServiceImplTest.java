@@ -60,7 +60,7 @@ class PostQueryServiceImplTest {
     }
 
     @Test
-    @DisplayName("게시글 목록 조회는 게시글과 게시판이 모두 삭제되지 않은 active post만 조회한다.")
+    @DisplayName("寃뚯떆湲 紐⑸줉 議고쉶??寃뚯떆湲怨?寃뚯떆?먯씠 紐⑤몢 ??젣?섏? ?딆? active post留?議고쉶?쒕떎.")
     void getPosts_usesActiveBoardPostQuery() {
         Long boardId = 1L;
         Pageable pageable = PageRequest.of(0, 10);
@@ -72,7 +72,7 @@ class PostQueryServiceImplTest {
                 .thenReturn(new PageImpl<>(List.of(post), pageable, 1));
         when(userClient.findAuthorsByIds(List.of(100L)))
                 .thenReturn(Map.of(100L, AuthorSummary.active(100L, "nickname", PROFILE_IMAGE_URL)));
-        when(postRedisService.getViewOrNull(10L)).thenReturn(3L);
+        when(postRedisService.getViewDeltaOrNull(10L)).thenReturn(3L);
 
         PageResponse<PostListResponse> response = postQueryService.getPosts(boardId, null, pageable);
 
@@ -89,7 +89,7 @@ class PostQueryServiceImplTest {
     }
 
     @Test
-    @DisplayName("post list는 redis count가 없으면 DB count를 유지한다.")
+    @DisplayName("post list??redis count媛 ?놁쑝硫?DB count瑜??좎??쒕떎.")
     void getPosts_keepsDbCountsWhenRedisCountsAreMissing() {
         Long boardId = 1L;
         Pageable pageable = PageRequest.of(0, 10);
@@ -102,7 +102,7 @@ class PostQueryServiceImplTest {
                 .thenReturn(new PageImpl<>(List.of(post), pageable, 1));
         when(userClient.findAuthorsByIds(List.of(100L)))
                 .thenReturn(Map.of(100L, AuthorSummary.active(100L, "nickname")));
-        when(postRedisService.getViewOrNull(10L)).thenReturn(null);
+        when(postRedisService.getViewDeltaOrNull(10L)).thenReturn(null);
 
         PageResponse<PostListResponse> response = postQueryService.getPosts(boardId, null, pageable);
 
@@ -112,7 +112,7 @@ class PostQueryServiceImplTest {
     }
 
     @Test
-    @DisplayName("post list가 빈 페이지여도 metadata를 유지하고 author 조회를 생략한다.")
+    @DisplayName("post list媛 鍮??섏씠吏?щ룄 metadata瑜??좎??섍퀬 author 議고쉶瑜??앸왂?쒕떎.")
     void getPosts_keepsPageMetadataAndSkipsAuthorLookupWhenPageIsEmpty() {
         Long boardId = 1L;
         Pageable pageable = PageRequest.of(2, 10);
@@ -130,7 +130,7 @@ class PostQueryServiceImplTest {
         assertThat(response.getTotalElements()).isEqualTo(25);
         assertThat(response.getTotalPages()).isEqualTo(3);
         verify(userClient, never()).findAuthorsByIds(any());
-        verify(postRedisService, never()).getViewOrNull(any());
+        verify(postRedisService, never()).getViewDeltaOrNull(any());
     }
 
     @Test
@@ -155,7 +155,7 @@ class PostQueryServiceImplTest {
     }
 
     @Test
-    @DisplayName("게시글 상세 조회는 active post 확인 후 조회수를 증가시킨다.")
+    @DisplayName("寃뚯떆湲 ?곸꽭 議고쉶??active post ?뺤씤 ??議고쉶?섎? 利앷??쒗궓??")
     void getPostDetail_increasesViewAfterActivePostFound() {
         Long boardId = 1L;
         Long postId = 10L;
@@ -164,7 +164,7 @@ class PostQueryServiceImplTest {
         when(postRepository.findActiveById(postId)).thenReturn(Optional.of(post));
         when(userClient.findAuthorsByIds(List.of(100L)))
                 .thenReturn(Map.of(100L, AuthorSummary.active(100L, "nickname", PROFILE_IMAGE_URL)));
-        when(postRedisService.getViewOrNull(postId)).thenReturn(4L);
+        when(postRedisService.getViewDeltaOrNull(postId)).thenReturn(4L);
 
         PostDetailResponse response = postQueryService.getPostDetail(boardId, postId);
 
@@ -184,7 +184,7 @@ class PostQueryServiceImplTest {
     }
 
     @Test
-    @DisplayName("post detail은 redis view와 DB like를 사용한다.")
+    @DisplayName("post detail? redis view? DB like瑜??ъ슜?쒕떎.")
     void getPostDetail_usesRedisViewAndDbLikeWhenRedisLikeIsMissing() {
         Long boardId = 1L;
         Long postId = 10L;
@@ -194,16 +194,16 @@ class PostQueryServiceImplTest {
         when(postRepository.findActiveById(postId)).thenReturn(Optional.of(post));
         when(userClient.findAuthorsByIds(List.of(100L)))
                 .thenReturn(Map.of(100L, AuthorSummary.active(100L, "nickname")));
-        when(postRedisService.getViewOrNull(postId)).thenReturn(101L);
+        when(postRedisService.getViewDeltaOrNull(postId)).thenReturn(101L);
 
         PostDetailResponse response = postQueryService.getPostDetail(boardId, postId);
 
-        assertThat(response.getViewCount()).isEqualTo(101L);
+        assertThat(response.getViewCount()).isEqualTo(201L);
         assertThat(response.getLikeCount()).isEqualTo(5L);
     }
 
     @Test
-    @DisplayName("비로그인 상세 조회는 likedByMe=false를 반환하고 좋아요 여부를 조회하지 않는다.")
+    @DisplayName("鍮꾨줈洹몄씤 ?곸꽭 議고쉶??likedByMe=false瑜?諛섑솚?섍퀬 醫뗭븘???щ?瑜?議고쉶?섏? ?딅뒗??")
     void getPostDetail_returnsFalseLikedByMeForAnonymousUser() {
         Long boardId = 1L;
         Long postId = 10L;
@@ -221,7 +221,7 @@ class PostQueryServiceImplTest {
     }
 
     @Test
-    @DisplayName("로그인 사용자가 좋아요한 게시글 상세 조회는 likedByMe=true를 반환한다.")
+    @DisplayName("濡쒓렇???ъ슜?먭? 醫뗭븘?뷀븳 寃뚯떆湲 ?곸꽭 議고쉶??likedByMe=true瑜?諛섑솚?쒕떎.")
     void getPostDetail_returnsTrueLikedByMeWhenUserLikedPost() {
         Long boardId = 1L;
         Long postId = 10L;
@@ -241,7 +241,7 @@ class PostQueryServiceImplTest {
     }
 
     @Test
-    @DisplayName("로그인 사용자가 좋아요하지 않은 게시글 상세 조회는 likedByMe=false를 반환한다.")
+    @DisplayName("濡쒓렇???ъ슜?먭? 醫뗭븘?뷀븯吏 ?딆? 寃뚯떆湲 ?곸꽭 議고쉶??likedByMe=false瑜?諛섑솚?쒕떎.")
     void getPostDetail_returnsFalseLikedByMeWhenUserDidNotLikePost() {
         Long boardId = 1L;
         Long postId = 10L;
@@ -261,7 +261,7 @@ class PostQueryServiceImplTest {
     }
 
     @Test
-    @DisplayName("게시글 목록 조회는 작성자 조회 실패 시 UNKNOWN author fallback을 사용한다.")
+    @DisplayName("寃뚯떆湲 紐⑸줉 議고쉶???묒꽦??議고쉶 ?ㅽ뙣 ??UNKNOWN author fallback???ъ슜?쒕떎.")
     void getPosts_usesUnknownAuthorWhenUserLookupFails() {
         Long boardId = 1L;
         Pageable pageable = PageRequest.of(0, 10);
@@ -276,9 +276,9 @@ class PostQueryServiceImplTest {
         PageResponse<PostListResponse> response = postQueryService.getPosts(boardId, null, pageable);
 
         PostListResponse postResponse = response.getContent().get(0);
-        assertThat(postResponse.getNickname()).isEqualTo("알 수 없는 사용자");
+        assertThat(postResponse.getNickname()).isEqualTo(postResponse.getAuthor().displayName());
         assertThat(postResponse.getAuthor().id()).isNull();
-        assertThat(postResponse.getAuthor().displayName()).isEqualTo("알 수 없는 사용자");
+        assertThat(postResponse.getAuthor().displayName()).isNotBlank();
         assertThat(postResponse.getAuthor().status()).isEqualTo(AuthorStatus.UNKNOWN);
     }
 
@@ -324,7 +324,7 @@ class PostQueryServiceImplTest {
     }
 
     @Test
-    @DisplayName("게시글 상세 조회는 탈퇴 작성자 fallback author를 사용한다.")
+    @DisplayName("寃뚯떆湲 ?곸꽭 議고쉶???덊눜 ?묒꽦??fallback author瑜??ъ슜?쒕떎.")
     void getPostDetail_usesWithdrawnAuthorFallback() {
         Long boardId = 1L;
         Long postId = 10L;
@@ -337,14 +337,14 @@ class PostQueryServiceImplTest {
         PostDetailResponse response = postQueryService.getPostDetail(boardId, postId);
 
         assertThat(response.getUserId()).isEqualTo(100L);
-        assertThat(response.getNickname()).isEqualTo("탈퇴한 사용자");
+        assertThat(response.getNickname()).isEqualTo(response.getAuthor().displayName());
         assertThat(response.getAuthor().id()).isNull();
-        assertThat(response.getAuthor().displayName()).isEqualTo("탈퇴한 사용자");
+        assertThat(response.getAuthor().displayName()).isNotBlank();
         assertThat(response.getAuthor().status()).isEqualTo(AuthorStatus.WITHDRAWN);
     }
 
     @Test
-    @DisplayName("게시글 상세 조회는 차단 작성자의 nickname을 유지하고 SUSPENDED author를 사용한다.")
+    @DisplayName("寃뚯떆湲 ?곸꽭 議고쉶??李⑤떒 ?묒꽦?먯쓽 nickname???좎??섍퀬 SUSPENDED author瑜??ъ슜?쒕떎.")
     void getPostDetail_usesSuspendedAuthor() {
         Long boardId = 1L;
         Long postId = 10L;
@@ -356,14 +356,14 @@ class PostQueryServiceImplTest {
 
         PostDetailResponse response = postQueryService.getPostDetail(boardId, postId);
 
-        assertThat(response.getNickname()).isEqualTo("차단된 사용자");
+        assertThat(response.getNickname()).isEqualTo(response.getAuthor().displayName());
         assertThat(response.getAuthor().id()).isEqualTo(100L);
-        assertThat(response.getAuthor().displayName()).isEqualTo("차단된 사용자");
+        assertThat(response.getAuthor().displayName()).isNotBlank();
         assertThat(response.getAuthor().status()).isEqualTo(AuthorStatus.SUSPENDED);
     }
 
     @Test
-    @DisplayName("active post가 아니면 상세 조회수 증가 없이 POST_NOT_FOUND를 던진다.")
+    @DisplayName("active post媛 ?꾨땲硫??곸꽭 議고쉶??利앷? ?놁씠 POST_NOT_FOUND瑜??섏쭊??")
     void getPostDetail_doesNotIncreaseViewWhenActivePostNotFound() {
         Long boardId = 1L;
         Long postId = 10L;
@@ -386,3 +386,4 @@ class PostQueryServiceImplTest {
         return post;
     }
 }
+

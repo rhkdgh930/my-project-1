@@ -198,8 +198,6 @@ class BoardPostCommentImageSecurityConfigTest {
                 .andExpect(status().isUnauthorized());
         mockMvc.perform(delete("/api/boards/1/posts/1"))
                 .andExpect(status().isUnauthorized());
-        mockMvc.perform(post("/api/boards/1/posts/1/like"))
-                .andExpect(status().isUnauthorized());
         mockMvc.perform(put("/api/boards/1/posts/1/like"))
                 .andExpect(status().isUnauthorized());
         mockMvc.perform(delete("/api/boards/1/posts/1/like"))

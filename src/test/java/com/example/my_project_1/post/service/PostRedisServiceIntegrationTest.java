@@ -16,7 +16,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class PostRedisServiceIntegrationTest {
 
-    private static final String VIEW_COUNT_KEY = "post::view::%s";
+    private static final String VIEW_DELTA_KEY = "post::view::delta::%s";
     private static final String VIEW_DIRTY_SET_KEY = "post::dirty::view";
 
     private LettuceConnectionFactory connectionFactory;
@@ -65,42 +65,44 @@ class PostRedisServiceIntegrationTest {
     void increaseView_incrementsViewCountAndMarksDirtyOnActualRedis() {
         postRedisService.increaseView(postId);
 
-        assertThat(redisTemplate.opsForValue().get(viewCountKey(postId))).isEqualTo("1");
+        assertThat(redisTemplate.opsForValue().get(viewDeltaKey(postId))).isEqualTo("1");
         assertThat(redisTemplate.opsForSet().isMember(VIEW_DIRTY_SET_KEY, postId.toString()))
                 .isTrue();
     }
 
     @Test
     @DisplayName("removeViewDirtyIfUnchanged는 synced count와 Redis count가 같으면 dirty marker를 제거한다.")
-    void removeViewDirtyIfUnchanged_removesDirtyWhenCountMatches() {
+    void acknowledgeSyncedViewDelta_removesDeltaAndDirtyWhenCurrentEqualsSyncedDelta() {
         postRedisService.increaseView(postId);
 
-        boolean removed = postRedisService.removeViewDirtyIfUnchanged(postId, 1L);
+        boolean removed = postRedisService.acknowledgeSyncedViewDelta(postId, 1L);
 
         assertThat(removed).isTrue();
+        assertThat(redisTemplate.opsForValue().get(viewDeltaKey(postId))).isNull();
         assertThat(redisTemplate.opsForSet().isMember(VIEW_DIRTY_SET_KEY, postId.toString()))
                 .isFalse();
     }
 
     @Test
     @DisplayName("removeViewDirtyIfUnchanged는 Redis count가 바뀌었으면 dirty marker를 유지한다.")
-    void removeViewDirtyIfUnchanged_keepsDirtyWhenCountChanged() {
+    void acknowledgeSyncedViewDelta_decrementsDeltaAndKeepsDirtyWhenCurrentIsGreater() {
         postRedisService.increaseView(postId);
         postRedisService.increaseView(postId);
 
-        boolean removed = postRedisService.removeViewDirtyIfUnchanged(postId, 1L);
+        boolean removed = postRedisService.acknowledgeSyncedViewDelta(postId, 1L);
 
         assertThat(removed).isFalse();
+        assertThat(redisTemplate.opsForValue().get(viewDeltaKey(postId))).isEqualTo("1");
         assertThat(redisTemplate.opsForSet().isMember(VIEW_DIRTY_SET_KEY, postId.toString()))
                 .isTrue();
     }
 
     private void cleanKeys(Long postId) {
-        redisTemplate.delete(List.of(viewCountKey(postId)));
+        redisTemplate.delete(List.of(viewDeltaKey(postId)));
         redisTemplate.opsForSet().remove(VIEW_DIRTY_SET_KEY, postId.toString());
     }
 
-    private String viewCountKey(Long postId) {
-        return VIEW_COUNT_KEY.formatted(postId);
+    private String viewDeltaKey(Long postId) {
+        return VIEW_DELTA_KEY.formatted(postId);
     }
 }
