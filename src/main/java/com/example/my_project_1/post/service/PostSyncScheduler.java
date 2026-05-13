@@ -32,14 +32,15 @@ public class PostSyncScheduler {
         for (String id : dirtyIds) {
             try {
                 Long postId = Long.parseLong(id);
-                Long viewCount = redisService.getViewOrNull(postId);
+                Long viewDelta = redisService.getViewDeltaOrNull(postId);
 
-                if (viewCount == null) {
+                if (viewDelta == null || viewDelta <= 0) {
+                    redisService.removeViewDirty(postId);
                     continue;
                 }
 
-                postRepository.updateViewCount(postId, viewCount);
-                redisService.removeViewDirtyIfUnchanged(postId, viewCount);
+                postRepository.updateViewCountDelta(postId, viewDelta);
+                redisService.acknowledgeSyncedViewDelta(postId, viewDelta);
 
             } catch (Exception e) {
                 log.error("[VIEW_SYNC_FAIL] postId={}", id, e);

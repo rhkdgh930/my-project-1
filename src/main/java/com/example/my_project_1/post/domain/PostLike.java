@@ -1,6 +1,13 @@
 package com.example.my_project_1.post.domain;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -28,9 +35,8 @@ public class PostLike {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "post_id", nullable = false)
-    private Post post;
+    @Column(name = "post_id", nullable = false)
+    private Long postId;
 
     @Column(name = "user_id", nullable = false)
     private Long userId;
@@ -39,12 +45,12 @@ public class PostLike {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    public static PostLike create(Post post, Long userId) {
-        notNull(post, "post는 필수입니다.");
-        notNull(userId, "userId는 필수입니다.");
+    public static PostLike create(Long postId, Long userId) {
+        notNull(postId, "postId is required.");
+        notNull(userId, "userId is required.");
 
         PostLike postLike = new PostLike();
-        postLike.post = post;
+        postLike.postId = postId;
         postLike.userId = userId;
         return postLike;
     }

@@ -25,6 +25,7 @@ import com.example.my_project_1.user.client.AuthorSummary;
 import com.example.my_project_1.user.client.UserClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -128,35 +129,10 @@ public class PostCommandServiceImpl implements PostCommandService {
     }
 
     @Override
-    public PostLikeResponse like(Long boardId, Long postId, Long userId) {
-        Post post = findActivePostForLike(boardId, postId);
-
-        boolean liked;
-        long delta;
-
-        var existingLike = postLikeRepository.findByPostIdAndUserId(postId, userId);
-        if (existingLike.isPresent()) {
-            postLikeRepository.delete(existingLike.get());
-            liked = false;
-            delta = -1L;
-        } else {
-            postLikeRepository.saveAndFlush(PostLike.create(post, userId));
-            liked = true;
-            delta = 1L;
-        }
-
-        if (delta != 0L) {
-            postRepository.updateLikeCountDelta(postId, delta);
-        }
-        return PostLikeResponse.of(liked, getLikeCount(postId));
-    }
-
-    @Override
     public PostLikeResponse likeIdempotently(Long boardId, Long postId, Long userId) {
         Post post = findActivePostForLike(boardId, postId);
 
-        if (postLikeRepository.findByPostIdAndUserId(postId, userId).isEmpty()) {
-            postLikeRepository.saveAndFlush(PostLike.create(post, userId));
+        if (tryCreatePostLike(post.getId(), userId)) {
             postRepository.updateLikeCountDelta(postId, 1L);
         }
 
@@ -167,9 +143,8 @@ public class PostCommandServiceImpl implements PostCommandService {
     public PostLikeResponse unlikeIdempotently(Long boardId, Long postId, Long userId) {
         findActivePostForLike(boardId, postId);
 
-        var existingLike = postLikeRepository.findByPostIdAndUserId(postId, userId);
-        if (existingLike.isPresent()) {
-            postLikeRepository.delete(existingLike.get());
+        int deletedCount = postLikeRepository.deleteByPostIdAndUserId(postId, userId);
+        if (deletedCount > 0) {
             postRepository.updateLikeCountDelta(postId, -1L);
         }
 
@@ -177,7 +152,7 @@ public class PostCommandServiceImpl implements PostCommandService {
     }
 
     private Post findActivePostForLike(Long boardId, Long postId) {
-        Post post = postRepository.findActiveByIdForUpdate(postId)
+        Post post = postRepository.findActiveById(postId)
                 .orElseThrow(() -> new CustomException(ErrorCode.POST_NOT_FOUND));
 
         if (!post.getBoard().getId().equals(boardId)) {
@@ -185,6 +160,16 @@ public class PostCommandServiceImpl implements PostCommandService {
         }
 
         return post;
+    }
+
+    private boolean tryCreatePostLike(Long postId, Long userId) {
+        try {
+            postLikeRepository.saveAndFlush(PostLike.create(postId, userId));
+            return true;
+        } catch (DataIntegrityViolationException e) {
+            log.debug("[POST_LIKE][DUPLICATE_OR_CONSTRAINT] postId={}, userId={}", postId, userId);
+            return false;
+        }
     }
 
     private long getLikeCount(Long postId) {

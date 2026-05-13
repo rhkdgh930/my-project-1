@@ -172,32 +172,6 @@ public class PostController {
         return postQueryService.getPostDetail(boardId, postId, currentUserId);
     }
 
-    @Operation(
-            summary = "게시글 좋아요 토글",
-            description = "활성 게시글의 좋아요를 토글합니다. 비멱등 API이므로 신규 클라이언트는 PUT/DELETE like API 사용을 권장합니다. 삭제된 Board 아래 Post는 좋아요 대상이 아닙니다. 응답은 토글 후 좋아요 여부와 응답 시점 기준 likeCount입니다.",
-            security = @SecurityRequirement(name = "jwtAuth")
-    )
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "좋아요 토글 성공",
-                    content = @Content(schema = @Schema(implementation = PostLikeResponse.class))),
-            @ApiResponse(responseCode = "400", description = "board-post 관계 불일치",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
-            @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
-            @ApiResponse(responseCode = "404", description = "게시글 없음, 삭제된 게시글, 또는 삭제된 Board 아래 게시글",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
-    })
-    @PostMapping("/{postId}/like")
-    public PostLikeResponse like(
-            @Parameter(description = "게시판 ID", example = "1", required = true)
-            @PathVariable Long boardId,
-            @Parameter(description = "게시글 ID", example = "10", required = true)
-            @PathVariable Long postId,
-            @AuthenticationPrincipal UserDetailsImpl userDetails
-    ) {
-        Long userId = userDetails.getUserId();
-        return postCommandService.like(boardId, postId, userId);
-    }
 
     @Operation(
             summary = "게시글 좋아요 설정",

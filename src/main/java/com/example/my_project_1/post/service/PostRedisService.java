@@ -14,7 +14,7 @@ public class PostRedisService {
 
     private final RedisTemplate<String, String> redisTemplate;
 
-    private static final String VIEW_KEY = "post::view::%s";
+    private static final String VIEW_DELTA_KEY = "post::view::delta::%s";
     private static final String VIEW_DIRTY_SET_KEY = "post::dirty::view";
 
     private static final Long REMOVED = 1L;
@@ -25,12 +25,33 @@ public class PostRedisService {
             return 1
             """;
 
-    private static final String REMOVE_DIRTY_IF_UNCHANGED_SCRIPT = """
+    private static final String ACK_VIEW_DELTA_SCRIPT = """
             local current = redis.call('GET', KEYS[1])
-            if current == ARGV[1] then
+            if not current then
                 redis.call('SREM', KEYS[2], ARGV[2])
                 return 1
             end
+
+            current = tonumber(current)
+            local synced = tonumber(ARGV[1])
+
+            if current <= 0 then
+                redis.call('DEL', KEYS[1])
+                redis.call('SREM', KEYS[2], ARGV[2])
+                return 1
+            end
+
+            if current == synced then
+                redis.call('DEL', KEYS[1])
+                redis.call('SREM', KEYS[2], ARGV[2])
+                return 1
+            end
+
+            if current > synced then
+                redis.call('DECRBY', KEYS[1], synced)
+                return 0
+            end
+
             return 0
             """;
 
@@ -40,18 +61,18 @@ public class PostRedisService {
 
         redisTemplate.execute(
                 script,
-                List.of(VIEW_KEY.formatted(postId), VIEW_DIRTY_SET_KEY),
+                List.of(VIEW_DELTA_KEY.formatted(postId), VIEW_DIRTY_SET_KEY),
                 postId.toString()
         );
     }
 
-    public long getView(Long postId) {
-        Long value = getViewOrNull(postId);
+    public long getViewDelta(Long postId) {
+        Long value = getViewDeltaOrNull(postId);
         return value == null ? 0 : value;
     }
 
-    public Long getViewOrNull(Long postId) {
-        String value = redisTemplate.opsForValue().get(VIEW_KEY.formatted(postId));
+    public Long getViewDeltaOrNull(Long postId) {
+        String value = redisTemplate.opsForValue().get(VIEW_DELTA_KEY.formatted(postId));
         return value == null ? null : Long.parseLong(value);
     }
 
@@ -63,32 +84,32 @@ public class PostRedisService {
         redisTemplate.opsForSet().remove(VIEW_DIRTY_SET_KEY, postId.toString());
     }
 
-    public boolean removeViewDirtyIfUnchanged(Long postId, Long syncedCount) {
-        return removeDirtyIfUnchanged(
-                VIEW_KEY.formatted(postId),
+    public boolean acknowledgeSyncedViewDelta(Long postId, Long syncedDelta) {
+        return acknowledgeSyncedDelta(
+                VIEW_DELTA_KEY.formatted(postId),
                 VIEW_DIRTY_SET_KEY,
                 postId,
-                syncedCount
+                syncedDelta
         );
     }
 
-    private boolean removeDirtyIfUnchanged(
-            String countKey,
+    private boolean acknowledgeSyncedDelta(
+            String deltaKey,
             String dirtySetKey,
             Long postId,
-            Long syncedCount
+            Long syncedDelta
     ) {
-        if (syncedCount == null) {
+        if (syncedDelta == null || syncedDelta <= 0) {
             return false;
         }
 
         DefaultRedisScript<Long> script =
-                new DefaultRedisScript<>(REMOVE_DIRTY_IF_UNCHANGED_SCRIPT, Long.class);
+                new DefaultRedisScript<>(ACK_VIEW_DELTA_SCRIPT, Long.class);
 
         Long result = redisTemplate.execute(
                 script,
-                List.of(countKey, dirtySetKey),
-                syncedCount.toString(),
+                List.of(deltaKey, dirtySetKey),
+                syncedDelta.toString(),
                 postId.toString()
         );
 

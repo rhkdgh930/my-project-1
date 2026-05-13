@@ -67,7 +67,7 @@ public class PostQueryServiceImpl implements PostQueryService {
 
             PostListResponse response = PostListResponse.from(post, author);
             response.updateCounts(
-                    countOrDefault(postRedisService.getViewOrNull(post.getId()), post.getViewCount()),
+                    addDelta(post.getViewCount(), postRedisService.getViewDeltaOrNull(post.getId())),
                     post.getLikeCount()
             );
             return response;
@@ -102,7 +102,7 @@ public class PostQueryServiceImpl implements PostQueryService {
 
         PostDetailResponse response = PostDetailResponse.from(post, author);
         response.updateCounts(
-                countOrDefault(postRedisService.getViewOrNull(postId), post.getViewCount()),
+                addDelta(post.getViewCount(), postRedisService.getViewDeltaOrNull(postId)),
                 post.getLikeCount()
         );
         response.updateLikedByMe(isLikedByMe(postId, currentUserId));
@@ -113,8 +113,8 @@ public class PostQueryServiceImpl implements PostQueryService {
         return currentUserId != null && postLikeRepository.existsByPostIdAndUserId(postId, currentUserId);
     }
 
-    private long countOrDefault(Long redisCount, long dbCount) {
-        return redisCount != null ? redisCount : dbCount;
+    private long addDelta(long dbCount, Long redisDelta) {
+        return dbCount + (redisDelta == null ? 0 : redisDelta);
     }
 
     private Map<Long, AuthorSummary> findAuthorsForList(Long boardId, List<Long> authorIds) {
