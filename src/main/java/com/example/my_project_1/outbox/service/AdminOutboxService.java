@@ -6,6 +6,7 @@ import com.example.my_project_1.common.utils.PageResponse;
 import com.example.my_project_1.outbox.domain.OutboxEvent;
 import com.example.my_project_1.outbox.domain.OutboxStatus;
 import com.example.my_project_1.outbox.repository.OutboxRepository;
+import com.example.my_project_1.outbox.service.response.AdminOutboxDetailResponse;
 import com.example.my_project_1.outbox.service.response.AdminOutboxResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -31,6 +32,14 @@ public class AdminOutboxService {
                 : outboxRepository.findAllByStatus(status, pageable);
 
         return PageResponse.of(page.map(AdminOutboxResponse::from));
+    }
+
+    @Transactional(readOnly = true)
+    public AdminOutboxDetailResponse findById(Long id) {
+        OutboxEvent event = outboxRepository.findById(id)
+                .orElseThrow(() -> new CustomException(ErrorCode.OUTBOX_EVENT_NOT_FOUND));
+
+        return AdminOutboxDetailResponse.from(event);
     }
 
     public void retry(Long id) {

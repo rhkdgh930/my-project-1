@@ -4,6 +4,7 @@ import com.example.my_project_1.common.exception.ExceptionResponse;
 import com.example.my_project_1.common.utils.PageResponse;
 import com.example.my_project_1.outbox.domain.OutboxStatus;
 import com.example.my_project_1.outbox.service.AdminOutboxService;
+import com.example.my_project_1.outbox.service.response.AdminOutboxDetailResponse;
 import com.example.my_project_1.outbox.service.response.AdminOutboxResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -57,6 +58,33 @@ public class AdminOutboxController {
             Pageable pageable
     ) {
         return ResponseEntity.ok(adminOutboxService.findPage(status, pageable));
+    }
+
+    @Operation(
+            summary = "Outbox 이벤트 상세 조회",
+            description = """
+                    관리자가 단일 Outbox 이벤트 상세를 조회합니다.
+                    목록 응답과 달리 상세 응답은 ADMIN 전용 기준으로 payload를 포함합니다.
+                    payload는 읽기 전용이며 이 API로 수정할 수 없습니다.
+                    """,
+            security = @SecurityRequirement(name = "jwtAuth")
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Outbox 이벤트 상세 조회 성공",
+                    content = @Content(schema = @Schema(implementation = AdminOutboxDetailResponse.class))),
+            @ApiResponse(responseCode = "401", description = "인증 실패",
+                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
+            @ApiResponse(responseCode = "403", description = "ADMIN 권한 필요",
+                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
+            @ApiResponse(responseCode = "404", description = "Outbox event 없음. OUTBOX_EVENT_NOT_FOUND",
+                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
+    })
+    @GetMapping("/{id}")
+    public ResponseEntity<AdminOutboxDetailResponse> read(
+            @Parameter(description = "Outbox event ID", example = "1", required = true)
+            @PathVariable Long id
+    ) {
+        return ResponseEntity.ok(adminOutboxService.findById(id));
     }
 
     @Operation(
