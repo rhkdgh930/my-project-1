@@ -7,6 +7,7 @@ import com.example.my_project_1.outbox.domain.OutboxEvent;
 import com.example.my_project_1.outbox.domain.OutboxEventType;
 import com.example.my_project_1.outbox.domain.OutboxStatus;
 import com.example.my_project_1.outbox.repository.OutboxRepository;
+import com.example.my_project_1.outbox.service.response.AdminOutboxDetailResponse;
 import com.example.my_project_1.outbox.service.response.AdminOutboxResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -75,6 +76,37 @@ class AdminOutboxServiceTest {
         assertThat(response.getContent().get(0).getStatus()).isEqualTo(OutboxStatus.FAILED);
         assertThat(response.getContent().get(0).getLastError()).isEqualTo("temporary failure");
         verify(outboxRepository, never()).findAll(pageable);
+    }
+
+    @Test
+    @DisplayName("Outbox event 상세 조회는 payload를 포함한다.")
+    void findById_returnsDetailWithPayload() {
+        OutboxEvent event = event(1L);
+        when(outboxRepository.findById(1L)).thenReturn(Optional.of(event));
+
+        AdminOutboxDetailResponse response = service.findById(1L);
+
+        assertThat(response.getId()).isEqualTo(1L);
+        assertThat(response.getEventType()).isEqualTo(OutboxEventType.USER_ACCOUNT_CHANGED);
+        assertThat(response.getEventKey()).isEqualTo("event-key");
+        assertThat(response.getStatus()).isEqualTo(OutboxStatus.PENDING);
+        assertThat(response.getPayload()).isEqualTo("{\"userId\":1}");
+        assertThat(response.getRetryCount()).isZero();
+        assertThat(response.getCreatedAt()).isEqualTo(LocalDateTime.now(clock));
+        assertThat(response.getLastTriedAt()).isNull();
+        assertThat(response.getNextRetryAt()).isEqualTo(LocalDateTime.now(clock));
+        assertThat(response.getLastError()).isNull();
+    }
+
+    @Test
+    @DisplayName("없는 Outbox event id 상세 조회는 OUTBOX_EVENT_NOT_FOUND로 실패한다.")
+    void findById_rejectsMissingEvent() {
+        when(outboxRepository.findById(1L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.findById(1L))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.OUTBOX_EVENT_NOT_FOUND);
     }
 
     @Test
@@ -213,7 +245,7 @@ class AdminOutboxServiceTest {
     private OutboxEvent event(Long id) {
         OutboxEvent event = OutboxEvent.create(
                 OutboxEventType.USER_ACCOUNT_CHANGED,
-                "{}",
+                "{\"userId\":1}",
                 "event-key",
                 LocalDateTime.now(clock)
         );

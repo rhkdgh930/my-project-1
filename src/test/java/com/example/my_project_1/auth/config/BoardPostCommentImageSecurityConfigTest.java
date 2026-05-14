@@ -28,6 +28,11 @@ import com.example.my_project_1.common.utils.PageResponse;
 import com.example.my_project_1.image.controller.ImageController;
 import com.example.my_project_1.image.service.ImageStorage;
 import com.example.my_project_1.image.service.ImageUploadService;
+import com.example.my_project_1.outbox.controller.AdminOutboxController;
+import com.example.my_project_1.outbox.domain.OutboxEvent;
+import com.example.my_project_1.outbox.domain.OutboxEventType;
+import com.example.my_project_1.outbox.service.AdminOutboxService;
+import com.example.my_project_1.outbox.service.response.AdminOutboxDetailResponse;
 import com.example.my_project_1.post.controller.PostController;
 import com.example.my_project_1.post.service.PostCommandService;
 import com.example.my_project_1.post.service.PostQueryService;
@@ -50,7 +55,9 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.util.ReflectionTestUtils;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -77,7 +84,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         CommentController.class,
         ImageController.class,
         AuthController.class,
-        UserController.class
+        UserController.class,
+        AdminOutboxController.class
 })
 @Import({
         SecurityConfig.class,
@@ -131,6 +139,9 @@ class BoardPostCommentImageSecurityConfigTest {
 
     @MockitoBean
     private UserQueryService userQueryService;
+
+    @MockitoBean
+    private AdminOutboxService adminOutboxService;
 
     @MockitoBean
     private JwtProvider jwtProvider;
@@ -231,6 +242,37 @@ class BoardPostCommentImageSecurityConfigTest {
                         .contentType("application/json")
                         .content("{\"name\":\"board\",\"description\":\"description\"}"))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("Admin Outbox 상세 조회 API는 ADMIN 권한이 필요하고 payload를 포함한다.")
+    void adminOutboxDetailApi_requiresAdminRoleAndReturnsPayload() throws Exception {
+        when(adminOutboxService.findById(1L))
+                .thenReturn(AdminOutboxDetailResponse.from(outboxEvent(1L)));
+
+        mockMvc.perform(get("/api/admin/outbox/1"))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(get("/api/admin/outbox/1")
+                        .with(authentication(new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                                userDetails(),
+                                null,
+                                userDetails().getAuthorities()
+                        ))))
+                .andExpect(status().isForbidden());
+
+        UserDetailsImpl adminDetails = userDetails("ADMIN");
+        mockMvc.perform(get("/api/admin/outbox/1")
+                        .with(authentication(new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                                adminDetails,
+                                null,
+                                adminDetails.getAuthorities()
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1L))
+                .andExpect(jsonPath("$.eventType").value(OutboxEventType.USER_ACCOUNT_CHANGED.name()))
+                .andExpect(jsonPath("$.eventKey").value("event-key"))
+                .andExpect(jsonPath("$.payload").value("{\"userId\":1}"));
     }
 
     @Test
@@ -429,11 +471,15 @@ class BoardPostCommentImageSecurityConfigTest {
     }
 
     private UserDetailsImpl userDetails() {
+        return userDetails("USER");
+    }
+
+    private UserDetailsImpl userDetails(String role) {
         return new UserDetailsImpl(
                 1L,
                 "user@example.com",
                 null,
-                "USER",
+                role,
                 AccountStatus.NORMAL,
                 UserStatus.ACTIVE,
                 null,
@@ -444,5 +490,16 @@ class BoardPostCommentImageSecurityConfigTest {
                 false,
                 Map.of()
         );
+    }
+
+    private OutboxEvent outboxEvent(Long id) {
+        OutboxEvent event = OutboxEvent.create(
+                OutboxEventType.USER_ACCOUNT_CHANGED,
+                "{\"userId\":1}",
+                "event-key",
+                LocalDateTime.parse("2026-05-15T10:00:00")
+        );
+        ReflectionTestUtils.setField(event, "id", id);
+        return event;
     }
 }
