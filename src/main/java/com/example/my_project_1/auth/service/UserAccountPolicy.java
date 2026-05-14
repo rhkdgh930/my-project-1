@@ -5,6 +5,7 @@ import com.example.my_project_1.auth.exception.UserSuspendedException;
 import com.example.my_project_1.auth.exception.WithdrawalCompletedException;
 import com.example.my_project_1.auth.exception.WithdrawalPendingException;
 import com.example.my_project_1.auth.userdetails.UserDetailsImpl;
+import com.example.my_project_1.common.exception.CustomException;
 import com.example.my_project_1.common.exception.ErrorCode;
 import com.example.my_project_1.user.domain.AccountStatus;
 import com.example.my_project_1.user.domain.User;
@@ -104,6 +105,24 @@ public class UserAccountPolicy {
                     details.getSuspendedUntil(),
                     details.getReason()
             );
+        }
+    }
+
+    public void validateMeReadable(User user) {
+        if (user.isDeleted() || user.getUserStatus() == UserStatus.WITHDRAWN) {
+            throw new CustomException(ErrorCode.USER_NOT_FOUND);
+        }
+
+        if (user.getUserStatus() == UserStatus.WITHDRAWN_REQUESTED) {
+            throw new CustomException(ErrorCode.WITHDRAWAL_PENDING);
+        }
+
+        if (user.getUserStatus() == UserStatus.DORMANT) {
+            throw new CustomException(ErrorCode.USER_DORMANT);
+        }
+
+        if (user.getAccountStatus() == AccountStatus.SUSPENDED) {
+            throw new CustomException(ErrorCode.USER_SUSPENDED);
         }
     }
 }
