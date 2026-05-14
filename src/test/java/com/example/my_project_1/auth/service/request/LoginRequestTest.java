@@ -27,7 +27,7 @@ class LoginRequestTest {
     }
 
     @Test
-    @DisplayName("loginRequestTest 생성을 성공한다.")
+    @DisplayName("LoginRequest 생성에 성공한다.")
     void loginRequest_create_success_test() {
         //given
         LoginRequest request = LoginRequest.create("email@email.com", "password123*");

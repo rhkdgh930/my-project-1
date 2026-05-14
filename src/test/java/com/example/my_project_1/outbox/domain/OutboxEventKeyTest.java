@@ -41,14 +41,11 @@ class OutboxEventKeyTest {
     }
 
     @Test
-    @DisplayName("postDeleted는 post id와 uuid 기반 key를 사용한다.")
-    void postDeleted_usesPostIdAndUuidKey() {
-        String eventKey = OutboxEventKey.postDeleted(10L);
-        String[] parts = eventKey.split(":");
-
-        assertThat(parts).hasSize(3);
-        assertThat(parts[0]).isEqualTo("POST_DELETED");
-        assertThat(parts[1]).isEqualTo("10");
-        assertThat(UUID.fromString(parts[2])).isNotNull();
+    @DisplayName("postDeleted는 post id 기반의 deterministic key를 사용한다.")
+    void postDeleted_usesDeterministicPostIdKey() {
+        String firstKey = OutboxEventKey.postDeleted(10L);
+        String secondKey = OutboxEventKey.postDeleted(10L);
+        assertThat(firstKey).isEqualTo("POST_DELETED:10");
+        assertThat(secondKey).isEqualTo("POST_DELETED:10");
     }
 }

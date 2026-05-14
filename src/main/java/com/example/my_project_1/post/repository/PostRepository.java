@@ -12,7 +12,7 @@ import org.springframework.stereotype.Repository;
 import java.util.Optional;
 
 @Repository
-public interface PostRepository extends JpaRepository<Post, Long> {
+public interface PostRepository extends JpaRepository<Post, Long>, PostRepositoryCustom {
 
     @Modifying
     @Query("""
@@ -34,10 +34,29 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     @Modifying
     @Query("""
             update Post p
-            set p.likeCount = :likeCount
+            set p.viewCount = p.viewCount + :delta
             where p.id = :postId
             """)
-    void updateLikeCount(Long postId, long likeCount);
+    int updateViewCountDelta(@Param("postId") Long postId, @Param("delta") long delta);
+
+    @Modifying
+    @Query("""
+            update Post p
+            set p.likeCount =
+                case
+                    when p.likeCount + :delta < 0 then 0
+                    else p.likeCount + :delta
+                end
+            where p.id = :postId
+            """)
+    int updateLikeCountDelta(@Param("postId") Long postId, @Param("delta") long delta);
+
+    @Query("""
+            select p.likeCount
+            from Post p
+            where p.id = :postId
+            """)
+    Optional<Long> findLikeCountById(@Param("postId") Long postId);
 
     @Query("""
             select p

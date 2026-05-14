@@ -10,19 +10,22 @@ import com.example.my_project_1.outbox.domain.OutboxEventKey;
 import com.example.my_project_1.outbox.domain.OutboxEventType;
 import com.example.my_project_1.outbox.service.OutboxPublisher;
 import com.example.my_project_1.post.domain.Post;
+import com.example.my_project_1.post.domain.PostLike;
+import com.example.my_project_1.post.repository.PostLikeRepository;
 import com.example.my_project_1.post.event.PostCreatedOutboxEvent;
 import com.example.my_project_1.post.event.PostDeletedOutboxEvent;
 import com.example.my_project_1.post.event.PostUpdatedOutboxEvent;
 import com.example.my_project_1.post.repository.PostRepository;
 import com.example.my_project_1.post.service.PostCommandService;
-import com.example.my_project_1.post.service.PostRedisService;
 import com.example.my_project_1.post.service.request.PostCreateRequest;
 import com.example.my_project_1.post.service.request.PostUpdateRequest;
 import com.example.my_project_1.post.service.response.PostDetailResponse;
+import com.example.my_project_1.post.service.response.PostLikeResponse;
 import com.example.my_project_1.user.client.AuthorSummary;
 import com.example.my_project_1.user.client.UserClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,7 +41,7 @@ public class PostCommandServiceImpl implements PostCommandService {
 
     private final BoardRepository boardRepository;
     private final PostRepository postRepository;
-    private final PostRedisService postRedisService;
+    private final PostLikeRepository postLikeRepository;
     private final UserClient userClient;
     private final OutboxPublisher outboxPublisher;
     private final Clock clock;
@@ -126,7 +129,29 @@ public class PostCommandServiceImpl implements PostCommandService {
     }
 
     @Override
-    public boolean like(Long boardId, Long postId, Long userId) {
+    public PostLikeResponse likeIdempotently(Long boardId, Long postId, Long userId) {
+        Post post = findActivePostForLike(boardId, postId);
+
+        if (tryCreatePostLike(post.getId(), userId)) {
+            postRepository.updateLikeCountDelta(postId, 1L);
+        }
+
+        return PostLikeResponse.of(true, getLikeCount(postId));
+    }
+
+    @Override
+    public PostLikeResponse unlikeIdempotently(Long boardId, Long postId, Long userId) {
+        findActivePostForLike(boardId, postId);
+
+        int deletedCount = postLikeRepository.deleteByPostIdAndUserId(postId, userId);
+        if (deletedCount > 0) {
+            postRepository.updateLikeCountDelta(postId, -1L);
+        }
+
+        return PostLikeResponse.of(false, getLikeCount(postId));
+    }
+
+    private Post findActivePostForLike(Long boardId, Long postId) {
         Post post = postRepository.findActiveById(postId)
                 .orElseThrow(() -> new CustomException(ErrorCode.POST_NOT_FOUND));
 
@@ -134,7 +159,22 @@ public class PostCommandServiceImpl implements PostCommandService {
             throw new CustomException(ErrorCode.INVALID_BOARD_POST_RELATION);
         }
 
-        return postRedisService.toggleLike(postId, userId);
+        return post;
+    }
+
+    private boolean tryCreatePostLike(Long postId, Long userId) {
+        try {
+            postLikeRepository.saveAndFlush(PostLike.create(postId, userId));
+            return true;
+        } catch (DataIntegrityViolationException e) {
+            log.debug("[POST_LIKE][DUPLICATE_OR_CONSTRAINT] postId={}, userId={}", postId, userId);
+            return false;
+        }
+    }
+
+    private long getLikeCount(Long postId) {
+        return postRepository.findLikeCountById(postId)
+                .orElseThrow(() -> new CustomException(ErrorCode.POST_NOT_FOUND));
     }
 
     private AuthorSummary getAuthorOrUnknown(Long userId) {

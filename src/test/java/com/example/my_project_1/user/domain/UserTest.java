@@ -16,7 +16,6 @@ class UserTest {
     private final static String PASSWORD = "password123*";
     private final static String NICKNAME = "nickname";
     private static final String DEFAULT_INTRODUCE = "자기소개를 입력해주세요.";
-    private static final String DEFAULT_IMG_URL = "http://localhost:8080/images/default.png";
 
     @Test
     @DisplayName("유저 회원가입 성공 테스트")
@@ -33,7 +32,7 @@ class UserTest {
         assertThat(user.isDeleted()).isFalse();
 
         assertThat(user.getProfileDetail().getIntroduce()).isEqualTo(DEFAULT_INTRODUCE);
-        assertThat(user.getProfileDetail().getProfileImageUrl()).isEqualTo(DEFAULT_IMG_URL);
+        assertThat(user.getProfileDetail().getProfileImageUrl()).isNull();
     }
 
     @DisplayName("필드에 null값이 들어가면 회원가입을 실패합니다.")

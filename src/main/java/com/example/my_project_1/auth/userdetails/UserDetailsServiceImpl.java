@@ -29,42 +29,6 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         LocalDateTime now = LocalDateTime.now(clock);
         user.checkAndReleaseSuspension(now);
 
-        UserWithdrawal withdrawal = user.getWithdrawal();
-
-        LocalDateTime scheduledDeletionAt = null;
-        Long remainingDays = null;
-        boolean canRestore = false;
-
-        if (withdrawal != null) {
-            scheduledDeletionAt = withdrawal.getScheduledDeletionAt();
-            remainingDays = withdrawal.getRemainingDays(now);
-            canRestore = withdrawal.canRestore(now);
-        }
-
-        UserSuspension suspension = user.getSuspension();
-
-        SuspensionReason suspensionReason = null;
-        LocalDateTime suspendedUntil = null;
-
-        if (suspension != null) {
-            suspensionReason = suspension.getReason();
-            suspendedUntil = suspension.getSuspendedUntil();
-        }
-
-
-        return new UserDetailsImpl(
-                user.getId(),
-                user.getEmail().getValue(),
-                user.getPassword(),
-                user.getRole().name(),
-                user.getAccountStatus(),
-                user.getUserStatus(),
-                suspensionReason,
-                suspendedUntil,
-                scheduledDeletionAt,
-                remainingDays,
-                canRestore,
-                user.isDeleted()
-        );
+        return UserDetailsImpl.from(user, now);
     }
 }

@@ -1,7 +1,6 @@
 package com.example.my_project_1.user.batch;
 
 import com.example.my_project_1.outbox.domain.OutboxEventType;
-import com.example.my_project_1.outbox.repository.OutboxRepository;
 import com.example.my_project_1.outbox.service.OutboxPublisher;
 import com.example.my_project_1.outbox.service.UserAccountChangeOutboxPublisher;
 import com.example.my_project_1.user.domain.Email;
@@ -30,13 +29,10 @@ class UserBatchWorkerTest {
     private final UserAccountChangeOutboxPublisher userAccountChangeOutboxPublisher =
             mock(UserAccountChangeOutboxPublisher.class);
     private final UserRepository userRepository = mock(UserRepository.class);
-    private final OutboxRepository outboxRepository = mock(OutboxRepository.class);
-
     private final UserBatchWorker worker = new UserBatchWorker(
             outboxPublisher,
             userAccountChangeOutboxPublisher,
-            userRepository,
-            outboxRepository
+            userRepository
     );
 
     @Test
@@ -55,7 +51,6 @@ class UserBatchWorkerTest {
         verify(userAccountChangeOutboxPublisher)
                 .publish(userId, UserAccountChangedType.DORMANT_REQUEST);
         verify(outboxPublisher, never()).publish(any(), anyString(), anyString());
-        verifyNoInteractions(outboxRepository);
     }
 
     @Test
@@ -72,14 +67,11 @@ class UserBatchWorkerTest {
         );
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(outboxRepository.existsByEventKey(expectedEventKey)).thenReturn(false);
-
         worker.processSingleUserWithDormancy(userId, now.minusMonths(11), now.minusMonths(12));
 
         assertThat(user.getUserStatus()).isEqualTo(UserStatus.ACTIVE);
 
-        verify(outboxRepository).existsByEventKey(expectedEventKey);
-        verify(outboxPublisher).publish(
+        verify(outboxPublisher).publishIfAbsent(
                 eq(OutboxEventType.DORMANCY_NOTIFY),
                 anyString(),
                 eq(expectedEventKey)
@@ -101,13 +93,21 @@ class UserBatchWorkerTest {
         );
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(outboxRepository.existsByEventKey(expectedEventKey)).thenReturn(true);
+        when(outboxPublisher.publishIfAbsent(
+                eq(OutboxEventType.DORMANCY_NOTIFY),
+                anyString(),
+                eq(expectedEventKey)
+        )).thenReturn(false);
 
         worker.processSingleUserWithDormancy(userId, now.minusMonths(11), now.minusMonths(12));
 
         assertThat(user.getUserStatus()).isEqualTo(UserStatus.ACTIVE);
 
-        verify(outboxRepository).existsByEventKey(expectedEventKey);
+        verify(outboxPublisher).publishIfAbsent(
+                eq(OutboxEventType.DORMANCY_NOTIFY),
+                anyString(),
+                eq(expectedEventKey)
+        );
         verify(outboxPublisher, never()).publish(any(), anyString(), anyString());
         verify(userAccountChangeOutboxPublisher, never()).publish(anyLong(), any());
     }
@@ -124,14 +124,11 @@ class UserBatchWorkerTest {
         LocalDateTime dormantThreshold = LocalDateTime.of(2025, 4, 30, 0, 0);
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(outboxRepository.existsByEventKey("DORMANCY_NOTIFY:1:2025-05-29"))
-                .thenReturn(false);
-
         worker.processSingleUserWithDormancy(userId, notifyThreshold, dormantThreshold);
 
         ArgumentCaptor<String> eventKeyCaptor = ArgumentCaptor.forClass(String.class);
 
-        verify(outboxPublisher).publish(
+        verify(outboxPublisher).publishIfAbsent(
                 eq(OutboxEventType.DORMANCY_NOTIFY),
                 anyString(),
                 eventKeyCaptor.capture()
@@ -154,12 +151,10 @@ class UserBatchWorkerTest {
         );
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(outboxRepository.existsByEventKey(expectedEventKey)).thenReturn(false);
-
         worker.processSingleUserWithDormancy(userId, notifyThreshold, now.minusMonths(12));
 
         assertThat(user.getUserStatus()).isEqualTo(UserStatus.ACTIVE);
-        verify(outboxPublisher).publish(
+        verify(outboxPublisher).publishIfAbsent(
                 eq(OutboxEventType.DORMANCY_NOTIFY),
                 anyString(),
                 eq(expectedEventKey)
@@ -181,12 +176,10 @@ class UserBatchWorkerTest {
         );
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(outboxRepository.existsByEventKey(expectedEventKey)).thenReturn(false);
-
         worker.processSingleUserWithDormancy(userId, now.minusMonths(11), dormantThreshold);
 
         assertThat(user.getUserStatus()).isEqualTo(UserStatus.ACTIVE);
-        verify(outboxPublisher).publish(
+        verify(outboxPublisher).publishIfAbsent(
                 eq(OutboxEventType.DORMANCY_NOTIFY),
                 anyString(),
                 eq(expectedEventKey)
@@ -208,7 +201,6 @@ class UserBatchWorkerTest {
         assertThat(user.getUserStatus()).isEqualTo(UserStatus.ACTIVE);
         verify(userAccountChangeOutboxPublisher, never()).publish(anyLong(), any());
         verify(outboxPublisher, never()).publish(any(), anyString(), anyString());
-        verifyNoInteractions(outboxRepository);
     }
 
     @Test
@@ -226,7 +218,6 @@ class UserBatchWorkerTest {
         assertThat(user.getUserStatus()).isEqualTo(UserStatus.WITHDRAWN_REQUESTED);
         verify(userAccountChangeOutboxPublisher, never()).publish(anyLong(), any());
         verify(outboxPublisher, never()).publish(any(), anyString(), anyString());
-        verifyNoInteractions(outboxRepository);
     }
 
     @Test

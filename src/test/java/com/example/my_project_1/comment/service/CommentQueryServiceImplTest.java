@@ -55,7 +55,7 @@ class CommentQueryServiceImplTest {
         when(commentRepository.findAllByPostIdOrderByIdAsc(postId))
                 .thenReturn(List.of(parent, child));
         when(userClient.findAuthorsByIds(List.of(20L)))
-                .thenReturn(Map.of(20L, AuthorSummary.active(20L, "reply-author")));
+                .thenReturn(Map.of(20L, AuthorSummary.active(20L, "reply-author", "/images/reply.png")));
 
         List<CommentResponse> responses = commentQueryService.getComments(postId);
 
@@ -71,6 +71,7 @@ class CommentQueryServiceImplTest {
         assertThat(parentResponse.getReplies().get(0).getAuthor().id()).isEqualTo(20L);
         assertThat(parentResponse.getReplies().get(0).getAuthor().displayName()).isEqualTo("reply-author");
         assertThat(parentResponse.getReplies().get(0).getAuthor().status()).isEqualTo(AuthorStatus.ACTIVE);
+        assertThat(parentResponse.getReplies().get(0).getAuthor().profileImageUrl()).isEqualTo("/images/reply.png");
         assertThat(parentResponse.getReplies().get(0).getContent()).isEqualTo("reply");
         verify(commentRepository).findAllByPostIdOrderByIdAsc(postId);
     }
@@ -87,7 +88,7 @@ class CommentQueryServiceImplTest {
                 .thenReturn(List.of(parent, child));
         when(userClient.findAuthorsByIds(List.of(10L, 20L)))
                 .thenReturn(Map.of(
-                        10L, AuthorSummary.active(10L, "parent-author"),
+                        10L, AuthorSummary.active(10L, "parent-author", "/images/parent.png"),
                         20L, AuthorSummary.suspended(20L, "reply-author")
                 ));
 
@@ -100,10 +101,12 @@ class CommentQueryServiceImplTest {
         assertThat(parentResponse.getAuthor().id()).isEqualTo(10L);
         assertThat(parentResponse.getAuthor().displayName()).isEqualTo("parent-author");
         assertThat(parentResponse.getAuthor().status()).isEqualTo(AuthorStatus.ACTIVE);
+        assertThat(parentResponse.getAuthor().profileImageUrl()).isEqualTo("/images/parent.png");
         assertThat(replyResponse.getAuthorId()).isEqualTo(20L);
         assertThat(replyResponse.getAuthor().id()).isEqualTo(20L);
         assertThat(replyResponse.getAuthor().displayName()).isEqualTo("차단된 사용자");
         assertThat(replyResponse.getAuthor().status()).isEqualTo(AuthorStatus.SUSPENDED);
+        assertThat(replyResponse.getAuthor().profileImageUrl()).isNull();
     }
 
     @Test
@@ -127,7 +130,7 @@ class CommentQueryServiceImplTest {
     }
 
     @Test
-    @DisplayName("comment list uses UNKNOWN author when author bulk lookup throws")
+    @DisplayName("comment list는 author bulk lookup 실패 시 UNKNOWN author를 사용한다.")
     void getComments_usesUnknownAuthorWhenUserLookupThrows() {
         Long postId = 1L;
         Comment parent = comment(postId, 100L, 10L, "parent", null, 0);

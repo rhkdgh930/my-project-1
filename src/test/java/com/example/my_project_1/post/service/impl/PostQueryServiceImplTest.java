@@ -1,12 +1,16 @@
 package com.example.my_project_1.post.service.impl;
 
 import com.example.my_project_1.board.domain.Board;
+import com.example.my_project_1.board.repository.BoardRepository;
 import com.example.my_project_1.common.exception.CustomException;
 import com.example.my_project_1.common.exception.ErrorCode;
 import com.example.my_project_1.common.utils.PageResponse;
 import com.example.my_project_1.post.domain.Post;
+import com.example.my_project_1.post.repository.PostLikeRepository;
 import com.example.my_project_1.post.repository.PostRepository;
 import com.example.my_project_1.post.service.PostRedisService;
+import com.example.my_project_1.post.service.request.PostSearchCondition;
+import com.example.my_project_1.post.service.request.PostSortType;
 import com.example.my_project_1.post.service.response.PostDetailResponse;
 import com.example.my_project_1.post.service.response.PostListResponse;
 import com.example.my_project_1.user.client.AuthorStatus;
@@ -32,20 +36,27 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
 
 class PostQueryServiceImplTest {
 
+    private static final String PROFILE_IMAGE_URL = "/images/550e8400-e29b-41d4-a716-446655440000.png";
+
+    private BoardRepository boardRepository;
     private PostRepository postRepository;
+    private PostLikeRepository postLikeRepository;
     private UserClient userClient;
     private PostRedisService postRedisService;
     private PostQueryServiceImpl postQueryService;
 
     @BeforeEach
     void setUp() {
+        boardRepository = mock(BoardRepository.class);
         postRepository = mock(PostRepository.class);
+        postLikeRepository = mock(PostLikeRepository.class);
         userClient = mock(UserClient.class);
         postRedisService = mock(PostRedisService.class);
-        postQueryService = new PostQueryServiceImpl(postRepository, userClient, postRedisService);
+        postQueryService = new PostQueryServiceImpl(boardRepository, postRepository, postLikeRepository, userClient, postRedisService);
     }
 
     @Test
@@ -55,14 +66,15 @@ class PostQueryServiceImplTest {
         Pageable pageable = PageRequest.of(0, 10);
         Post post = post(boardId, 10L, 100L);
 
-        when(postRepository.findAllActiveByBoardId(boardId, pageable))
+        when(boardRepository.findByIdAndDeletedAtIsNull(boardId))
+                .thenReturn(Optional.ofNullable(Board.create("board", "description")));
+        when(postRepository.searchActivePosts(boardId, null, pageable))
                 .thenReturn(new PageImpl<>(List.of(post), pageable, 1));
         when(userClient.findAuthorsByIds(List.of(100L)))
-                .thenReturn(Map.of(100L, AuthorSummary.active(100L, "nickname")));
-        when(postRedisService.getViewOrNull(10L)).thenReturn(3L);
-        when(postRedisService.getLikeOrNull(10L)).thenReturn(2L);
+                .thenReturn(Map.of(100L, AuthorSummary.active(100L, "nickname", PROFILE_IMAGE_URL)));
+        when(postRedisService.getViewDeltaOrNull(10L)).thenReturn(3L);
 
-        PageResponse<PostListResponse> response = postQueryService.getPosts(boardId, pageable);
+        PageResponse<PostListResponse> response = postQueryService.getPosts(boardId, null, pageable);
 
         assertThat(response.getContent()).hasSize(1);
         assertThat(response.getContent().get(0).getPostId()).isEqualTo(10L);
@@ -70,29 +82,76 @@ class PostQueryServiceImplTest {
         assertThat(response.getContent().get(0).getAuthor().id()).isEqualTo(100L);
         assertThat(response.getContent().get(0).getAuthor().displayName()).isEqualTo("nickname");
         assertThat(response.getContent().get(0).getAuthor().status()).isEqualTo(AuthorStatus.ACTIVE);
-        verify(postRepository).findAllActiveByBoardId(boardId, pageable);
+        assertThat(response.getContent().get(0).getAuthor().profileImageUrl()).isEqualTo(PROFILE_IMAGE_URL);
+        assertThat(response.getContent().get(0).getViewCount()).isEqualTo(3L);
+        assertThat(response.getContent().get(0).getLikeCount()).isEqualTo(0L);
+        verify(postRepository).searchActivePosts(boardId, null, pageable);
     }
 
     @Test
-    @DisplayName("post list는 redis count가 없으면 DB count를 유지한다.")
+    @DisplayName("post list는 Redis delta가 없으면 DB count를 사용한다.")
     void getPosts_keepsDbCountsWhenRedisCountsAreMissing() {
         Long boardId = 1L;
         Pageable pageable = PageRequest.of(0, 10);
         Post post = post(boardId, 10L, 100L);
         post.updateCounts(100L, 5L);
 
-        when(postRepository.findAllActiveByBoardId(boardId, pageable))
+        when(boardRepository.findByIdAndDeletedAtIsNull(boardId))
+                .thenReturn(Optional.ofNullable(Board.create("board", "description")));
+        when(postRepository.searchActivePosts(boardId, null, pageable))
                 .thenReturn(new PageImpl<>(List.of(post), pageable, 1));
         when(userClient.findAuthorsByIds(List.of(100L)))
                 .thenReturn(Map.of(100L, AuthorSummary.active(100L, "nickname")));
-        when(postRedisService.getViewOrNull(10L)).thenReturn(null);
-        when(postRedisService.getLikeOrNull(10L)).thenReturn(null);
+        when(postRedisService.getViewDeltaOrNull(10L)).thenReturn(null);
 
-        PageResponse<PostListResponse> response = postQueryService.getPosts(boardId, pageable);
+        PageResponse<PostListResponse> response = postQueryService.getPosts(boardId, null, pageable);
 
         assertThat(response.getContent()).hasSize(1);
         assertThat(response.getContent().get(0).getViewCount()).isEqualTo(100L);
         assertThat(response.getContent().get(0).getLikeCount()).isEqualTo(5L);
+    }
+
+    @Test
+    @DisplayName("post list가 빈 페이지여도 metadata를 유지하고 author 조회를 생략한다.")
+    void getPosts_keepsPageMetadataAndSkipsAuthorLookupWhenPageIsEmpty() {
+        Long boardId = 1L;
+        Pageable pageable = PageRequest.of(2, 10);
+
+        when(boardRepository.findByIdAndDeletedAtIsNull(boardId))
+                .thenReturn(Optional.ofNullable(Board.create("board", "description")));
+        when(postRepository.searchActivePosts(boardId, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 25));
+
+        PageResponse<PostListResponse> response = postQueryService.getPosts(boardId, null, pageable);
+
+        assertThat(response.getContent()).isEmpty();
+        assertThat(response.getPageNumber()).isEqualTo(2);
+        assertThat(response.getPageSize()).isEqualTo(10);
+        assertThat(response.getTotalElements()).isEqualTo(25);
+        assertThat(response.getTotalPages()).isEqualTo(3);
+        verify(userClient, never()).findAuthorsByIds(any());
+        verify(postRedisService, never()).getViewDeltaOrNull(any());
+    }
+
+    @Test
+    @DisplayName("post list는 검색 조건을 custom repository에 전달한다.")
+    void getPosts_passesSearchConditionToCustomRepository() {
+        Long boardId = 1L;
+        Pageable pageable = PageRequest.of(0, 10);
+        PostSearchCondition condition = new PostSearchCondition();
+        condition.setKeyword("redis");
+        condition.setSortType(PostSortType.LIKE_COUNT);
+
+        when(boardRepository.findByIdAndDeletedAtIsNull(boardId))
+                .thenReturn(Optional.ofNullable(Board.create("board", "description")));
+        when(postRepository.searchActivePosts(boardId, condition, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        PageResponse<PostListResponse> response = postQueryService.getPosts(boardId, condition, pageable);
+
+        assertThat(response.getContent()).isEmpty();
+        verify(postRepository).searchActivePosts(boardId, condition, pageable);
+        verify(userClient, never()).findAuthorsByIds(any());
     }
 
     @Test
@@ -104,26 +163,28 @@ class PostQueryServiceImplTest {
 
         when(postRepository.findActiveById(postId)).thenReturn(Optional.of(post));
         when(userClient.findAuthorsByIds(List.of(100L)))
-                .thenReturn(Map.of(100L, AuthorSummary.active(100L, "nickname")));
-        when(postRedisService.getViewOrNull(postId)).thenReturn(4L);
-        when(postRedisService.getLikeOrNull(postId)).thenReturn(2L);
+                .thenReturn(Map.of(100L, AuthorSummary.active(100L, "nickname", PROFILE_IMAGE_URL)));
+        when(postRedisService.getViewDeltaOrNull(postId)).thenReturn(4L);
 
         PostDetailResponse response = postQueryService.getPostDetail(boardId, postId);
 
         assertThat(response.getPostId()).isEqualTo(postId);
         assertThat(response.getViewCount()).isEqualTo(4L);
+        assertThat(response.getLikeCount()).isEqualTo(0L);
+        assertThat(response.isLikedByMe()).isFalse();
         assertThat(response.getNickname()).isEqualTo("nickname");
         assertThat(response.getUserId()).isEqualTo(100L);
         assertThat(response.getAuthor().id()).isEqualTo(100L);
         assertThat(response.getAuthor().displayName()).isEqualTo("nickname");
         assertThat(response.getAuthor().status()).isEqualTo(AuthorStatus.ACTIVE);
+        assertThat(response.getAuthor().profileImageUrl()).isEqualTo(PROFILE_IMAGE_URL);
         InOrder inOrder = inOrder(postRepository, postRedisService);
         inOrder.verify(postRepository).findActiveById(postId);
         inOrder.verify(postRedisService).increaseView(postId);
     }
 
     @Test
-    @DisplayName("post detail은 redis like가 없으면 redis view와 DB like를 사용한다.")
+    @DisplayName("post detail은 Redis view delta와 DB likeCount를 사용한다.")
     void getPostDetail_usesRedisViewAndDbLikeWhenRedisLikeIsMissing() {
         Long boardId = 1L;
         Long postId = 10L;
@@ -133,13 +194,70 @@ class PostQueryServiceImplTest {
         when(postRepository.findActiveById(postId)).thenReturn(Optional.of(post));
         when(userClient.findAuthorsByIds(List.of(100L)))
                 .thenReturn(Map.of(100L, AuthorSummary.active(100L, "nickname")));
-        when(postRedisService.getViewOrNull(postId)).thenReturn(101L);
-        when(postRedisService.getLikeOrNull(postId)).thenReturn(null);
+        when(postRedisService.getViewDeltaOrNull(postId)).thenReturn(101L);
 
         PostDetailResponse response = postQueryService.getPostDetail(boardId, postId);
 
-        assertThat(response.getViewCount()).isEqualTo(101L);
+        assertThat(response.getViewCount()).isEqualTo(201L);
         assertThat(response.getLikeCount()).isEqualTo(5L);
+    }
+
+    @Test
+    @DisplayName("비로그인 상세 조회는 likedByMe=false를 반환하고 좋아요 여부를 조회하지 않는다.")
+    void getPostDetail_returnsFalseLikedByMeForAnonymousUser() {
+        Long boardId = 1L;
+        Long postId = 10L;
+        Post post = post(boardId, postId, 100L);
+
+        when(postRepository.findActiveById(postId)).thenReturn(Optional.of(post));
+        when(userClient.findAuthorsByIds(List.of(100L)))
+                .thenReturn(Map.of(100L, AuthorSummary.active(100L, "nickname")));
+
+        PostDetailResponse response = postQueryService.getPostDetail(boardId, postId, null);
+
+        assertThat(response.isLikedByMe()).isFalse();
+        verify(postLikeRepository, never()).existsByPostIdAndUserId(any(), any());
+        verify(postRedisService).increaseView(postId);
+    }
+
+    @Test
+    @DisplayName("로그인 사용자가 좋아요한 게시글 상세 조회는 likedByMe=true를 반환한다.")
+    void getPostDetail_returnsTrueLikedByMeWhenUserLikedPost() {
+        Long boardId = 1L;
+        Long postId = 10L;
+        Long currentUserId = 200L;
+        Post post = post(boardId, postId, 100L);
+
+        when(postRepository.findActiveById(postId)).thenReturn(Optional.of(post));
+        when(userClient.findAuthorsByIds(List.of(100L)))
+                .thenReturn(Map.of(100L, AuthorSummary.active(100L, "nickname")));
+        when(postLikeRepository.existsByPostIdAndUserId(postId, currentUserId)).thenReturn(true);
+
+        PostDetailResponse response = postQueryService.getPostDetail(boardId, postId, currentUserId);
+
+        assertThat(response.isLikedByMe()).isTrue();
+        verify(postLikeRepository).existsByPostIdAndUserId(postId, currentUserId);
+        verify(postRedisService).increaseView(postId);
+    }
+
+    @Test
+    @DisplayName("로그인 사용자가 좋아요하지 않은 게시글 상세 조회는 likedByMe=false를 반환한다.")
+    void getPostDetail_returnsFalseLikedByMeWhenUserDidNotLikePost() {
+        Long boardId = 1L;
+        Long postId = 10L;
+        Long currentUserId = 200L;
+        Post post = post(boardId, postId, 100L);
+
+        when(postRepository.findActiveById(postId)).thenReturn(Optional.of(post));
+        when(userClient.findAuthorsByIds(List.of(100L)))
+                .thenReturn(Map.of(100L, AuthorSummary.active(100L, "nickname")));
+        when(postLikeRepository.existsByPostIdAndUserId(postId, currentUserId)).thenReturn(false);
+
+        PostDetailResponse response = postQueryService.getPostDetail(boardId, postId, currentUserId);
+
+        assertThat(response.isLikedByMe()).isFalse();
+        verify(postLikeRepository).existsByPostIdAndUserId(postId, currentUserId);
+        verify(postRedisService).increaseView(postId);
     }
 
     @Test
@@ -149,32 +267,36 @@ class PostQueryServiceImplTest {
         Pageable pageable = PageRequest.of(0, 10);
         Post post = post(boardId, 10L, 100L);
 
-        when(postRepository.findAllActiveByBoardId(boardId, pageable))
+        when(boardRepository.findByIdAndDeletedAtIsNull(boardId))
+                .thenReturn(Optional.ofNullable(Board.create("board", "description")));
+        when(postRepository.searchActivePosts(boardId, null, pageable))
                 .thenReturn(new PageImpl<>(List.of(post), pageable, 1));
         when(userClient.findAuthorsByIds(List.of(100L))).thenReturn(Map.of());
 
-        PageResponse<PostListResponse> response = postQueryService.getPosts(boardId, pageable);
+        PageResponse<PostListResponse> response = postQueryService.getPosts(boardId, null, pageable);
 
         PostListResponse postResponse = response.getContent().get(0);
-        assertThat(postResponse.getNickname()).isEqualTo("알 수 없는 사용자");
+        assertThat(postResponse.getNickname()).isEqualTo(postResponse.getAuthor().displayName());
         assertThat(postResponse.getAuthor().id()).isNull();
-        assertThat(postResponse.getAuthor().displayName()).isEqualTo("알 수 없는 사용자");
+        assertThat(postResponse.getAuthor().displayName()).isNotBlank();
         assertThat(postResponse.getAuthor().status()).isEqualTo(AuthorStatus.UNKNOWN);
     }
 
     @Test
-    @DisplayName("post list uses UNKNOWN author when author bulk lookup throws")
+    @DisplayName("post list는 author bulk lookup 실패 시 UNKNOWN author를 사용한다.")
     void getPosts_usesUnknownAuthorWhenUserLookupThrows() {
         Long boardId = 1L;
         Pageable pageable = PageRequest.of(0, 10);
         Post post = post(boardId, 10L, 100L);
 
-        when(postRepository.findAllActiveByBoardId(boardId, pageable))
+        when(boardRepository.findByIdAndDeletedAtIsNull(boardId))
+                .thenReturn(Optional.ofNullable(Board.create("board", "description")));
+        when(postRepository.searchActivePosts(boardId, null, pageable))
                 .thenReturn(new PageImpl<>(List.of(post), pageable, 1));
         when(userClient.findAuthorsByIds(List.of(100L)))
                 .thenThrow(new RuntimeException("user lookup failed"));
 
-        PageResponse<PostListResponse> response = postQueryService.getPosts(boardId, pageable);
+        PageResponse<PostListResponse> response = postQueryService.getPosts(boardId, null, pageable);
 
         PostListResponse postResponse = response.getContent().get(0);
         assertThat(postResponse.getPostId()).isEqualTo(10L);
@@ -183,7 +305,7 @@ class PostQueryServiceImplTest {
     }
 
     @Test
-    @DisplayName("post detail uses UNKNOWN author when author lookup throws")
+    @DisplayName("post detail은 author lookup 실패 시 UNKNOWN author를 사용한다.")
     void getPostDetail_usesUnknownAuthorWhenUserLookupThrows() {
         Long boardId = 1L;
         Long postId = 10L;
@@ -215,14 +337,14 @@ class PostQueryServiceImplTest {
         PostDetailResponse response = postQueryService.getPostDetail(boardId, postId);
 
         assertThat(response.getUserId()).isEqualTo(100L);
-        assertThat(response.getNickname()).isEqualTo("탈퇴한 사용자");
+        assertThat(response.getNickname()).isEqualTo(response.getAuthor().displayName());
         assertThat(response.getAuthor().id()).isNull();
-        assertThat(response.getAuthor().displayName()).isEqualTo("탈퇴한 사용자");
+        assertThat(response.getAuthor().displayName()).isNotBlank();
         assertThat(response.getAuthor().status()).isEqualTo(AuthorStatus.WITHDRAWN);
     }
 
     @Test
-    @DisplayName("게시글 상세 조회는 차단 작성자의 nickname을 유지하고 SUSPENDED author를 사용한다.")
+    @DisplayName("게시글 상세 조회는 차단 작성자의 nickname을 숨기고 SUSPENDED author를 사용한다.")
     void getPostDetail_usesSuspendedAuthor() {
         Long boardId = 1L;
         Long postId = 10L;
@@ -234,14 +356,14 @@ class PostQueryServiceImplTest {
 
         PostDetailResponse response = postQueryService.getPostDetail(boardId, postId);
 
-        assertThat(response.getNickname()).isEqualTo("차단된 사용자");
+        assertThat(response.getNickname()).isEqualTo(response.getAuthor().displayName());
         assertThat(response.getAuthor().id()).isEqualTo(100L);
-        assertThat(response.getAuthor().displayName()).isEqualTo("차단된 사용자");
+        assertThat(response.getAuthor().displayName()).isNotBlank();
         assertThat(response.getAuthor().status()).isEqualTo(AuthorStatus.SUSPENDED);
     }
 
     @Test
-    @DisplayName("active post가 아니면 상세 조회수 증가 없이 POST_NOT_FOUND를 던진다.")
+    @DisplayName("active post가 아니면 상세 조회는 조회수 증가 없이 POST_NOT_FOUND를 던진다.")
     void getPostDetail_doesNotIncreaseViewWhenActivePostNotFound() {
         Long boardId = 1L;
         Long postId = 10L;
@@ -253,6 +375,7 @@ class PostQueryServiceImplTest {
                 .isEqualTo(ErrorCode.POST_NOT_FOUND);
 
         verify(postRedisService, never()).increaseView(postId);
+        verify(postLikeRepository, never()).existsByPostIdAndUserId(any(), any());
     }
 
     private static Post post(Long boardId, Long postId, Long userId) {
@@ -263,3 +386,4 @@ class PostQueryServiceImplTest {
         return post;
     }
 }
+

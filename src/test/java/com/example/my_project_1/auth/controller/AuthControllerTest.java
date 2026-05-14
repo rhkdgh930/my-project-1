@@ -3,6 +3,9 @@ package com.example.my_project_1.auth.controller;
 import com.example.my_project_1.auth.exception.JwtAuthenticationException;
 import com.example.my_project_1.auth.service.AuthService;
 import com.example.my_project_1.auth.service.response.TokenResponse;
+import com.example.my_project_1.auth.utils.AuthTokenResolver;
+import com.example.my_project_1.auth.utils.CookieManager;
+import com.example.my_project_1.auth.utils.CookieProperties;
 import com.example.my_project_1.auth.utils.JwtProvider;
 import com.example.my_project_1.common.exception.CustomException;
 import com.example.my_project_1.common.exception.ErrorCode;
@@ -26,11 +29,23 @@ class AuthControllerTest {
 
     private final AuthService authService = mock(AuthService.class);
     private final JwtProvider jwtProvider = mock(JwtProvider.class);
-    private final AuthController authController = new AuthController(authService, jwtProvider);
+    private final CookieManager cookieManager = new CookieManager(cookieProperties());
+    private final AuthTokenResolver authTokenResolver = new AuthTokenResolver();
+    private final AuthController authController = new AuthController(authService, jwtProvider, cookieManager, authTokenResolver);
     private final MockMvc mockMvc = MockMvcBuilders
             .standaloneSetup(authController)
             .setControllerAdvice(new GlobalExceptionHandler())
             .build();
+
+    private CookieProperties cookieProperties() {
+        CookieProperties properties = new CookieProperties();
+        properties.setRefreshTokenName("refreshToken");
+        properties.setPath("/");
+        properties.setHttpOnly(true);
+        properties.setSecure(false);
+        properties.setSameSite("Lax");
+        return properties;
+    }
 
     @Test
     @DisplayName("토큰 재발급 시 쿠키에만 RefreshToken이 있으면 쿠키 값을 사용한다.")

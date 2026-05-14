@@ -5,13 +5,16 @@ import com.example.my_project_1.outbox.domain.OutboxEventType;
 import com.example.my_project_1.outbox.listener.OutboxSavedEvent;
 import com.example.my_project_1.outbox.repository.OutboxRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 @Transactional
@@ -32,6 +35,30 @@ public class OutboxPublisher {
         outboxRepository.save(event);
         eventPublisher.publishEvent(new OutboxSavedEvent(event.getId()));
     }
+
+    public boolean publishIfAbsent(OutboxEventType type, String payload, String eventKey) {
+        if (outboxRepository.existsByEventKey(eventKey)) {
+            return false;
+        }
+
+        try {
+            OutboxEvent event = OutboxEvent.create(
+                    type,
+                    payload,
+                    eventKey,
+                    LocalDateTime.now(clock)
+            );
+
+            outboxRepository.saveAndFlush(event);
+            eventPublisher.publishEvent(new OutboxSavedEvent(event.getId()));
+            return true;
+
+        } catch (DataIntegrityViolationException e) {
+            log.info("[OUTBOX][DUPLICATE_EVENT_KEY] eventKey={}", eventKey);
+            return false;
+        }
+    }
+
 
     public void requestProcessing(Long outboxId) {
         eventPublisher.publishEvent(new OutboxSavedEvent(outboxId));

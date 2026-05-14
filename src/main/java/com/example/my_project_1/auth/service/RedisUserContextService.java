@@ -26,6 +26,7 @@ public class RedisUserContextService {
 
     private final RedisTemplate<String, CachedUserContext> userContextRedisTemplate;
     private final UserRepository userRepository;
+    private final UserAccountPolicy userAccountPolicy;
 
     private static final Duration TTL = Duration.ofMinutes(5);
     private static final String USER_CTX_KEY = "auth::user::ctx::%s";
@@ -72,29 +73,20 @@ public class RedisUserContextService {
     }
 
     public void validateActiveUser(CachedUserContext ctx) {
-        if (ctx.isDeleted() || ctx.getUserStatus() == UserStatus.WITHDRAWN) {
-            throw new JwtAuthenticationException(ErrorCode.USER_NOT_FOUND);
-        }
-
-        if (ctx.getUserStatus() == UserStatus.WITHDRAWN_REQUESTED) {
-            throw new JwtAuthenticationException(ErrorCode.WITHDRAWAL_PENDING);
-        }
-
-        if (ctx.getUserStatus() == UserStatus.DORMANT) {
-            throw new JwtAuthenticationException(ErrorCode.USER_DORMANT);
-        }
-
-        if (ctx.getAccountStatus() == AccountStatus.SUSPENDED) {
-            throw new JwtAuthenticationException(ErrorCode.USER_SUSPENDED);
-        }
+        userAccountPolicy.validateApiAccessAllowed(
+                ctx.getUserStatus(),
+                ctx.getAccountStatus(),
+                ctx.isDeleted()
+        );
     }
 
     public void evict(Long userId) {
-        userContextRedisTemplate.delete(key(userId));
-        log.debug(
-                "[CACHE][UserContext][EVICT] userId={}",
-                userId
-        );
+        try {
+            userContextRedisTemplate.delete(key(userId));
+            log.debug("[CACHE][UserContext][EVICT] userId={}", userId);
+        } catch (Exception e) {
+            log.warn("[CACHE][UserContext][EVICT_FAIL] userId={}", userId, e);
+        }
     }
 
     private String key(Long userId) {

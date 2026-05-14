@@ -21,7 +21,7 @@ class UserAccountChangedHandlerTest {
             new UserAccountChangedHandler(redisUserContextService, redisTokenService);
 
     @Test
-    @DisplayName("user context cache evict 실패 시 예외를 전파한다.")
+    @DisplayName("사용자 컨텍스트 캐시 evict 실패 시 예외를 전파한다.")
     void handle_fail_when_user_context_evict_fails() {
         Long userId = 1L;
         RuntimeException redisException = new RuntimeException("redis evict failed");
@@ -51,7 +51,7 @@ class UserAccountChangedHandlerTest {
     }
 
     @Test
-    @DisplayName("cache evict와 refresh token 삭제가 필요한 이벤트를 처리한다.")
+    @DisplayName("캐시 evict와 refresh token 삭제가 필요한 이벤트를 처리한다.")
     void handle_success_when_cache_and_token_invalidation_succeed() {
         Long userId = 1L;
         String payload = DataSerializer.serialize(

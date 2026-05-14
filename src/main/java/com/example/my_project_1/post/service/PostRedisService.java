@@ -14,106 +14,105 @@ public class PostRedisService {
 
     private final RedisTemplate<String, String> redisTemplate;
 
-    // 키 컨벤션: post::[기능]::[식별자]
-    private static final String VIEW_KEY = "post::view::%s";
-    private static final String LIKE_CNT_KEY = "post::like::%s";
-    private static final String LIKE_USER_SET_KEY = "post::like::user::%s";
-    private static final String DIRTY_SET_KEY = "post::dirty";
+    private static final String VIEW_DELTA_KEY = "post::view::delta::%s";
     private static final String VIEW_DIRTY_SET_KEY = "post::dirty::view";
-    private static final String LIKE_DIRTY_SET_KEY = "post::dirty::like";
-    private static final Long LIKED = 1L;
-    private static final String TOGGLE_LIKE_SCRIPT = """
-            local isMember = redis.call('SISMEMBER', KEYS[1], ARGV[1])
-            if isMember == 1 then
-                redis.call('SREM', KEYS[1], ARGV[1])
-                local currentCount = tonumber(redis.call('GET', KEYS[2]) or '0')
-                if currentCount > 0 then
-                    redis.call('DECR', KEYS[2])
-                else
-                    redis.call('SET', KEYS[2], 0)
-                end
-                redis.call('SADD', KEYS[3], ARGV[2])
-                return 0
-            end
-            redis.call('SADD', KEYS[1], ARGV[1])
-            redis.call('INCR', KEYS[2])
-            redis.call('SADD', KEYS[3], ARGV[2])
+
+    private static final Long REMOVED = 1L;
+
+    private static final String INCREASE_VIEW_SCRIPT = """
+            redis.call('INCR', KEYS[1])
+            redis.call('SADD', KEYS[2], ARGV[1])
             return 1
             """;
 
+    private static final String ACK_VIEW_DELTA_SCRIPT = """
+            local current = redis.call('GET', KEYS[1])
+            if not current then
+                redis.call('SREM', KEYS[2], ARGV[2])
+                return 1
+            end
+
+            current = tonumber(current)
+            local synced = tonumber(ARGV[1])
+
+            if current <= 0 then
+                redis.call('DEL', KEYS[1])
+                redis.call('SREM', KEYS[2], ARGV[2])
+                return 1
+            end
+
+            if current == synced then
+                redis.call('DEL', KEYS[1])
+                redis.call('SREM', KEYS[2], ARGV[2])
+                return 1
+            end
+
+            if current > synced then
+                redis.call('DECRBY', KEYS[1], synced)
+                return 0
+            end
+
+            return 0
+            """;
+
     public void increaseView(Long postId) {
-        redisTemplate.opsForValue().increment(VIEW_KEY.formatted(postId));
-        markViewAsDirty(postId);
-    }
+        DefaultRedisScript<Long> script =
+                new DefaultRedisScript<>(INCREASE_VIEW_SCRIPT, Long.class);
 
-    public boolean toggleLike(Long postId, Long userId) {
-        String userSetKey = LIKE_USER_SET_KEY.formatted(postId);
-        String likeCntKey = LIKE_CNT_KEY.formatted(postId);
-        DefaultRedisScript<Long> script = new DefaultRedisScript<>(TOGGLE_LIKE_SCRIPT, Long.class);
-
-        Long result = redisTemplate.execute(
+        redisTemplate.execute(
                 script,
-                List.of(userSetKey, likeCntKey, LIKE_DIRTY_SET_KEY),
-                userId.toString(),
+                List.of(VIEW_DELTA_KEY.formatted(postId), VIEW_DIRTY_SET_KEY),
                 postId.toString()
         );
-
-        return LIKED.equals(result);
     }
 
-    public long getView(Long postId) {
-        Long value = getViewOrNull(postId);
+    public long getViewDelta(Long postId) {
+        Long value = getViewDeltaOrNull(postId);
         return value == null ? 0 : value;
     }
 
-    public long getLike(Long postId) {
-        Long value = getLikeOrNull(postId);
-        return value == null ? 0 : value;
-    }
-
-    public Long getViewOrNull(Long postId) {
-        String value = redisTemplate.opsForValue().get(VIEW_KEY.formatted(postId));
+    public Long getViewDeltaOrNull(Long postId) {
+        String value = redisTemplate.opsForValue().get(VIEW_DELTA_KEY.formatted(postId));
         return value == null ? null : Long.parseLong(value);
-    }
-
-    public Long getLikeOrNull(Long postId) {
-        String value = redisTemplate.opsForValue().get(LIKE_CNT_KEY.formatted(postId));
-        return value == null ? null : Long.parseLong(value);
-    }
-
-    public Set<String> getDirtyPostIds() {
-        return redisTemplate.opsForSet().members(DIRTY_SET_KEY);
     }
 
     public Set<String> getViewDirtyPostIds() {
         return redisTemplate.opsForSet().members(VIEW_DIRTY_SET_KEY);
     }
 
-    public Set<String> getLikeDirtyPostIds() {
-        return redisTemplate.opsForSet().members(LIKE_DIRTY_SET_KEY);
-    }
-
-    public void clearDirtySet() {
-        redisTemplate.delete(DIRTY_SET_KEY);
-    }
-
-    public void removeDirty(Long postId) {
-        redisTemplate.opsForSet().remove(DIRTY_SET_KEY, postId.toString());
-    }
-
     public void removeViewDirty(Long postId) {
         redisTemplate.opsForSet().remove(VIEW_DIRTY_SET_KEY, postId.toString());
     }
 
-    public void removeLikeDirty(Long postId) {
-        redisTemplate.opsForSet().remove(LIKE_DIRTY_SET_KEY, postId.toString());
+    public boolean acknowledgeSyncedViewDelta(Long postId, Long syncedDelta) {
+        return acknowledgeSyncedDelta(
+                VIEW_DELTA_KEY.formatted(postId),
+                VIEW_DIRTY_SET_KEY,
+                postId,
+                syncedDelta
+        );
     }
 
-    private void markViewAsDirty(Long postId) {
-        redisTemplate.opsForSet().add(VIEW_DIRTY_SET_KEY, postId.toString());
-    }
+    private boolean acknowledgeSyncedDelta(
+            String deltaKey,
+            String dirtySetKey,
+            Long postId,
+            Long syncedDelta
+    ) {
+        if (syncedDelta == null || syncedDelta <= 0) {
+            return false;
+        }
 
-    private void markLikeAsDirty(Long postId) {
-        redisTemplate.opsForSet().add(LIKE_DIRTY_SET_KEY, postId.toString());
+        DefaultRedisScript<Long> script =
+                new DefaultRedisScript<>(ACK_VIEW_DELTA_SCRIPT, Long.class);
+
+        Long result = redisTemplate.execute(
+                script,
+                List.of(deltaKey, dirtySetKey),
+                syncedDelta.toString(),
+                postId.toString()
+        );
+
+        return REMOVED.equals(result);
     }
 }

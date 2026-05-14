@@ -21,44 +21,31 @@ public class PostSyncScheduler {
     @Transactional
     public void sync() {
         syncViews();
-        syncLikes();
     }
 
     private void syncViews() {
         Set<String> dirtyIds = redisService.getViewDirtyPostIds();
-        if (dirtyIds == null || dirtyIds.isEmpty()) return;
+        if (dirtyIds == null || dirtyIds.isEmpty()) {
+            return;
+        }
 
         for (String id : dirtyIds) {
             try {
                 Long postId = Long.parseLong(id);
-                Long viewCount = redisService.getViewOrNull(postId);
+                Long viewDelta = redisService.getViewDeltaOrNull(postId);
 
-                if (viewCount != null) {
-                    postRepository.updateViewCount(postId, viewCount);
+                if (viewDelta == null || viewDelta <= 0) {
                     redisService.removeViewDirty(postId);
+                    continue;
                 }
+
+                postRepository.updateViewCountDelta(postId, viewDelta);
+                redisService.acknowledgeSyncedViewDelta(postId, viewDelta);
+
             } catch (Exception e) {
-                log.error("[VIEW SYNC FAIL] postId={}", id, e);
+                log.error("[VIEW_SYNC_FAIL] postId={}", id, e);
             }
         }
     }
 
-    private void syncLikes() {
-        Set<String> dirtyIds = redisService.getLikeDirtyPostIds();
-        if (dirtyIds == null || dirtyIds.isEmpty()) return;
-
-        for (String id : dirtyIds) {
-            try {
-                Long postId = Long.parseLong(id);
-                Long likeCount = redisService.getLikeOrNull(postId);
-
-                if (likeCount != null) {
-                    postRepository.updateLikeCount(postId, likeCount);
-                    redisService.removeLikeDirty(postId);
-                }
-            } catch (Exception e) {
-                log.error("[LIKE SYNC FAIL] postId={}", id, e);
-            }
-        }
-    }
 }

@@ -2,9 +2,7 @@ package com.example.my_project_1.auth.userdetails;
 
 
 import com.example.my_project_1.auth.cache.CachedUserContext;
-import com.example.my_project_1.user.domain.AccountStatus;
-import com.example.my_project_1.user.domain.SuspensionReason;
-import com.example.my_project_1.user.domain.UserStatus;
+import com.example.my_project_1.user.domain.*;
 import lombok.Getter;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -34,7 +32,7 @@ public class UserDetailsImpl implements UserDetails, OAuth2User {
 
     private final boolean deleted;
 
-    private Map<String, Object> attributes;
+    private final Map<String, Object> attributes;
 
     public static UserDetailsImpl from(CachedUserContext ctx) {
         return new UserDetailsImpl(
@@ -49,29 +47,61 @@ public class UserDetailsImpl implements UserDetails, OAuth2User {
                 ctx.getScheduledDeletionAt(),
                 ctx.getRemainingDays(),
                 ctx.isCanRestore(),
-                ctx.isDeleted()
+                ctx.isDeleted(),
+                Map.of()
+        );
+    }
+
+    public static UserDetailsImpl from(User user, LocalDateTime now) {
+        return from(user, now, Map.of());
+    }
+
+    public static UserDetailsImpl from(
+            User user,
+            LocalDateTime now,
+            Map<String, Object> attributes
+    ) {
+        UserWithdrawal withdrawal = user.getWithdrawal();
+
+        LocalDateTime scheduledDeletionAt = null;
+        Long remainingDays = null;
+        boolean canRestore = false;
+
+        if (withdrawal != null) {
+            scheduledDeletionAt = withdrawal.getScheduledDeletionAt();
+            remainingDays = withdrawal.getRemainingDays(now);
+            canRestore = withdrawal.canRestore(now);
+        }
+
+        UserSuspension suspension = user.getSuspension();
+
+        SuspensionReason suspensionReason = null;
+        LocalDateTime suspendedUntil = null;
+
+        if (suspension != null) {
+            suspensionReason = suspension.getReason();
+            suspendedUntil = suspension.getSuspendedUntil();
+        }
+
+        return new UserDetailsImpl(
+                user.getId(),
+                user.getEmail().getValue(),
+                user.getPassword(),
+                user.getRole().name(),
+                user.getAccountStatus(),
+                user.getUserStatus(),
+                suspensionReason,
+                suspendedUntil,
+                scheduledDeletionAt,
+                remainingDays,
+                canRestore,
+                user.isDeleted(),
+                attributes
         );
     }
 
     public UserDetailsImpl(Long userId, String email, String password, String role, AccountStatus accountStatus, UserStatus userStatus,
                            SuspensionReason reason, LocalDateTime suspendedUntil,
-                           LocalDateTime scheduledDeletionAt, Long remainingDays, boolean canRestore, boolean deleted) {
-        this.userId = userId;
-        this.email = email;
-        this.password = password;
-        this.role = role;
-        this.accountStatus = accountStatus;
-        this.userStatus = userStatus;
-        this.reason = reason;
-        this.suspendedUntil = suspendedUntil;
-        this.scheduledDeletionAt = scheduledDeletionAt;
-        this.remainingDays = remainingDays;
-        this.canRestore = canRestore;
-        this.deleted = deleted;
-    }
-
-    public UserDetailsImpl(Long userId, String email, String password, String role, AccountStatus accountStatus,
-                           UserStatus userStatus, SuspensionReason reason, LocalDateTime suspendedUntil,
                            LocalDateTime scheduledDeletionAt, Long remainingDays, boolean canRestore, boolean deleted, Map<String, Object> attributes) {
         this.userId = userId;
         this.email = email;
@@ -85,7 +115,7 @@ public class UserDetailsImpl implements UserDetails, OAuth2User {
         this.remainingDays = remainingDays;
         this.canRestore = canRestore;
         this.deleted = deleted;
-        this.attributes = attributes;
+        this.attributes = (attributes != null) ? attributes : Map.of();
     }
 
     // --- UserDetails ---

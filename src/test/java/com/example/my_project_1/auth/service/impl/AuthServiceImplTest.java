@@ -253,14 +253,19 @@ class AuthServiceImplTest {
     @DisplayName("로그아웃 refresh token이 있으면 userId를 읽고 refresh token hash를 삭제한다.")
     void logout_deletesRefreshTokenHashWhenRefreshTokenPresent() {
         String refreshToken = "refresh-token";
+        String requestHash = "request-hash";
         Claims claims = mock(Claims.class);
 
         when(jwtProvider.parseClaimsSafely(refreshToken)).thenReturn(claims);
         when(claims.getSubject()).thenReturn("1");
+        when(redisTokenService.getHash(refreshToken)).thenReturn(requestHash);
+        when(redisTokenService.getRefreshTokenHash(1L)).thenReturn(requestHash);
 
         authService.logout(null, refreshToken);
 
         verify(jwtProvider).assertRefreshToken(claims);
+        verify(redisTokenService).getRefreshTokenHash(1L);
+        verify(redisTokenService).getHash(refreshToken);
         verify(redisTokenService).deleteRefreshTokenHash(1L);
         verify(redisTokenService, never()).blacklistAccessToken(anyString(), anyLong());
     }
@@ -270,18 +275,58 @@ class AuthServiceImplTest {
     void logout_deletesRefreshTokenHashWhenAccessTokenExpired() {
         String accessToken = "expired-access-token";
         String refreshToken = "refresh-token";
+        String requestHash = "request-hash";
         Claims refreshClaims = mock(Claims.class);
 
         when(jwtProvider.parseClaimsSafely(accessToken))
                 .thenThrow(new JwtAuthenticationException(ErrorCode.EXPIRED_ACCESS_TOKEN));
         when(jwtProvider.parseClaimsSafely(refreshToken)).thenReturn(refreshClaims);
         when(refreshClaims.getSubject()).thenReturn("1");
+        when(redisTokenService.getHash(refreshToken)).thenReturn(requestHash);
+        when(redisTokenService.getRefreshTokenHash(1L)).thenReturn(requestHash);
 
         authService.logout(accessToken, refreshToken);
 
         verify(redisTokenService, never()).blacklistAccessToken(anyString(), anyLong());
         verify(jwtProvider).assertRefreshToken(refreshClaims);
         verify(redisTokenService).deleteRefreshTokenHash(1L);
+    }
+
+    @Test
+    @DisplayName("로그아웃 refresh token의 저장된 hash가 없으면 INVALID_REFRESH_TOKEN을 전파한다.")
+    void logout_rejectsRefreshTokenWhenStoredHashIsMissing() {
+        String refreshToken = "refresh-token";
+        String requestHash = "request-hash";
+        Claims claims = mock(Claims.class);
+
+        when(jwtProvider.parseClaimsSafely(refreshToken)).thenReturn(claims);
+        when(claims.getSubject()).thenReturn("1");
+        when(redisTokenService.getHash(refreshToken)).thenReturn(requestHash);
+        when(redisTokenService.getRefreshTokenHash(1L)).thenReturn(null);
+
+        assertThatThrownBy(() -> authService.logout(null, refreshToken))
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.INVALID_REFRESH_TOKEN);
+
+        verify(redisTokenService, never()).deleteRefreshTokenHash(anyLong());
+    }
+
+    @Test
+    @DisplayName("로그아웃 refresh token hash가 Redis current hash와 다르면 INVALID_REFRESH_TOKEN을 전파한다.")
+    void logout_rejectsRefreshTokenWhenStoredHashDoesNotMatch() {
+        String refreshToken = "refresh-token";
+        Claims claims = mock(Claims.class);
+
+        when(jwtProvider.parseClaimsSafely(refreshToken)).thenReturn(claims);
+        when(claims.getSubject()).thenReturn("1");
+        when(redisTokenService.getHash(refreshToken)).thenReturn("request-hash");
+        when(redisTokenService.getRefreshTokenHash(1L)).thenReturn("stored-hash");
+
+        assertThatThrownBy(() -> authService.logout(null, refreshToken))
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.INVALID_REFRESH_TOKEN);
+
+        verify(redisTokenService, never()).deleteRefreshTokenHash(anyLong());
     }
 
     @Test

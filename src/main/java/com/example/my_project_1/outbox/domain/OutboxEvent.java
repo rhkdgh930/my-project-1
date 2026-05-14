@@ -75,22 +75,37 @@ public class OutboxEvent {
         this.retryCount++;
         this.lastTriedAt = now;
 
-        String message = e.getMessage() != null
-                ? e.getMessage()
-                : e.getClass().getSimpleName();
+        String message = resolveErrorMessage(e);
 
-        this.lastError = truncate(message);
+        if (retryCount >= MAX_RETRY_COUNT) {
+            this.status = OutboxStatus.DEAD;
+            this.nextRetryAt = null;
+            this.lastError = truncate("MAX_RETRY_EXCEEDED: " + message);
+            return;
+        }
 
         long delay = Math.min(60, (long) Math.pow(2, retryCount));
         long jitter = ThreadLocalRandom.current().nextLong(0, 5);
 
+        this.status = OutboxStatus.FAILED;
+        this.nextRetryAt = now.plusSeconds(delay + jitter);
+        this.lastError = truncate(message);
+    }
+
+    public void markProcessingTimeout(LocalDateTime now) {
+        this.retryCount++;
+        this.lastTriedAt = now;
+
         if (retryCount >= MAX_RETRY_COUNT) {
-            markDead("MAX_RETRY_EXCEEDED", now);
+            this.status = OutboxStatus.DEAD;
+            this.nextRetryAt = null;
+            this.lastError = truncate("PROCESSING_TIMEOUT_MAX_RETRY_EXCEEDED");
             return;
         }
 
         this.status = OutboxStatus.FAILED;
-        this.nextRetryAt = now.plusSeconds(delay + jitter);
+        this.nextRetryAt = now;
+        this.lastError = truncate("PROCESSING_TIMEOUT");
     }
 
     public void markDead(String reason, LocalDateTime now) {
@@ -98,6 +113,24 @@ public class OutboxEvent {
         this.lastError = truncate(reason);
         this.lastTriedAt = now;
         this.nextRetryAt = null;
+    }
+
+    public void resetForRetry(LocalDateTime now) {
+        this.status = OutboxStatus.PENDING;
+        this.nextRetryAt = now;
+        this.retryCount = 0;
+        this.lastError = null;
+        this.lastTriedAt = null;
+    }
+
+    private String resolveErrorMessage(Exception e) {
+        if (e == null) {
+            return "UNKNOWN_ERROR";
+        }
+
+        return e.getMessage() != null
+                ? e.getMessage()
+                : e.getClass().getSimpleName();
     }
 
     private String truncate(String value) {
@@ -108,14 +141,6 @@ public class OutboxEvent {
         return value.length() > LAST_ERROR_MAX_LENGTH
                 ? value.substring(0, LAST_ERROR_MAX_LENGTH)
                 : value;
-    }
-
-    public void resetForRetry(LocalDateTime now) {
-        this.status = OutboxStatus.PENDING;
-        this.nextRetryAt = now;
-        this.retryCount = 0;
-        this.lastError = null;
-        this.lastTriedAt = null;
     }
 
     @Builder

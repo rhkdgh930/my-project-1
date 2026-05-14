@@ -1,19 +1,15 @@
 package com.example.my_project_1.auth.config;
 
 import com.example.my_project_1.auth.filter.JwtAuthenticationFilter;
-import com.example.my_project_1.auth.handler.JwtAccessDeniedHandler;
-import com.example.my_project_1.auth.handler.JwtAuthenticationEntryPoint;
-import com.example.my_project_1.auth.handler.JwtLoginFailureHandler;
-import com.example.my_project_1.auth.handler.JwtLoginSuccessHandler;
-import com.example.my_project_1.auth.handler.OAuth2LoginSuccessHandler;
+import com.example.my_project_1.auth.handler.*;
 import com.example.my_project_1.auth.controller.AuthController;
 import com.example.my_project_1.auth.oauth.CustomOAuth2UserService;
-import com.example.my_project_1.auth.service.AuthService;
-import com.example.my_project_1.auth.service.RedisLoginAttemptService;
-import com.example.my_project_1.auth.service.RedisTokenService;
-import com.example.my_project_1.auth.service.RedisUserContextService;
+import com.example.my_project_1.auth.service.*;
 import com.example.my_project_1.auth.service.response.TokenResponse;
 import com.example.my_project_1.auth.userdetails.UserDetailsImpl;
+import com.example.my_project_1.auth.utils.AuthTokenResolver;
+import com.example.my_project_1.auth.utils.CookieManager;
+import com.example.my_project_1.auth.utils.CookieProperties;
 import com.example.my_project_1.auth.utils.JwtProvider;
 import com.example.my_project_1.board.controller.AdminBoardController;
 import com.example.my_project_1.board.controller.BoardController;
@@ -24,6 +20,7 @@ import com.example.my_project_1.comment.service.CommentCommandService;
 import com.example.my_project_1.comment.service.CommentQueryService;
 import com.example.my_project_1.common.exception.CustomException;
 import com.example.my_project_1.common.exception.ErrorCode;
+import com.example.my_project_1.common.exception.ErrorResponseWriter;
 import com.example.my_project_1.common.logging.HttpLoggingFilter;
 import com.example.my_project_1.common.logging.SecurityUserMdcFilter;
 import com.example.my_project_1.common.logging.TraceIdFilter;
@@ -34,6 +31,7 @@ import com.example.my_project_1.image.service.ImageUploadService;
 import com.example.my_project_1.post.controller.PostController;
 import com.example.my_project_1.post.service.PostCommandService;
 import com.example.my_project_1.post.service.PostQueryService;
+import com.example.my_project_1.post.service.request.PostSearchCondition;
 import com.example.my_project_1.user.controller.UserController;
 import com.example.my_project_1.user.domain.AccountStatus;
 import com.example.my_project_1.user.domain.UserStatus;
@@ -54,6 +52,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -67,6 +66,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -87,7 +87,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         TraceIdFilter.class,
         SecurityUserMdcFilter.class,
         HttpLoggingFilter.class,
-        PasswordConfig.class
+        PasswordConfig.class,
+        UserAccountPolicy.class,
+        CookieProperties.class,
+        CookieManager.class,
+        AuthTokenResolver.class,
+        ErrorResponseWriter.class
 })
 class BoardPostCommentImageSecurityConfigTest {
 
@@ -149,6 +154,9 @@ class BoardPostCommentImageSecurityConfigTest {
     private OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler;
 
     @MockitoBean
+    private OAuth2LoginFailureHandler oAuth2LoginFailureHandler;
+
+    @MockitoBean
     private CustomOAuth2UserService customOAuth2UserService;
 
     @MockitoBean
@@ -161,7 +169,7 @@ class BoardPostCommentImageSecurityConfigTest {
     @DisplayName("Board, Post, Comment 조회 API는 인증 없이 접근할 수 있다.")
     void readApis_arePermitAll() throws Exception {
         when(boardQueryService.findAllBoards()).thenReturn(List.of());
-        when(postQueryService.getPosts(eq(1L), any(Pageable.class)))
+        when(postQueryService.getPosts(eq(1L), any(PostSearchCondition.class), any(Pageable.class)))
                 .thenReturn(new PageResponse<>(List.of(), 0, 20, 0, 0, true));
         when(commentQueryService.getComments(1L)).thenReturn(List.of());
 
@@ -190,7 +198,9 @@ class BoardPostCommentImageSecurityConfigTest {
                 .andExpect(status().isUnauthorized());
         mockMvc.perform(delete("/api/boards/1/posts/1"))
                 .andExpect(status().isUnauthorized());
-        mockMvc.perform(post("/api/boards/1/posts/1/like"))
+        mockMvc.perform(put("/api/boards/1/posts/1/like"))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(delete("/api/boards/1/posts/1/like"))
                 .andExpect(status().isUnauthorized());
         mockMvc.perform(post("/api/posts/1/comments")
                         .contentType("application/json")
@@ -371,7 +381,8 @@ class BoardPostCommentImageSecurityConfigTest {
                 null,
                 null,
                 false,
-                false
+                false,
+                Map.of()
         );
     }
 }

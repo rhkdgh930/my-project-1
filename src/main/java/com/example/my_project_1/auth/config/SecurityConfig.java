@@ -2,10 +2,16 @@ package com.example.my_project_1.auth.config;
 
 import com.example.my_project_1.auth.filter.JwtAuthenticationFilter;
 import com.example.my_project_1.auth.filter.JwtLoginFilter;
-import com.example.my_project_1.auth.handler.*;
+import com.example.my_project_1.auth.handler.JwtAccessDeniedHandler;
+import com.example.my_project_1.auth.handler.JwtAuthenticationEntryPoint;
+import com.example.my_project_1.auth.handler.JwtLoginFailureHandler;
+import com.example.my_project_1.auth.handler.JwtLoginSuccessHandler;
+import com.example.my_project_1.auth.handler.OAuth2LoginFailureHandler;
+import com.example.my_project_1.auth.handler.OAuth2LoginSuccessHandler;
 import com.example.my_project_1.auth.oauth.CustomOAuth2UserService;
 import com.example.my_project_1.auth.provider.CustomAuthenticationProvider;
 import com.example.my_project_1.auth.service.RedisLoginAttemptService;
+import com.example.my_project_1.auth.service.UserAccountPolicy;
 import com.example.my_project_1.auth.utils.EndpointAuthorizationRules;
 import com.example.my_project_1.common.logging.HttpLoggingFilter;
 import com.example.my_project_1.common.logging.SecurityUserMdcFilter;
@@ -47,6 +53,7 @@ public class SecurityConfig {
     private final RedisLoginAttemptService redisLoginAttemptService;
 
     private final OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler;
+    private final OAuth2LoginFailureHandler oAuth2LoginFailureHandler;
     private final CustomOAuth2UserService customOAuth2UserService;
 
     private final TraceIdFilter traceIdFilter;
@@ -55,7 +62,6 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-
         http
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
@@ -75,9 +81,11 @@ public class SecurityConfig {
                         .requestMatchers(EndpointAuthorizationRules.USER_ONLY).authenticated()
                         .anyRequest().authenticated()
                 )
+
                 .oauth2Login(oauth2 -> oauth2
                         .userInfoEndpoint(userInfo -> userInfo.userService(customOAuth2UserService))
                         .successHandler(oAuth2LoginSuccessHandler)
+                        .failureHandler(oAuth2LoginFailureHandler)
                 )
 
                 .addFilterBefore(traceIdFilter, UsernamePasswordAuthenticationFilter.class)
@@ -120,22 +128,28 @@ public class SecurityConfig {
 
         return source;
     }
+
     @Bean
     public JwtLoginFilter jwtLoginFilter() throws Exception {
-        return new JwtLoginFilter(authenticationManager(), jwtLoginSuccessHandler, jwtLoginFailureHandler, redisLoginAttemptService);
+        return new JwtLoginFilter(
+                authenticationManager(),
+                jwtLoginSuccessHandler,
+                jwtLoginFailureHandler,
+                redisLoginAttemptService
+        );
     }
 
     @Bean
     public CustomAuthenticationProvider customAuthenticationProvider(
             UserDetailsService userDetailsService,
-            PasswordEncoder passwordEncoder
+            PasswordEncoder passwordEncoder,
+            UserAccountPolicy userAccountPolicy
     ) {
-        return new CustomAuthenticationProvider(userDetailsService, passwordEncoder);
+        return new CustomAuthenticationProvider(userDetailsService, passwordEncoder, userAccountPolicy);
     }
 
     @Bean
     public AuthenticationManager authenticationManager() throws Exception {
         return authenticationConfiguration.getAuthenticationManager();
     }
-
 }

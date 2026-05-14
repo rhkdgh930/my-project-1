@@ -104,6 +104,8 @@ public class AuthServiceImpl implements AuthService {
         // 🔥 도메인 로직
         user.cancelWithdrawal(LocalDateTime.now(clock));
 
+        userContextService.evict(user.getId());
+
         userAccountChangeOutboxPublisher.publish(user.getId(), UserAccountChangedType.WITHDRAWAL_RESTORED);
         // 토큰 생성
         String accessToken = jwtProvider.createAccessToken(user.getId(), user.getRole().name());
@@ -156,6 +158,14 @@ public class AuthServiceImpl implements AuthService {
         jwtProvider.assertRefreshToken(claims);
 
         Long userId = Long.valueOf(claims.getSubject());
+
+        String storedHash = redisTokenService.getRefreshTokenHash(userId);
+        String requestHash = redisTokenService.getHash(refreshToken);
+
+        if (!StringUtils.hasText(storedHash) || !requestHash.equals(storedHash)) {
+            throw new CustomException(ErrorCode.INVALID_REFRESH_TOKEN);
+        }
+
         redisTokenService.deleteRefreshTokenHash(userId);
     }
 }

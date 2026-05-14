@@ -48,6 +48,8 @@ public class Image extends BaseEntity {
     }
 
     public void attach(Long ownerId, ImageOwnerType ownerType) {
+        notNull(ownerId, "ownerId는 필수입니다.");
+        notNull(ownerType, "ownerType은 필수입니다.");
 
         if (isAlreadyAttachedTo(ownerId, ownerType)) {
             return;

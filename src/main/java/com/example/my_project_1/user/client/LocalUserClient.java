@@ -36,7 +36,11 @@ public class LocalUserClient implements UserClient {
             return AuthorSummary.suspended(user.getId());
         }
 
-        return AuthorSummary.active(user.getId(), user.getNickname());
+        return AuthorSummary.active(
+                user.getId(),
+                user.getNickname(),
+                user.getProfileDetail().getProfileImageUrl()
+        );
     }
 
 }

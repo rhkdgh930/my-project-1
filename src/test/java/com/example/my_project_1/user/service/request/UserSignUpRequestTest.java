@@ -27,7 +27,7 @@ class UserSignUpRequestTest {
         validator = factory.getValidator();
     }
 
-    @DisplayName("userSignUpRequest 생성을 성공한다.")
+    @DisplayName("UserSignUpRequest 생성에 성공한다.")
     @Test
     void userSignUpRequest_create__success_test() {
         //given

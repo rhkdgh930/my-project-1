@@ -5,7 +5,6 @@ import com.example.my_project_1.common.exception.ErrorCode;
 import com.example.my_project_1.common.utils.DataSerializer;
 import com.example.my_project_1.outbox.domain.OutboxEventKey;
 import com.example.my_project_1.outbox.domain.OutboxEventType;
-import com.example.my_project_1.outbox.repository.OutboxRepository;
 import com.example.my_project_1.outbox.service.OutboxPublisher;
 import com.example.my_project_1.outbox.service.UserAccountChangeOutboxPublisher;
 import com.example.my_project_1.user.domain.User;
@@ -27,7 +26,6 @@ public class UserBatchWorker {
     private final OutboxPublisher outboxPublisher;
     private final UserAccountChangeOutboxPublisher userAccountChangeOutboxPublisher;
     private final UserRepository userRepository;
-    private final OutboxRepository outboxRepository;
 
     @Transactional
     public void processSingleUserWithDormancy(Long userId, LocalDateTime notifyThreshold, LocalDateTime dormantThreshold) {
@@ -48,13 +46,12 @@ public class UserBatchWorker {
     }
 
     private void publishDormancyNotifyIfNotExists(User user) {
-        String eventKey = OutboxEventKey.dormancyNotify(user.getId(), user.getLastLoginAt().toLocalDate());
+        String eventKey = OutboxEventKey.dormancyNotify(
+                user.getId(),
+                user.getLastLoginAt().toLocalDate()
+        );
 
-        if (outboxRepository.existsByEventKey(eventKey)) {
-            return;
-        }
-
-        outboxPublisher.publish(
+        outboxPublisher.publishIfAbsent(
                 OutboxEventType.DORMANCY_NOTIFY,
                 DataSerializer.serialize(
                         new DormancyNotifyOutboxEvent(

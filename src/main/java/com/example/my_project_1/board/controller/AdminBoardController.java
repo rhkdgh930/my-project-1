@@ -88,7 +88,7 @@ public class AdminBoardController {
             security = @SecurityRequirement(name = "jwtAuth")
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "게시판 삭제 성공"),
+            @ApiResponse(responseCode = "204", description = "게시판 삭제 성공"),
             @ApiResponse(responseCode = "401", description = "인증 실패",
                     content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
             @ApiResponse(responseCode = "403", description = "ADMIN 권한 필요",
@@ -101,7 +101,7 @@ public class AdminBoardController {
             @Parameter(description = "게시판 ID", example = "1", required = true)
             @PathVariable Long boardId) {
         boardCommandService.delete(boardId);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.noContent().build();
     }
 
     @Operation(

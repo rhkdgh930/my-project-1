@@ -8,4 +8,5 @@ public interface OAuth2UserInfo {
     String getProvider();   // google, kakao
     String getEmail();
     String getNickname();
+    boolean isEmailVerified();
 }

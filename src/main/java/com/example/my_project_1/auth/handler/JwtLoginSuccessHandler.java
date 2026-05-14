@@ -4,7 +4,7 @@ import com.example.my_project_1.auth.service.RedisLoginAttemptService;
 import com.example.my_project_1.auth.service.RedisTokenService;
 import com.example.my_project_1.auth.service.response.TokenResponse;
 import com.example.my_project_1.auth.userdetails.UserDetailsImpl;
-import com.example.my_project_1.auth.utils.CookieUtils;
+import com.example.my_project_1.auth.utils.CookieManager;
 import com.example.my_project_1.auth.utils.JwtProvider;
 import com.example.my_project_1.common.utils.DataSerializer;
 import com.example.my_project_1.user.service.UserLoginService;
@@ -26,25 +26,24 @@ public class JwtLoginSuccessHandler implements AuthenticationSuccessHandler {
     private final RedisTokenService redisTokenService;
     private final RedisLoginAttemptService loginAttemptService;
     private final UserLoginService userLoginService;
+    private final CookieManager cookieManager;
 
     @Override
     public void onAuthenticationSuccess(
             HttpServletRequest request,
             HttpServletResponse response,
-            Authentication authentication) throws IOException {
-
+            Authentication authentication
+    ) throws IOException {
         UserDetailsImpl principal = (UserDetailsImpl) authentication.getPrincipal();
+
         Long userId = principal.getUserId();
         String email = principal.getEmail();
 
         loginSuccess(email);
         userLoginService.processLogin(userId);
 
-        String accessToken =
-                jwtProvider.createAccessToken(userId, principal.getRole());
-
-        String refreshToken =
-                jwtProvider.createRefreshToken(userId);
+        String accessToken = jwtProvider.createAccessToken(userId, principal.getRole());
+        String refreshToken = jwtProvider.createRefreshToken(userId);
 
         redisTokenService.saveRefreshTokenHash(
                 userId,
@@ -52,8 +51,10 @@ public class JwtLoginSuccessHandler implements AuthenticationSuccessHandler {
                 jwtProvider.getRemainingValidityMillis(refreshToken)
         );
 
-        int refreshMaxAge = (int) (jwtProvider.getRemainingValidityMillis(refreshToken) / 1000);
-        CookieUtils.addCookie(response, "refreshToken", refreshToken, refreshMaxAge);
+        int refreshMaxAge =
+                (int) (jwtProvider.getRemainingValidityMillis(refreshToken) / 1000);
+
+        cookieManager.addRefreshTokenCookie(response, refreshToken, refreshMaxAge);
 
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding("UTF-8");
