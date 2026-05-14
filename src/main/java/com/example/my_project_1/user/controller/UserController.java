@@ -155,6 +155,35 @@ public class UserController {
     }
 
     @Operation(
+            summary = "내가 작성한 게시글 목록 조회",
+            description = """
+                    현재 로그인 사용자가 작성한 활성 게시글 목록을 조회합니다.
+                    삭제된 게시글과 삭제된 게시판 아래 게시글은 제외하며,
+                    정렬은 게시글 최신순입니다.
+                    viewCount는 Redis view delta를 더해 보정하고 likeCount는 DB denormalized count를 사용합니다.
+                    """,
+            security = @SecurityRequirement(name = "jwtAuth")
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "내가 작성한 게시글 목록 조회 성공",
+                    content = @Content(schema = @Schema(implementation = PageResponse.class))),
+            @ApiResponse(responseCode = "401", description = "인증 실패",
+                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
+    })
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+    @GetMapping("/me/posts")
+    public ResponseEntity<PageResponse<PostListResponse>> getMyPosts(
+            @AuthenticationPrincipal UserDetailsImpl userDetails,
+            @ParameterObject Pageable pageable) {
+
+        PageResponse<PostListResponse> response = postQueryService.getMyPosts(
+                userDetails.getUserId(),
+                pageable
+        );
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(
             summary = "내 프로필 수정",
             description = "자기소개와 프로필 이미지 URL을 수정합니다.",
             security = @SecurityRequirement(name = "jwtAuth")

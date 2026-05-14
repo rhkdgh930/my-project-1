@@ -14,4 +14,6 @@ public interface PostRepositoryCustom {
     );
 
     Page<Post> findLikedActivePostsByUserId(Long userId, Pageable pageable);
+
+    Page<Post> findActivePostsByUserId(Long userId, Pageable pageable);
 }

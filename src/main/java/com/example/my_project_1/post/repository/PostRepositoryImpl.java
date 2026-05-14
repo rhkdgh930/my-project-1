@@ -97,6 +97,38 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
         );
     }
 
+    @Override
+    public Page<Post> findActivePostsByUserId(Long userId, Pageable pageable) {
+        List<Post> content = queryFactory
+                .selectFrom(post)
+                .where(
+                        post.userId.eq(userId),
+                        activePost()
+                )
+                .orderBy(
+                        post.createdAt.desc(),
+                        post.id.desc()
+                )
+                .offset(pageable.getOffset())
+                .limit(pageable.getPageSize())
+                .fetch();
+
+        Long total = queryFactory
+                .select(post.count())
+                .from(post)
+                .where(
+                        post.userId.eq(userId),
+                        activePost()
+                )
+                .fetchOne();
+
+        return new PageImpl<>(
+                content,
+                pageable,
+                total != null ? total : 0L
+        );
+    }
+
     private BooleanExpression boardIdEq(Long boardId) {
         return boardId != null ? post.board.id.eq(boardId) : null;
     }

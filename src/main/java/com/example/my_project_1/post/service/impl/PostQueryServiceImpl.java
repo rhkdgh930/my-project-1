@@ -80,6 +80,17 @@ public class PostQueryServiceImpl implements PostQueryService {
     public PageResponse<PostListResponse> getLikedPosts(Long userId, Pageable pageable) {
         Page<Post> page = postRepository.findLikedActivePostsByUserId(userId, pageable);
 
+        return toPostListPage(userId, page);
+    }
+
+    @Override
+    public PageResponse<PostListResponse> getMyPosts(Long userId, Pageable pageable) {
+        Page<Post> page = postRepository.findActivePostsByUserId(userId, pageable);
+
+        return toPostListPage(userId, page);
+    }
+
+    private PageResponse<PostListResponse> toPostListPage(Long userId, Page<Post> page) {
         List<Long> authorIds = page.getContent().stream()
                 .map(Post::getUserId)
                 .distinct()
@@ -87,7 +98,7 @@ public class PostQueryServiceImpl implements PostQueryService {
 
         Map<Long, AuthorSummary> authorMap = authorIds.isEmpty()
                 ? Map.of()
-                : findAuthorsForLikedPosts(userId, authorIds);
+                : findAuthorsForMePage(userId, authorIds);
 
         Page<PostListResponse> dtoPage = page.map(post -> {
             AuthorSummary author = authorMap.getOrDefault(
@@ -156,7 +167,7 @@ public class PostQueryServiceImpl implements PostQueryService {
         }
     }
 
-    private Map<Long, AuthorSummary> findAuthorsForLikedPosts(Long userId, List<Long> authorIds) {
+    private Map<Long, AuthorSummary> findAuthorsForMePage(Long userId, List<Long> authorIds) {
         try {
             return userClient.findAuthorsByIds(authorIds);
         } catch (RuntimeException e) {
