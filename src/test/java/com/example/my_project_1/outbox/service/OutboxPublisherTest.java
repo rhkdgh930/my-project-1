@@ -50,22 +50,8 @@ class OutboxPublisherTest {
     }
 
     @Test
-    @DisplayName("publishIfAbsent는 기존 eventKey가 있으면 false를 반환하고 event를 발행하지 않는다.")
-    void publishIfAbsent_returnsFalseWhenEventKeyAlreadyExists() {
-        when(outboxRepository.existsByEventKey("event-key")).thenReturn(true);
-
-        boolean published = outboxPublisher.publishIfAbsent(OutboxEventType.DORMANCY_NOTIFY, "{}", "event-key");
-
-        assertThat(published).isFalse();
-        verify(outboxRepository, never()).saveAndFlush(any());
-        verify(eventPublisher, never()).publishEvent(any());
-    }
-
-    @Test
     @DisplayName("publishIfAbsent는 저장 성공 시 true를 반환하고 event를 발행한다.")
     void publishIfAbsent_returnsTrueAndPublishesEventWhenSaveSucceeds() {
-        when(outboxRepository.existsByEventKey("event-key")).thenReturn(false);
-
         boolean published = outboxPublisher.publishIfAbsent(OutboxEventType.DORMANCY_NOTIFY, "{}", "event-key");
 
         assertThat(published).isTrue();
@@ -76,7 +62,6 @@ class OutboxPublisherTest {
     @Test
     @DisplayName("publishIfAbsent는 unique constraint 충돌이면 false를 반환하고 event를 발행하지 않는다.")
     void publishIfAbsent_returnsFalseWhenUniqueConstraintRaceHappens() {
-        when(outboxRepository.existsByEventKey("event-key")).thenReturn(false);
         when(outboxRepository.saveAndFlush(any(OutboxEvent.class)))
                 .thenThrow(new DataIntegrityViolationException("duplicate"));
 
