@@ -15,7 +15,11 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
+import static com.example.my_project_1.comment.domain.QComment.comment;
 import static com.example.my_project_1.post.domain.QPostLike.postLike;
 import static com.example.my_project_1.post.domain.QPost.post;
 
@@ -129,6 +133,59 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
         );
     }
 
+    @Override
+    public Page<Post> findCommentedActivePostsByUserId(Long userId, Pageable pageable) {
+        List<Long> postIds = queryFactory
+                .select(post.id)
+                .from(comment)
+                .join(post).on(comment.postId.eq(post.id))
+                .where(
+                        comment.userId.eq(userId),
+                        activeComment(),
+                        activePost()
+                )
+                .groupBy(post.id)
+                .orderBy(
+                        comment.createdAt.max().desc(),
+                        post.id.desc()
+                )
+                .offset(pageable.getOffset())
+                .limit(pageable.getPageSize())
+                .fetch();
+
+        Long total = queryFactory
+                .select(comment.postId.countDistinct())
+                .from(comment)
+                .join(post).on(comment.postId.eq(post.id))
+                .where(
+                        comment.userId.eq(userId),
+                        activeComment(),
+                        activePost()
+                )
+                .fetchOne();
+
+        if (postIds.isEmpty()) {
+            return new PageImpl<>(List.of(), pageable, total != null ? total : 0L);
+        }
+
+        Map<Long, Post> postMap = queryFactory
+                .selectFrom(post)
+                .where(post.id.in(postIds))
+                .fetch()
+                .stream()
+                .collect(Collectors.toMap(Post::getId, Function.identity()));
+
+        List<Post> content = postIds.stream()
+                .map(postMap::get)
+                .toList();
+
+        return new PageImpl<>(
+                content,
+                pageable,
+                total != null ? total : 0L
+        );
+    }
+
     private BooleanExpression boardIdEq(Long boardId) {
         return boardId != null ? post.board.id.eq(boardId) : null;
     }
@@ -136,6 +193,10 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
     private BooleanExpression activePost() {
         return post.deletedAt.isNull()
                 .and(post.board.deletedAt.isNull());
+    }
+
+    private BooleanExpression activeComment() {
+        return comment.deletedAt.isNull();
     }
 
     private BooleanExpression search(PostSearchCondition condition) {

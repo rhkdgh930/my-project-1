@@ -90,6 +90,13 @@ public class PostQueryServiceImpl implements PostQueryService {
         return toPostListPage(userId, page);
     }
 
+    @Override
+    public PageResponse<PostListResponse> getCommentedPosts(Long userId, Pageable pageable) {
+        Page<Post> page = postRepository.findCommentedActivePostsByUserId(userId, pageable);
+
+        return toPostListPage(userId, page);
+    }
+
     private PageResponse<PostListResponse> toPostListPage(Long userId, Page<Post> page) {
         List<Long> authorIds = page.getContent().stream()
                 .map(Post::getUserId)

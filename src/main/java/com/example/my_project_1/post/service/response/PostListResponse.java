@@ -13,6 +13,9 @@ public class PostListResponse {
     @Schema(description = "게시글 ID", example = "1")
     private Long postId;
 
+    @Schema(description = "게시판 ID. 상세 이동 경로 /boards/{boardId}/posts/{postId} 구성에 사용합니다.", example = "1")
+    private Long boardId;
+
     @Schema(description = "게시글 제목", example = "첫 번째 게시글")
     private String title;
 
@@ -38,6 +41,7 @@ public class PostListResponse {
     public static PostListResponse from(Post post, AuthorSummary author) {
         PostListResponse response = new PostListResponse();
         response.postId = post.getId();
+        response.boardId = post.getBoard().getId();
         response.title = post.getTitle();
         response.nickname = author.displayName();
         response.author = author;
