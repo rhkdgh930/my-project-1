@@ -60,7 +60,7 @@ class PostQueryServiceImplTest {
     }
 
     @Test
-    @DisplayName("寃뚯떆湲 紐⑸줉 議고쉶??寃뚯떆湲怨?寃뚯떆?먯씠 紐⑤몢 ??젣?섏? ?딆? active post留?議고쉶?쒕떎.")
+    @DisplayName("게시글 목록 조회는 게시글과 게시판이 모두 삭제되지 않은 active post만 조회한다.")
     void getPosts_usesActiveBoardPostQuery() {
         Long boardId = 1L;
         Pageable pageable = PageRequest.of(0, 10);
@@ -89,7 +89,7 @@ class PostQueryServiceImplTest {
     }
 
     @Test
-    @DisplayName("post list??redis count媛 ?놁쑝硫?DB count瑜??좎??쒕떎.")
+    @DisplayName("post list는 Redis delta가 없으면 DB count를 사용한다.")
     void getPosts_keepsDbCountsWhenRedisCountsAreMissing() {
         Long boardId = 1L;
         Pageable pageable = PageRequest.of(0, 10);
@@ -112,7 +112,7 @@ class PostQueryServiceImplTest {
     }
 
     @Test
-    @DisplayName("post list媛 鍮??섏씠吏?щ룄 metadata瑜??좎??섍퀬 author 議고쉶瑜??앸왂?쒕떎.")
+    @DisplayName("post list가 빈 페이지여도 metadata를 유지하고 author 조회를 생략한다.")
     void getPosts_keepsPageMetadataAndSkipsAuthorLookupWhenPageIsEmpty() {
         Long boardId = 1L;
         Pageable pageable = PageRequest.of(2, 10);
@@ -134,7 +134,7 @@ class PostQueryServiceImplTest {
     }
 
     @Test
-    @DisplayName("post list passes search condition to custom repository")
+    @DisplayName("post list는 검색 조건을 custom repository에 전달한다.")
     void getPosts_passesSearchConditionToCustomRepository() {
         Long boardId = 1L;
         Pageable pageable = PageRequest.of(0, 10);
@@ -155,7 +155,7 @@ class PostQueryServiceImplTest {
     }
 
     @Test
-    @DisplayName("寃뚯떆湲 ?곸꽭 議고쉶??active post ?뺤씤 ??議고쉶?섎? 利앷??쒗궓??")
+    @DisplayName("게시글 상세 조회는 active post 확인 후 조회수를 증가시킨다.")
     void getPostDetail_increasesViewAfterActivePostFound() {
         Long boardId = 1L;
         Long postId = 10L;
@@ -184,7 +184,7 @@ class PostQueryServiceImplTest {
     }
 
     @Test
-    @DisplayName("post detail? redis view? DB like瑜??ъ슜?쒕떎.")
+    @DisplayName("post detail은 Redis view delta와 DB likeCount를 사용한다.")
     void getPostDetail_usesRedisViewAndDbLikeWhenRedisLikeIsMissing() {
         Long boardId = 1L;
         Long postId = 10L;
@@ -203,7 +203,7 @@ class PostQueryServiceImplTest {
     }
 
     @Test
-    @DisplayName("鍮꾨줈洹몄씤 ?곸꽭 議고쉶??likedByMe=false瑜?諛섑솚?섍퀬 醫뗭븘???щ?瑜?議고쉶?섏? ?딅뒗??")
+    @DisplayName("비로그인 상세 조회는 likedByMe=false를 반환하고 좋아요 여부를 조회하지 않는다.")
     void getPostDetail_returnsFalseLikedByMeForAnonymousUser() {
         Long boardId = 1L;
         Long postId = 10L;
@@ -221,7 +221,7 @@ class PostQueryServiceImplTest {
     }
 
     @Test
-    @DisplayName("濡쒓렇???ъ슜?먭? 醫뗭븘?뷀븳 寃뚯떆湲 ?곸꽭 議고쉶??likedByMe=true瑜?諛섑솚?쒕떎.")
+    @DisplayName("로그인 사용자가 좋아요한 게시글 상세 조회는 likedByMe=true를 반환한다.")
     void getPostDetail_returnsTrueLikedByMeWhenUserLikedPost() {
         Long boardId = 1L;
         Long postId = 10L;
@@ -241,7 +241,7 @@ class PostQueryServiceImplTest {
     }
 
     @Test
-    @DisplayName("濡쒓렇???ъ슜?먭? 醫뗭븘?뷀븯吏 ?딆? 寃뚯떆湲 ?곸꽭 議고쉶??likedByMe=false瑜?諛섑솚?쒕떎.")
+    @DisplayName("로그인 사용자가 좋아요하지 않은 게시글 상세 조회는 likedByMe=false를 반환한다.")
     void getPostDetail_returnsFalseLikedByMeWhenUserDidNotLikePost() {
         Long boardId = 1L;
         Long postId = 10L;
@@ -261,7 +261,7 @@ class PostQueryServiceImplTest {
     }
 
     @Test
-    @DisplayName("寃뚯떆湲 紐⑸줉 議고쉶???묒꽦??議고쉶 ?ㅽ뙣 ??UNKNOWN author fallback???ъ슜?쒕떎.")
+    @DisplayName("게시글 목록 조회는 작성자 조회 실패 시 UNKNOWN author fallback을 사용한다.")
     void getPosts_usesUnknownAuthorWhenUserLookupFails() {
         Long boardId = 1L;
         Pageable pageable = PageRequest.of(0, 10);
@@ -283,7 +283,7 @@ class PostQueryServiceImplTest {
     }
 
     @Test
-    @DisplayName("post list uses UNKNOWN author when author bulk lookup throws")
+    @DisplayName("post list는 author bulk lookup 실패 시 UNKNOWN author를 사용한다.")
     void getPosts_usesUnknownAuthorWhenUserLookupThrows() {
         Long boardId = 1L;
         Pageable pageable = PageRequest.of(0, 10);
@@ -305,7 +305,7 @@ class PostQueryServiceImplTest {
     }
 
     @Test
-    @DisplayName("post detail uses UNKNOWN author when author lookup throws")
+    @DisplayName("post detail은 author lookup 실패 시 UNKNOWN author를 사용한다.")
     void getPostDetail_usesUnknownAuthorWhenUserLookupThrows() {
         Long boardId = 1L;
         Long postId = 10L;
@@ -324,7 +324,7 @@ class PostQueryServiceImplTest {
     }
 
     @Test
-    @DisplayName("寃뚯떆湲 ?곸꽭 議고쉶???덊눜 ?묒꽦??fallback author瑜??ъ슜?쒕떎.")
+    @DisplayName("게시글 상세 조회는 탈퇴 작성자 fallback author를 사용한다.")
     void getPostDetail_usesWithdrawnAuthorFallback() {
         Long boardId = 1L;
         Long postId = 10L;
@@ -344,7 +344,7 @@ class PostQueryServiceImplTest {
     }
 
     @Test
-    @DisplayName("寃뚯떆湲 ?곸꽭 議고쉶??李⑤떒 ?묒꽦?먯쓽 nickname???좎??섍퀬 SUSPENDED author瑜??ъ슜?쒕떎.")
+    @DisplayName("게시글 상세 조회는 차단 작성자의 nickname을 숨기고 SUSPENDED author를 사용한다.")
     void getPostDetail_usesSuspendedAuthor() {
         Long boardId = 1L;
         Long postId = 10L;
@@ -363,7 +363,7 @@ class PostQueryServiceImplTest {
     }
 
     @Test
-    @DisplayName("active post媛 ?꾨땲硫??곸꽭 議고쉶??利앷? ?놁씠 POST_NOT_FOUND瑜??섏쭊??")
+    @DisplayName("active post가 아니면 상세 조회는 조회수 증가 없이 POST_NOT_FOUND를 던진다.")
     void getPostDetail_doesNotIncreaseViewWhenActivePostNotFound() {
         Long boardId = 1L;
         Long postId = 10L;

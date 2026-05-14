@@ -12,11 +12,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ProfileDetailTest {
 
-    private static final String UPDATE_INTRODUCE = "?섏젙???먭린?뚭컻瑜??낅젰?댁＜?몄슂.";
+    private static final String UPDATE_INTRODUCE = "수정된 자기소개를 입력합니다.";
     private static final String VALID_PROFILE_IMAGE_URL = "/images/550e8400-e29b-41d4-a716-446655440000.png";
 
     @Test
-    @DisplayName("?꾨줈???앹꽦 ???꾨줈???대?吏 URL??null?대떎.")
+    @DisplayName("프로필 생성 시 프로필 이미지 URL은 null이다.")
     void profile_detail_create_success_test() {
         ProfileDetail profile = ProfileDetail.defaultProfile();
 
@@ -25,7 +25,7 @@ class ProfileDetailTest {
     }
 
     @Test
-    @DisplayName("?꾨줈???섏젙 ??/images/{uuid}.png ?뺥깭???꾨줈???대?吏瑜??덉슜?쒕떎.")
+    @DisplayName("프로필 수정 시 /images/{uuid}.png 형식의 프로필 이미지를 허용한다.")
     void profile_detail_update_success_test() {
         ProfileDetail profile = ProfileDetail.defaultProfile();
 
@@ -37,7 +37,7 @@ class ProfileDetailTest {
     }
 
     @Test
-    @DisplayName("?꾨줈???대?吏 URL??null?대㈃ 湲곗〈 媛믪쓣 ?좎??쒕떎.")
+    @DisplayName("프로필 이미지 URL이 null이면 기존 값을 유지한다.")
     void updateProfileImageUrl_keepsCurrentWhenNull() {
         ProfileDetail profile = ProfileDetail.update(ProfileDetail.defaultProfile(), null, VALID_PROFILE_IMAGE_URL);
 
@@ -47,7 +47,7 @@ class ProfileDetailTest {
     }
 
     @Test
-    @DisplayName("?꾨줈???대?吏 URL??鍮??먯뿴?대㈃ 湲곗〈 媛믪쓣 ?좎??쒕떎.")
+    @DisplayName("프로필 이미지 URL이 빈 문자열이면 기존 값을 유지한다.")
     void updateProfileImageUrl_keepsCurrentWhenBlank() {
         ProfileDetail profile = ProfileDetail.update(ProfileDetail.defaultProfile(), null, VALID_PROFILE_IMAGE_URL);
 
@@ -64,7 +64,7 @@ class ProfileDetailTest {
             "/images/550e8400-e29b-41d4-a716-446655440000.gif",
             "/images/550e8400-e29b-41d4-a716-446655440000.webp"
     })
-    @DisplayName("?꾨줈???대?吏 URL? ?덉슜???대?吏 ?뺤옣?먮? ?덉슜?쒕떎.")
+    @DisplayName("프로필 이미지 URL은 허용된 이미지 확장자만 허용한다.")
     void updateProfileImageUrl_allowsSupportedExtensions(String profileImageUrl) {
         ProfileDetail updated = ProfileDetail.update(ProfileDetail.defaultProfile(), null, profileImageUrl);
 
@@ -83,7 +83,7 @@ class ProfileDetailTest {
             "/images/550e8400-e29b-41d4-a716-446655440000.png#x",
             "../evil.png"
     })
-    @DisplayName("?꾨줈???대?吏 URL? ?대? /images/{uuid}.{ext} ?뺥깭媛 ?꾨땲硫?嫄곕??쒕떎.")
+    @DisplayName("프로필 이미지 URL은 내부 /images/{uuid}.{ext} 형식이 아니면 거부한다.")
     void updateProfileImageUrl_rejectsInvalidUrls(String profileImageUrl) {
         assertThatThrownBy(() -> ProfileDetail.update(ProfileDetail.defaultProfile(), null, profileImageUrl))
                 .isInstanceOf(CustomException.class)

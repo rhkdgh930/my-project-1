@@ -79,7 +79,7 @@ class PostCommandServiceImplTest {
     }
 
     @Test
-    @DisplayName("post update??active post 議고쉶瑜??ъ슜?쒕떎.")
+    @DisplayName("post update는 active post 조회를 사용한다.")
     void update_usesActivePostLookup() {
         Long boardId = 1L;
         Long postId = 10L;
@@ -103,7 +103,7 @@ class PostCommandServiceImplTest {
     }
 
     @Test
-    @DisplayName("post update??uuid key濡?POST_UPDATED outbox event瑜?諛쒗뻾?쒕떎.")
+    @DisplayName("post update는 uuid key로 POST_UPDATED outbox event를 발행한다.")
     void update_publishesPostUpdatedOutboxEventWithUuidKey() {
         Long boardId = 1L;
         Long postId = 10L;
@@ -152,7 +152,7 @@ class PostCommandServiceImplTest {
     }
 
     @Test
-    @DisplayName("post create response includes AuthorSummary author")
+    @DisplayName("post create response는 AuthorSummary author를 포함한다.")
     void create_returnsAuthorSummaryAuthor() {
         Long boardId = 1L;
         Long userId = 100L;
@@ -173,7 +173,7 @@ class PostCommandServiceImplTest {
     }
 
     @Test
-    @DisplayName("post create response uses UNKNOWN author when author lookup throws")
+    @DisplayName("post create response는 작성자 조회 실패 시 UNKNOWN author를 사용한다.")
     void create_usesUnknownAuthorWhenUserLookupThrows() {
         Long boardId = 1L;
         Long userId = 100L;
@@ -192,7 +192,7 @@ class PostCommandServiceImplTest {
     }
 
     @Test
-    @DisplayName("post update response uses UNKNOWN author when author lookup throws")
+    @DisplayName("post update response는 작성자 조회 실패 시 UNKNOWN author를 사용한다.")
     void update_usesUnknownAuthorWhenUserLookupThrows() {
         Long boardId = 1L;
         Long postId = 10L;
@@ -213,7 +213,7 @@ class PostCommandServiceImplTest {
     }
 
     @Test
-    @DisplayName("post update??active post瑜?李얠? 紐삵븯硫?嫄곕??쒕떎.")
+    @DisplayName("post update는 active post를 찾지 못하면 거부한다.")
     void update_rejectsWhenActivePostNotFound() {
         Long boardId = 1L;
         Long postId = 10L;
@@ -235,7 +235,7 @@ class PostCommandServiceImplTest {
     }
 
     @Test
-    @DisplayName("post delete??active post瑜???젣?섍퀬 POST_DELETED outbox event瑜?諛쒗뻾?쒕떎.")
+    @DisplayName("post delete는 active post를 삭제하고 POST_DELETED outbox event를 발행한다.")
     void delete_deletesPostAndPublishesPostDeletedOutboxEvent() {
         Long boardId = 1L;
         Long postId = 10L;
@@ -272,7 +272,7 @@ class PostCommandServiceImplTest {
     }
 
     @Test
-    @DisplayName("post delete??active post瑜?李얠? 紐삵븯硫?POST_NOT_FOUND濡?嫄곗젅?쒕떎.")
+    @DisplayName("post delete는 active post를 찾지 못하면 POST_NOT_FOUND로 거부한다.")
     void delete_rejectsWhenActivePostNotFound() {
         Long boardId = 1L;
         Long postId = 10L;
@@ -294,7 +294,7 @@ class PostCommandServiceImplTest {
     }
 
     @Test
-    @DisplayName("post delete????젣??board ?꾨옒 post??POST_NOT_FOUND濡?嫄곗젅?쒕떎.")
+    @DisplayName("post delete는 삭제된 board 아래 post를 POST_NOT_FOUND로 거부한다.")
     void delete_rejectsPostUnderDeletedBoardAsNotFound() {
         Long boardId = 1L;
         Long postId = 10L;
@@ -309,7 +309,7 @@ class PostCommandServiceImplTest {
     }
 
     @Test
-    @DisplayName("post delete??board-post 愿怨꾧? ?ㅻⅤ硫?INVALID_BOARD_POST_RELATION?쇰줈 嫄곗젅?쒕떎.")
+    @DisplayName("post delete는 board-post 관계가 다르면 INVALID_BOARD_POST_RELATION으로 거부한다.")
     void delete_rejectsWhenBoardPostRelationMismatch() {
         Long boardId = 1L;
         Long actualBoardId = 2L;
@@ -332,7 +332,7 @@ class PostCommandServiceImplTest {
     }
 
     @Test
-    @DisplayName("post delete???묒꽦?먭? ?꾨땲硫?ACCESS_DENIED濡?嫄곗젅?쒕떎.")
+    @DisplayName("post delete는 작성자가 아니면 ACCESS_DENIED로 거부한다.")
     void delete_rejectsWhenUserIsNotAuthor() {
         Long boardId = 1L;
         Long postId = 10L;
@@ -356,7 +356,7 @@ class PostCommandServiceImplTest {
 
 
     @Test
-    @DisplayName("PUT like inserts post_like and increments likeCount when row does not exist")
+    @DisplayName("PUT /like는 row가 없으면 post_like를 insert하고 likeCount를 증가시킨다.")
     void likeIdempotently_insertsPostLikeAndIncrementsLikeCountWhenRowDoesNotExist() {
         Long boardId = 1L;
         Long postId = 10L;
@@ -377,7 +377,7 @@ class PostCommandServiceImplTest {
     }
 
     @Test
-    @DisplayName("PUT like keeps likeCount when unique constraint reports already liked")
+    @DisplayName("PUT /like는 unique constraint로 이미 좋아요 상태임을 확인하면 likeCount를 유지한다.")
     void likeIdempotently_keepsLikeCountWhenUniqueConstraintConflicts() {
         Long boardId = 1L;
         Long postId = 10L;
@@ -398,7 +398,7 @@ class PostCommandServiceImplTest {
     }
 
     @Test
-    @DisplayName("DELETE like deletes post_like and decrements likeCount when row exists")
+    @DisplayName("DELETE /like는 row가 있으면 post_like를 삭제하고 likeCount를 감소시킨다.")
     void unlikeIdempotently_deletesPostLikeAndDecrementsLikeCountWhenRowExists() {
         Long boardId = 1L;
         Long postId = 10L;
@@ -419,7 +419,7 @@ class PostCommandServiceImplTest {
     }
 
     @Test
-    @DisplayName("DELETE like keeps likeCount when row does not exist")
+    @DisplayName("DELETE /like는 row가 없으면 likeCount를 유지한다.")
     void unlikeIdempotently_keepsLikeCountWhenRowDoesNotExist() {
         Long boardId = 1L;
         Long postId = 10L;
@@ -439,7 +439,7 @@ class PostCommandServiceImplTest {
     }
 
     @Test
-    @DisplayName("PUT like rejects mismatched board-post relation")
+    @DisplayName("PUT /like는 board-post 관계가 다르면 거부한다.")
     void likeIdempotently_rejectsWhenBoardPostRelationMismatch() {
         Long boardId = 1L;
         Long actualBoardId = 2L;
@@ -458,7 +458,7 @@ class PostCommandServiceImplTest {
     }
 
     @Test
-    @DisplayName("DELETE like rejects when active post is not found")
+    @DisplayName("DELETE /like는 active post를 찾지 못하면 거부한다.")
     void unlikeIdempotently_rejectsWhenActivePostNotFound() {
         Long boardId = 1L;
         Long postId = 10L;

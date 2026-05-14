@@ -30,7 +30,7 @@ class PostControllerTest {
     private final PostController postController = new PostController(postCommandService, postQueryService);
 
     @Test
-    @DisplayName("POST like endpoint is not exposed by controller")
+    @DisplayName("POST /like endpoint는 controller에 노출되지 않는다.")
     void postLikeEndpoint_isRemoved() {
         assertThat(List.of(PostController.class.getDeclaredMethods()))
                 .noneMatch(method -> method.isAnnotationPresent(org.springframework.web.bind.annotation.PostMapping.class)
@@ -38,7 +38,7 @@ class PostControllerTest {
     }
 
     @Test
-    @DisplayName("PUT like returns liked state and current like count")
+    @DisplayName("PUT /like는 좋아요 상태와 현재 likeCount를 반환한다.")
     void likeIdempotently_returnsPostLikeResponse() {
         Long boardId = 1L;
         Long postId = 10L;
@@ -56,7 +56,7 @@ class PostControllerTest {
         verify(postCommandService).likeIdempotently(boardId, postId, userId);
     }
     @Test
-    @DisplayName("DELETE like returns unliked state and current like count")
+    @DisplayName("DELETE /like는 좋아요 취소 상태와 현재 likeCount를 반환한다.")
     void unlikeIdempotently_returnsPostLikeResponse() {
         Long boardId = 1L;
         Long postId = 10L;
@@ -75,7 +75,7 @@ class PostControllerTest {
     }
 
     @Test
-    @DisplayName("read passes nullable current user id to query service")
+    @DisplayName("상세 조회는 nullable current user id를 query service에 전달한다.")
     void read_passesNullableCurrentUserId() {
         Long boardId = 1L;
         Long postId = 10L;
@@ -90,7 +90,7 @@ class PostControllerTest {
     }
 
     @Test
-    @DisplayName("read passes authenticated current user id to query service")
+    @DisplayName("상세 조회는 인증된 current user id를 query service에 전달한다.")
     void read_passesAuthenticatedCurrentUserId() {
         Long boardId = 1L;
         Long postId = 10L;
@@ -108,7 +108,7 @@ class PostControllerTest {
     }
 
     @Test
-    @DisplayName("getPosts passes search condition and pageable to query service")
+    @DisplayName("게시글 목록 조회는 검색 조건과 pageable을 query service에 전달한다.")
     void getPosts_passesSearchConditionAndPageable() {
         Long boardId = 1L;
         PostSearchCondition condition = new PostSearchCondition();

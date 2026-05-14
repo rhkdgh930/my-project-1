@@ -130,7 +130,7 @@ class CommentQueryServiceImplTest {
     }
 
     @Test
-    @DisplayName("comment list uses UNKNOWN author when author bulk lookup throws")
+    @DisplayName("comment list는 author bulk lookup 실패 시 UNKNOWN author를 사용한다.")
     void getComments_usesUnknownAuthorWhenUserLookupThrows() {
         Long postId = 1L;
         Comment parent = comment(postId, 100L, 10L, "parent", null, 0);

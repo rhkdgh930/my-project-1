@@ -33,7 +33,7 @@ class LocalUserClientTest {
     private final LocalUserClient userClient = new LocalUserClient(clock, userRepository);
 
     @Test
-    @DisplayName("AuthorSummary.suspended returns masked display name")
+    @DisplayName("AuthorSummary.suspended는 마스킹된 표시 이름을 반환한다.")
     void suspendedAuthorSummary_usesMaskedDisplayName() {
         AuthorSummary author = AuthorSummary.suspended(1L);
 
@@ -98,7 +98,7 @@ class LocalUserClientTest {
     }
 
     @Test
-    @DisplayName("UNKNOWN author profileImageUrl is null")
+    @DisplayName("UNKNOWN author의 profileImageUrl은 null이다.")
     void unknownAuthorSummary_hasNoProfileImageUrl() {
         AuthorSummary author = AuthorSummary.unknown();
 

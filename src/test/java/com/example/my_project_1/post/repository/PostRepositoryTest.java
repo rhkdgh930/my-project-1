@@ -41,7 +41,7 @@ class PostRepositoryTest {
     private TestEntityManager entityManager;
 
     @Test
-    @DisplayName("searchActivePosts uses latest order by default and excludes inactive posts")
+    @DisplayName("searchActivePosts는 기본 최신순을 사용하고 inactive post를 제외한다.")
     void searchActivePosts_usesDefaultLatestAndExcludesInactivePosts() {
         Post first = postRepository.save(post(board("board-a"), 100L, "first", "content"));
         Board board = first.getBoard();
@@ -67,7 +67,7 @@ class PostRepositoryTest {
     }
 
     @Test
-    @DisplayName("searchActivePosts applies title, content, and title-content keyword search")
+    @DisplayName("searchActivePosts는 제목, 내용, 제목+내용 키워드 검색을 적용한다.")
     void searchActivePosts_appliesKeywordSearch() {
         Board board = board("search-board");
         Post titleMatch = postRepository.save(post(board, 100L, "redis title", "plain body"));
@@ -87,7 +87,7 @@ class PostRepositoryTest {
     }
 
     @Test
-    @DisplayName("blank keyword and null condition values use no search filter and default ordering")
+    @DisplayName("빈 키워드와 null 조건은 검색 필터 없이 기본 정렬을 사용한다.")
     void searchActivePosts_usesDefaultsForBlankKeywordAndNullTypes() {
         Board board = board("default-board");
         Post first = postRepository.save(post(board, 100L, "first", "content"));
@@ -110,7 +110,7 @@ class PostRepositoryTest {
     }
 
     @Test
-    @DisplayName("searchActivePosts supports oldest, view count, like count sorting and paging")
+    @DisplayName("searchActivePosts는 오래된순, 조회수순, 좋아요순 정렬과 페이징을 지원한다.")
     void searchActivePosts_supportsSortingAndPaging() {
         Board board = board("sort-board");
         Post low = postRepository.save(post(board, 100L, "low", "content"));
@@ -136,7 +136,7 @@ class PostRepositoryTest {
     }
 
     @Test
-    @DisplayName("post_like??postId? userId 議고빀??unique濡?蹂댁옣?쒕떎.")
+    @DisplayName("post_like는 postId와 userId 조합을 unique로 보장한다.")
     void postLike_enforcesUniquePostAndUser() {
         Post post = postRepository.save(post(board("like-board"), 100L, "title", "content"));
         postLikeRepository.saveAndFlush(PostLike.create(post.getId(), 200L));
@@ -146,7 +146,7 @@ class PostRepositoryTest {
     }
 
     @Test
-    @DisplayName("post_like???ㅻⅨ ?ъ슜?먯쓽 醫뗭븘??row瑜?蹂꾨룄濡??좎??쒕떎.")
+    @DisplayName("post_like는 다른 사용자의 좋아요 row를 별도로 유지한다.")
     void postLike_keepsOtherUsersLikes() {
         Post post = postRepository.save(post(board("multi-like-board"), 100L, "title", "content"));
         postLikeRepository.saveAndFlush(PostLike.create(post.getId(), 200L));
@@ -163,7 +163,7 @@ class PostRepositoryTest {
     }
 
     @Test
-    @DisplayName("updateLikeCountDelta??likeCount瑜??먯옄?곸쑝濡?利앷컧?섍퀬 ?뚯닔濡?留뚮뱾吏 ?딅뒗??")
+    @DisplayName("updateLikeCountDelta는 likeCount를 원자적으로 증감하고 음수로 만들지 않는다.")
     void updateLikeCountDelta_updatesAtomicallyAndDoesNotGoNegative() {
         Post post = postRepository.save(post(board("delta-board"), 100L, "title", "content"));
         post.updateCounts(0L, 0L);
