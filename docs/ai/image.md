@@ -1,74 +1,66 @@
-# Image Domain AI Rules
+# Image AI Rules
 
-이 문서는 image upload, URL parsing, attach/sync, cleanup 정책을 정의한다.
+이 문서는 이미지 업로드, URL 파싱, attach/sync, cleanup, profile image 저장 정책을 정리한다.
 
-## 현재 정책
+## 현재 정책 - Image Status
 
-### Image Status
+- Image 상태는 `PENDING`, `USED`, `DETACHED`, `DELETED`를 사용한다.
+- 업로드 직후 이미지는 `PENDING`이다.
+- 본문 이미지로 연결되면 `USED`가 된다.
+- 본문에서 빠지면 `DETACHED`가 되고 `detachedAt`을 기록한다.
+- cleanup 완료 후 `DELETED`가 된다.
 
-- `PENDING`: 업로드됐지만 아직 owner에 연결되지 않은 상태
-- `USED`: owner에 연결된 상태
-- `DETACHED`: 더 이상 owner가 사용하지 않는 상태
-- `DELETED`: 실제 파일 삭제 성공 후 DB에서도 삭제 상태로 표시된 상태
+## 현재 정책 - Upload Validation
 
-### Upload / Storage Security
+- `POST /api/images`는 인증이 필요하다.
+- 응답은 `{ storageKey, url }` 형태다.
+- 정적 이미지 접근 URL은 `/images/{storageKey}`이다.
+- 저장 파일은 backend upload root 아래에 둔다.
+- 허용 확장자는 `jpg`, `jpeg`, `png`, `gif`, `webp`이다.
+- `svg`는 허용하지 않는다.
+- 확장자, content type, magic byte를 함께 검증한다.
+- 5MB 초과 파일은 거부한다.
+- path traversal 시도는 거부한다.
 
-- Image upload API는 authenticated API다.
-- 저장 파일명은 서버가 생성한 UUID와 허용 확장자만 사용한다.
-- 원본 파일명은 확장자 추출 용도로만 사용하고 저장 경로에 직접 반영하지 않는다.
-- 허용 확장자는 `jpg`, `jpeg`, `png`, `gif`, `webp`다.
-- SVG는 허용하지 않는다.
-- 허용 content type은 `image/jpeg`, `image/png`, `image/gif`, `image/webp`다.
-- 확장자, contentType, magic byte를 함께 검증한다.
-- upload root는 absolute normalize한다.
-- `uploadRoot.resolve(storageKey).normalize()` 결과가 upload root 밖으로 나가면 거부한다.
-- upload DB 저장 실패 시 orphan file best-effort 보상 삭제를 수행한다.
-- 보상 삭제 실패가 원래 DB 예외를 가리지 않도록 처리한다.
+## 현재 정책 - ImageUrlParser
 
-### ImageUrlParser
-
-- lifecycle attach/sync 대상은 `/images/{uuid}.{ext}` 형태만 인정한다.
-- `{uuid}`는 UUID 형식이어야 한다.
-- 허용 확장자는 `png`, `jpg`, `jpeg`, `gif`, `webp`다.
-- 외부 URL은 무시한다.
-- protocol-relative URL은 무시한다.
-- query string과 fragment가 있는 URL은 무시한다.
-- encoded path, slash, backslash, `..`, `%`, `?`, `#`가 포함된 storageKey는 무시한다.
+- 게시글 본문에서 내부 이미지 URL만 storageKey로 추출한다.
+- 내부 URL 형식은 `/images/{uuid}.{ext}`이다.
+- 외부 URL, query, fragment, encoded path, 잘못된 내부 URL은 lifecycle 대상에서 제외한다.
 - 중복 storageKey는 제거한다.
+- 게시글 본문 이미지 lifecycle은 parser 결과를 기준으로 한다.
 
-### Attach / Sync
+## 현재 정책 - Attach / Sync
 
-- `ImageServiceImpl.attachImages`는 전달된 `storageKeys`를 distinct 처리한다.
-- distinct 처리 후 repository 조회 결과 수가 distinct key 수와 다르면 존재하지 않거나 권한이 없는 이미지가 포함된 것으로 보고 예외를 던진다.
-- service layer는 `Image.isAttachable()` 필터에 의존하지 않는다.
-- attach 가능 여부, 멱등성, 상태 위반 검증은 `Image.attach(ownerId, ownerType)` 도메인 메서드가 담당한다.
-- `PENDING` 이미지는 owner에 attach되어 `USED`가 될 수 있다.
-- `DETACHED` 이미지는 다시 attach되어 `USED`가 될 수 있다.
-- 이미 같은 owner에 `USED` 상태로 attach된 이미지는 재처리되어도 성공해야 한다.
-- 다른 owner에 이미 attach된 이미지 등 상태 위반은 `Image.attach()`에서 막는다.
-- Outbox 재처리 시 동일 owner attach는 멱등적으로 처리되어야 한다.
-- `syncImages(ownerId, ownerType, newKeys, uploaderId)`는 기존 owner 이미지 중 새 key에 없는 이미지를 detach한다.
-- Post delete image detach는 `syncImages(postId, POST, emptyList, userId)`로 처리한다.
+- Post create/update/delete는 Outbox를 통해 이미지 sync를 처리한다.
+- `POST_CREATED`, `POST_UPDATED` payload는 post 본문에 포함된 storageKey 목록을 가진다.
+- `POST_DELETED`는 빈 목록으로 sync하여 기존 POST 이미지를 detach 대상으로 만든다.
+- `attachImages`는 storageKeys를 distinct 처리한다.
+- `Image.attach`는 멱등성 및 상태 검증을 담당한다.
+- 이미 같은 owner에 붙은 이미지를 다시 처리해도 성공한다.
+- 다른 owner에 이미 붙은 이미지는 거부한다.
 
-### Cleanup
+## 현재 정책 - Cleanup
 
-- `DETACHED` cleanup 기준은 `detachedAt`이다.
-- `PENDING` cleanup 기준은 `createdAt`이다.
-- cleanup job은 파일 삭제 성공 image만 `DELETED` 처리한다.
-- 파일이 이미 없는 경우는 cleanup 관점에서 idempotent success로 볼 수 있다.
-- 파일 삭제 실패는 호출자에게 전파한다.
+- `PENDING` cleanup은 오래된 미사용 업로드를 대상으로 한다.
+- `DETACHED` cleanup은 `detachedAt` 기준으로 대상을 조회한다.
+- 파일 삭제에 성공한 이미지만 `DELETED` 처리한다.
+- 파일이 없어도 삭제 성공으로 처리할 수 있다.
+- 파일 삭제 실패는 숨기지 않고 cleanup 실패로 기록한다.
 
-## 테스트 기준
+## 현재 정책 - Profile Image
 
-- ImageUrlParser는 `/images/{uuid}.{ext}`만 추출하는지 검증한다.
-- 외부 URL, query, fragment, encoded path, slash/backslash, `..` 포함 URL은 무시하는지 검증한다.
-- upload는 확장자, contentType, magic byte, SVG 금지를 검증한다.
-- path traversal 방어를 검증한다.
-- DB 저장 실패 시 orphan file 보상 삭제를 검증한다.
-- cleanup은 파일 삭제 성공 image만 `DELETED` 처리하는지 검증한다.
-- attachImages는 distinct, 동일 owner 멱등성, DETACHED reattach, 다른 owner 거부, storageKey mismatch를 검증한다.
+- 프로필 이미지는 `POST /api/images` 응답의 `/images/{storageKey}` 값을 `profileImageUrl`로 저장한다.
+- `profileImageUrl`은 내부 `/images/{uuid}.{ext}` 형식만 허용한다.
+- 외부 URL, query, fragment, `javascript:`, `data:`, `file:`, protocol-relative URL, `../`, `svg`는 거부한다.
+- SUSPENDED/WITHDRAWN/UNKNOWN 작성자 profile image 비노출은 `docs/ai/user.md`를 따른다.
 
-## TODO / 운영 전 개선
+## 주의사항
 
-- 5MB 초과 multipart 직접 업로드가 service layer에 도달하기 전에 500으로 응답할 수 있는지 확인 필요.
-- 운영 전 multipart size 초과 예외를 명시적 400 또는 413 정책 응답으로 고정한다.
+- 게시글 본문 이미지 lifecycle과 profile image cleanup을 강하게 묶지 않는다.
+- 외부 `profileImageUrl` 허용 정책을 현재 정책처럼 문서화하지 않는다.
+
+## TODO
+
+- profile image 교체 시 이전 이미지 cleanup 정책을 설계한다.
+- 5MB multipart 초과 응답을 명확한 API error shape로 고정한다.
