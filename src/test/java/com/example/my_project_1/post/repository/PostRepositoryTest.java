@@ -203,6 +203,38 @@ class PostRepositoryTest {
     }
 
     @Test
+    @DisplayName("findActivePostsByUserId는 현재 사용자가 작성한 활성 게시글을 최신순으로 조회한다.")
+    void findActivePostsByUserId_returnsMyActivePostsInLatestOrder() {
+        Long userId = 200L;
+        Board board = board("my-post-board");
+        Post oldPost = postRepository.save(post(board, userId, "old", "content"));
+        Post latestPost = postRepository.save(post(board, userId, "latest", "content"));
+        postRepository.save(post(board, 201L, "other user", "content"));
+        Post deletedPost = postRepository.save(post(board, userId, "deleted", "content"));
+        deletedPost.delete(LocalDateTime.of(2026, 5, 12, 10, 0));
+        Board deletedBoard = board("deleted-my-post-board");
+        deletedBoard.delete(LocalDateTime.of(2026, 5, 12, 10, 0));
+        postRepository.save(post(deletedBoard, userId, "deleted board post", "content"));
+        postRepository.flush();
+
+        Page<Post> result = postRepository.findActivePostsByUserId(userId, PageRequest.of(0, 10));
+
+        assertThat(result.getTotalElements()).isEqualTo(2);
+        assertThat(result.getContent())
+                .extracting(Post::getId)
+                .containsExactly(latestPost.getId(), oldPost.getId());
+    }
+
+    @Test
+    @DisplayName("findActivePostsByUserId는 작성한 게시글이 없으면 빈 페이지를 반환한다.")
+    void findActivePostsByUserId_returnsEmptyPageWhenUserHasNoPosts() {
+        Page<Post> result = postRepository.findActivePostsByUserId(999L, PageRequest.of(0, 10));
+
+        assertThat(result.getContent()).isEmpty();
+        assertThat(result.getTotalElements()).isZero();
+    }
+
+    @Test
     @DisplayName("updateLikeCountDelta는 likeCount를 원자적으로 증감하고 음수로 만들지 않는다.")
     void updateLikeCountDelta_updatesAtomicallyAndDoesNotGoNegative() {
         Post post = postRepository.save(post(board("delta-board"), 100L, "title", "content"));

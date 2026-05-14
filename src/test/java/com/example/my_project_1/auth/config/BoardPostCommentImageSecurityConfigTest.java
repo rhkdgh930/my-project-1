@@ -388,6 +388,26 @@ class BoardPostCommentImageSecurityConfigTest {
         verify(postQueryService).getLikedPosts(eq(1L), any(Pageable.class));
     }
 
+    @Test
+    @DisplayName("내가 작성한 게시글 목록 API는 인증이 필요하고 인증 사용자는 접근할 수 있다.")
+    void myPostsApi_requiresAuthenticationAndAllowsAuthenticatedUser() throws Exception {
+        when(postQueryService.getMyPosts(anyLong(), any(Pageable.class)))
+                .thenReturn(new PageResponse<>(List.of(), 0, 20, 0, 0, true));
+
+        mockMvc.perform(get("/api/users/me/posts"))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(get("/api/users/me/posts")
+                        .with(authentication(new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                                userDetails(),
+                                null,
+                                userDetails().getAuthorities()
+                        ))))
+                .andExpect(status().isOk());
+
+        verify(postQueryService).getMyPosts(eq(1L), any(Pageable.class));
+    }
+
     private UserDetailsImpl userDetails() {
         return new UserDetailsImpl(
                 1L,

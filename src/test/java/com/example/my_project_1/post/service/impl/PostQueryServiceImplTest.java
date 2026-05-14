@@ -199,6 +199,49 @@ class PostQueryServiceImplTest {
     }
 
     @Test
+    @DisplayName("내가 작성한 게시글 목록은 author를 매핑하고 Redis view delta를 더해 반환한다.")
+    void getMyPosts_mapsAuthorAndAddsRedisViewDelta() {
+        Long userId = 200L;
+        Pageable pageable = PageRequest.of(0, 10);
+        Post post = post(1L, 10L, userId);
+        post.updateCounts(30L, 7L);
+
+        when(postRepository.findActivePostsByUserId(userId, pageable))
+                .thenReturn(new PageImpl<>(List.of(post), pageable, 1));
+        when(userClient.findAuthorsByIds(List.of(userId)))
+                .thenReturn(Map.of(userId, AuthorSummary.active(userId, "nickname", PROFILE_IMAGE_URL)));
+        when(postRedisService.getViewDeltaOrNull(10L)).thenReturn(4L);
+
+        PageResponse<PostListResponse> response = postQueryService.getMyPosts(userId, pageable);
+
+        assertThat(response.getContent()).hasSize(1);
+        PostListResponse postResponse = response.getContent().get(0);
+        assertThat(postResponse.getPostId()).isEqualTo(10L);
+        assertThat(postResponse.getAuthor().id()).isEqualTo(userId);
+        assertThat(postResponse.getViewCount()).isEqualTo(34L);
+        assertThat(postResponse.getLikeCount()).isEqualTo(7L);
+        verify(postRepository).findActivePostsByUserId(userId, pageable);
+        verify(postRedisService, never()).increaseView(any());
+    }
+
+    @Test
+    @DisplayName("내가 작성한 게시글 목록이 비어 있으면 author 조회와 Redis 조회를 생략한다.")
+    void getMyPosts_skipsLookupsWhenPageIsEmpty() {
+        Long userId = 200L;
+        Pageable pageable = PageRequest.of(0, 10);
+
+        when(postRepository.findActivePostsByUserId(userId, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        PageResponse<PostListResponse> response = postQueryService.getMyPosts(userId, pageable);
+
+        assertThat(response.getContent()).isEmpty();
+        assertThat(response.getTotalElements()).isZero();
+        verify(userClient, never()).findAuthorsByIds(any());
+        verify(postRedisService, never()).getViewDeltaOrNull(any());
+    }
+
+    @Test
     @DisplayName("게시글 상세 조회는 active post 확인 후 조회수를 증가시킨다.")
     void getPostDetail_increasesViewAfterActivePostFound() {
         Long boardId = 1L;
