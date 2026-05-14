@@ -78,6 +78,7 @@ class PostQueryServiceImplTest {
 
         assertThat(response.getContent()).hasSize(1);
         assertThat(response.getContent().get(0).getPostId()).isEqualTo(10L);
+        assertThat(response.getContent().get(0).getBoardId()).isEqualTo(boardId);
         assertThat(response.getContent().get(0).getNickname()).isEqualTo("nickname");
         assertThat(response.getContent().get(0).getAuthor().id()).isEqualTo(100L);
         assertThat(response.getContent().get(0).getAuthor().displayName()).isEqualTo("nickname");
@@ -173,6 +174,7 @@ class PostQueryServiceImplTest {
         assertThat(response.getContent()).hasSize(1);
         PostListResponse postResponse = response.getContent().get(0);
         assertThat(postResponse.getPostId()).isEqualTo(10L);
+        assertThat(postResponse.getBoardId()).isEqualTo(1L);
         assertThat(postResponse.getAuthor().id()).isEqualTo(100L);
         assertThat(postResponse.getAuthor().profileImageUrl()).isEqualTo(PROFILE_IMAGE_URL);
         assertThat(postResponse.getViewCount()).isEqualTo(23L);
@@ -217,6 +219,7 @@ class PostQueryServiceImplTest {
         assertThat(response.getContent()).hasSize(1);
         PostListResponse postResponse = response.getContent().get(0);
         assertThat(postResponse.getPostId()).isEqualTo(10L);
+        assertThat(postResponse.getBoardId()).isEqualTo(1L);
         assertThat(postResponse.getAuthor().id()).isEqualTo(userId);
         assertThat(postResponse.getViewCount()).isEqualTo(34L);
         assertThat(postResponse.getLikeCount()).isEqualTo(7L);
@@ -234,6 +237,50 @@ class PostQueryServiceImplTest {
                 .thenReturn(new PageImpl<>(List.of(), pageable, 0));
 
         PageResponse<PostListResponse> response = postQueryService.getMyPosts(userId, pageable);
+
+        assertThat(response.getContent()).isEmpty();
+        assertThat(response.getTotalElements()).isZero();
+        verify(userClient, never()).findAuthorsByIds(any());
+        verify(postRedisService, never()).getViewDeltaOrNull(any());
+    }
+
+    @Test
+    @DisplayName("내가 댓글 단 게시글 목록은 author를 매핑하고 Redis view delta를 더해 반환한다.")
+    void getCommentedPosts_mapsAuthorAndAddsRedisViewDelta() {
+        Long userId = 200L;
+        Pageable pageable = PageRequest.of(0, 10);
+        Post post = post(1L, 10L, 100L);
+        post.updateCounts(40L, 8L);
+
+        when(postRepository.findCommentedActivePostsByUserId(userId, pageable))
+                .thenReturn(new PageImpl<>(List.of(post), pageable, 1));
+        when(userClient.findAuthorsByIds(List.of(100L)))
+                .thenReturn(Map.of(100L, AuthorSummary.active(100L, "nickname", PROFILE_IMAGE_URL)));
+        when(postRedisService.getViewDeltaOrNull(10L)).thenReturn(5L);
+
+        PageResponse<PostListResponse> response = postQueryService.getCommentedPosts(userId, pageable);
+
+        assertThat(response.getContent()).hasSize(1);
+        PostListResponse postResponse = response.getContent().get(0);
+        assertThat(postResponse.getPostId()).isEqualTo(10L);
+        assertThat(postResponse.getBoardId()).isEqualTo(1L);
+        assertThat(postResponse.getAuthor().id()).isEqualTo(100L);
+        assertThat(postResponse.getViewCount()).isEqualTo(45L);
+        assertThat(postResponse.getLikeCount()).isEqualTo(8L);
+        verify(postRepository).findCommentedActivePostsByUserId(userId, pageable);
+        verify(postRedisService, never()).increaseView(any());
+    }
+
+    @Test
+    @DisplayName("내가 댓글 단 게시글 목록이 비어 있으면 author 조회와 Redis 조회를 생략한다.")
+    void getCommentedPosts_skipsLookupsWhenPageIsEmpty() {
+        Long userId = 200L;
+        Pageable pageable = PageRequest.of(0, 10);
+
+        when(postRepository.findCommentedActivePostsByUserId(userId, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        PageResponse<PostListResponse> response = postQueryService.getCommentedPosts(userId, pageable);
 
         assertThat(response.getContent()).isEmpty();
         assertThat(response.getTotalElements()).isZero();

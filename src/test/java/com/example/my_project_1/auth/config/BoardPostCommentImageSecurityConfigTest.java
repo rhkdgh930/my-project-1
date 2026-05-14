@@ -408,6 +408,26 @@ class BoardPostCommentImageSecurityConfigTest {
         verify(postQueryService).getMyPosts(eq(1L), any(Pageable.class));
     }
 
+    @Test
+    @DisplayName("내가 댓글 단 게시글 목록 API는 인증이 필요하고 인증 사용자는 접근할 수 있다.")
+    void commentedPostsApi_requiresAuthenticationAndAllowsAuthenticatedUser() throws Exception {
+        when(postQueryService.getCommentedPosts(anyLong(), any(Pageable.class)))
+                .thenReturn(new PageResponse<>(List.of(), 0, 20, 0, 0, true));
+
+        mockMvc.perform(get("/api/users/me/commented-posts"))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(get("/api/users/me/commented-posts")
+                        .with(authentication(new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                                userDetails(),
+                                null,
+                                userDetails().getAuthorities()
+                        ))))
+                .andExpect(status().isOk());
+
+        verify(postQueryService).getCommentedPosts(eq(1L), any(Pageable.class));
+    }
+
     private UserDetailsImpl userDetails() {
         return new UserDetailsImpl(
                 1L,

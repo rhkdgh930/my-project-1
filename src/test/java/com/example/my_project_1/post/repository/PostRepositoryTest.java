@@ -1,6 +1,7 @@
 package com.example.my_project_1.post.repository;
 
 import com.example.my_project_1.board.domain.Board;
+import com.example.my_project_1.comment.domain.Comment;
 import com.example.my_project_1.common.config.QueryDslConfig;
 import com.example.my_project_1.post.domain.Post;
 import com.example.my_project_1.post.domain.PostLike;
@@ -235,6 +236,53 @@ class PostRepositoryTest {
     }
 
     @Test
+    @DisplayName("findCommentedActivePostsByUserId는 내가 댓글 단 활성 게시글을 댓글 최신순으로 중복 없이 조회한다.")
+    void findCommentedActivePostsByUserId_returnsDistinctPostsInLatestCommentOrder() {
+        Long userId = 200L;
+        Board board = board("commented-board");
+        Post duplicatePost = postRepository.save(post(board, 100L, "duplicate", "content"));
+        Post latestPost = postRepository.save(post(board, 101L, "latest", "content"));
+        Post replyPost = postRepository.save(post(board, 102L, "reply", "content"));
+        Post otherUserPost = postRepository.save(post(board, 103L, "other user", "content"));
+        Post deletedCommentOnlyPost = postRepository.save(post(board, 104L, "deleted comment only", "content"));
+        Post deletedPost = postRepository.save(post(board, 105L, "deleted post", "content"));
+        deletedPost.delete(LocalDateTime.of(2026, 5, 12, 10, 0));
+        Board deletedBoard = board("deleted-commented-board");
+        deletedBoard.delete(LocalDateTime.of(2026, 5, 12, 10, 0));
+        Post deletedBoardPost = postRepository.save(post(deletedBoard, 106L, "deleted board post", "content"));
+        postRepository.flush();
+
+        rootComment(duplicatePost, userId, LocalDateTime.of(2026, 5, 13, 10, 0));
+        rootComment(duplicatePost, userId, LocalDateTime.of(2026, 5, 15, 10, 0));
+        rootComment(latestPost, userId, LocalDateTime.of(2026, 5, 16, 10, 0));
+        rootComment(otherUserPost, 201L, LocalDateTime.of(2026, 5, 19, 10, 0));
+        Comment deletedComment = rootComment(deletedCommentOnlyPost, userId, LocalDateTime.of(2026, 5, 20, 10, 0));
+        deletedComment.delete(userId, LocalDateTime.of(2026, 5, 20, 11, 0));
+        rootComment(deletedPost, userId, LocalDateTime.of(2026, 5, 21, 10, 0));
+        rootComment(deletedBoardPost, userId, LocalDateTime.of(2026, 5, 22, 10, 0));
+        Comment parent = rootComment(replyPost, 201L, LocalDateTime.of(2026, 5, 17, 10, 0));
+        replyComment(parent, userId, LocalDateTime.of(2026, 5, 18, 10, 0));
+        entityManager.flush();
+        entityManager.clear();
+
+        Page<Post> result = postRepository.findCommentedActivePostsByUserId(userId, PageRequest.of(0, 10));
+
+        assertThat(result.getTotalElements()).isEqualTo(3);
+        assertThat(result.getContent())
+                .extracting(Post::getId)
+                .containsExactly(replyPost.getId(), latestPost.getId(), duplicatePost.getId());
+    }
+
+    @Test
+    @DisplayName("findCommentedActivePostsByUserId는 내가 댓글 단 게시글이 없으면 빈 페이지를 반환한다.")
+    void findCommentedActivePostsByUserId_returnsEmptyPageWhenUserHasNoComments() {
+        Page<Post> result = postRepository.findCommentedActivePostsByUserId(999L, PageRequest.of(0, 10));
+
+        assertThat(result.getContent()).isEmpty();
+        assertThat(result.getTotalElements()).isZero();
+    }
+
+    @Test
     @DisplayName("updateLikeCountDelta는 likeCount를 원자적으로 증감하고 음수로 만들지 않는다.")
     void updateLikeCountDelta_updatesAtomicallyAndDoesNotGoNegative() {
         Post post = postRepository.save(post(board("delta-board"), 100L, "title", "content"));
@@ -288,5 +336,19 @@ class PostRepositoryTest {
         PostLike postLike = PostLike.create(postId, userId);
         ReflectionTestUtils.setField(postLike, "createdAt", createdAt);
         return postLike;
+    }
+
+    private Comment rootComment(Post post, Long userId, LocalDateTime createdAt) {
+        Comment comment = Comment.createRoot(post.getId(), userId, "content");
+        entityManager.persist(comment);
+        ReflectionTestUtils.setField(comment, "createdAt", createdAt);
+        return comment;
+    }
+
+    private Comment replyComment(Comment parent, Long userId, LocalDateTime createdAt) {
+        Comment comment = Comment.createReply(parent, userId, "reply");
+        entityManager.persist(comment);
+        ReflectionTestUtils.setField(comment, "createdAt", createdAt);
+        return comment;
     }
 }
