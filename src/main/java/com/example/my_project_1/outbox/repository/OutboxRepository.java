@@ -14,8 +14,6 @@ import java.util.List;
 
 public interface OutboxRepository extends JpaRepository<OutboxEvent, Long> {
 
-    boolean existsByEventKey(String eventKey);
-
     Page<OutboxEvent> findAllByStatus(OutboxStatus status, Pageable pageable);
 
     @Query("""

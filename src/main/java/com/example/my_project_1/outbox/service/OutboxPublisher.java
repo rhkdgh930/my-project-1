@@ -17,13 +17,14 @@ import java.time.LocalDateTime;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-@Transactional
 public class OutboxPublisher {
 
     private final OutboxRepository outboxRepository;
+    private final OutboxEventInsertService outboxEventInsertService;
     private final ApplicationEventPublisher eventPublisher;
     private final Clock clock;
 
+    @Transactional
     public void publish(OutboxEventType type, String payload, String eventKey) {
         OutboxEvent event = OutboxEvent.create(
                 type,
@@ -45,12 +46,12 @@ public class OutboxPublisher {
                     LocalDateTime.now(clock)
             );
 
-            outboxRepository.saveAndFlush(event);
-            eventPublisher.publishEvent(new OutboxSavedEvent(event.getId()));
+            OutboxEvent savedEvent = outboxEventInsertService.saveAndFlush(event);
+            eventPublisher.publishEvent(new OutboxSavedEvent(savedEvent.getId()));
             return true;
 
         } catch (DataIntegrityViolationException e) {
-            log.info("[OUTBOX][DUPLICATE_EVENT_KEY] eventKey={}", eventKey);
+            log.info("[OUTBOX][DUPLICATE_EVENT_KEY] type={} eventKey={}", type, eventKey);
             return false;
         }
     }
