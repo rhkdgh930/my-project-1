@@ -16,6 +16,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
 
@@ -163,6 +164,45 @@ class PostRepositoryTest {
     }
 
     @Test
+    @DisplayName("findLikedActivePostsByUserId는 현재 사용자가 좋아요한 활성 게시글을 좋아요 최신순으로 조회한다.")
+    void findLikedActivePostsByUserId_returnsLikedActivePostsInLikedLatestOrder() {
+        Long userId = 200L;
+        Board board = board("liked-board");
+        Post oldLiked = postRepository.save(post(board, 100L, "old liked", "content"));
+        Post latestLiked = postRepository.save(post(board, 101L, "latest liked", "content"));
+        Post otherUserLiked = postRepository.save(post(board, 102L, "other user liked", "content"));
+        Post deletedPost = postRepository.save(post(board, 103L, "deleted", "content"));
+        deletedPost.delete(LocalDateTime.of(2026, 5, 12, 10, 0));
+        Board deletedBoard = board("deleted-liked-board");
+        deletedBoard.delete(LocalDateTime.of(2026, 5, 12, 10, 0));
+        Post deletedBoardPost = postRepository.save(post(deletedBoard, 104L, "deleted board post", "content"));
+
+        postLikeRepository.save(like(oldLiked.getId(), userId, LocalDateTime.of(2026, 5, 13, 10, 0)));
+        postLikeRepository.save(like(latestLiked.getId(), userId, LocalDateTime.of(2026, 5, 14, 10, 0)));
+        postLikeRepository.save(like(otherUserLiked.getId(), 201L, LocalDateTime.of(2026, 5, 15, 10, 0)));
+        postLikeRepository.save(like(deletedPost.getId(), userId, LocalDateTime.of(2026, 5, 16, 10, 0)));
+        postLikeRepository.save(like(deletedBoardPost.getId(), userId, LocalDateTime.of(2026, 5, 17, 10, 0)));
+        postLikeRepository.flush();
+        entityManager.clear();
+
+        Page<Post> result = postRepository.findLikedActivePostsByUserId(userId, PageRequest.of(0, 10));
+
+        assertThat(result.getTotalElements()).isEqualTo(2);
+        assertThat(result.getContent())
+                .extracting(Post::getId)
+                .containsExactly(latestLiked.getId(), oldLiked.getId());
+    }
+
+    @Test
+    @DisplayName("findLikedActivePostsByUserId는 좋아요한 게시글이 없으면 빈 페이지를 반환한다.")
+    void findLikedActivePostsByUserId_returnsEmptyPageWhenUserHasNoLikes() {
+        Page<Post> result = postRepository.findLikedActivePostsByUserId(999L, PageRequest.of(0, 10));
+
+        assertThat(result.getContent()).isEmpty();
+        assertThat(result.getTotalElements()).isZero();
+    }
+
+    @Test
     @DisplayName("updateLikeCountDelta는 likeCount를 원자적으로 증감하고 음수로 만들지 않는다.")
     void updateLikeCountDelta_updatesAtomicallyAndDoesNotGoNegative() {
         Post post = postRepository.save(post(board("delta-board"), 100L, "title", "content"));
@@ -210,5 +250,11 @@ class PostRepositoryTest {
 
     private static Post post(Board board, Long userId, String title, String content) {
         return Post.create(board, userId, title, content);
+    }
+
+    private static PostLike like(Long postId, Long userId, LocalDateTime createdAt) {
+        PostLike postLike = PostLike.create(postId, userId);
+        ReflectionTestUtils.setField(postLike, "createdAt", createdAt);
+        return postLike;
     }
 }

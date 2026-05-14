@@ -362,10 +362,30 @@ class BoardPostCommentImageSecurityConfigTest {
         mockMvc.perform(get("/api/users/me")
                         .with(authentication(new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
                                 userDetails(),
+                        null,
+                        userDetails().getAuthorities()
+                ))))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("내가 좋아요한 게시글 목록 API는 인증이 필요하고 인증 사용자는 접근할 수 있다.")
+    void likedPostsApi_requiresAuthenticationAndAllowsAuthenticatedUser() throws Exception {
+        when(postQueryService.getLikedPosts(anyLong(), any(Pageable.class)))
+                .thenReturn(new PageResponse<>(List.of(), 0, 20, 0, 0, true));
+
+        mockMvc.perform(get("/api/users/me/liked-posts"))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(get("/api/users/me/liked-posts")
+                        .with(authentication(new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                                userDetails(),
                                 null,
                                 userDetails().getAuthorities()
                         ))))
                 .andExpect(status().isOk());
+
+        verify(postQueryService).getLikedPosts(eq(1L), any(Pageable.class));
     }
 
     private UserDetailsImpl userDetails() {
