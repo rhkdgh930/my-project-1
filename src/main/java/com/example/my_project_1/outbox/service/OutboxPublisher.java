@@ -37,10 +37,6 @@ public class OutboxPublisher {
     }
 
     public boolean publishIfAbsent(OutboxEventType type, String payload, String eventKey) {
-        if (outboxRepository.existsByEventKey(eventKey)) {
-            return false;
-        }
-
         try {
             OutboxEvent event = OutboxEvent.create(
                     type,
