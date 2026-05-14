@@ -12,4 +12,6 @@ public interface PostRepositoryCustom {
             PostSearchCondition condition,
             Pageable pageable
     );
+
+    Page<Post> findLikedActivePostsByUserId(Long userId, Pageable pageable);
 }

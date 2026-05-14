@@ -76,6 +76,36 @@ public class PostQueryServiceImpl implements PostQueryService {
         return PageResponse.of(dtoPage);
     }
 
+    @Override
+    public PageResponse<PostListResponse> getLikedPosts(Long userId, Pageable pageable) {
+        Page<Post> page = postRepository.findLikedActivePostsByUserId(userId, pageable);
+
+        List<Long> authorIds = page.getContent().stream()
+                .map(Post::getUserId)
+                .distinct()
+                .toList();
+
+        Map<Long, AuthorSummary> authorMap = authorIds.isEmpty()
+                ? Map.of()
+                : findAuthorsForLikedPosts(userId, authorIds);
+
+        Page<PostListResponse> dtoPage = page.map(post -> {
+            AuthorSummary author = authorMap.getOrDefault(
+                    post.getUserId(),
+                    AuthorSummary.unknown()
+            );
+
+            PostListResponse response = PostListResponse.from(post, author);
+            response.updateCounts(
+                    addDelta(post.getViewCount(), postRedisService.getViewDeltaOrNull(post.getId())),
+                    post.getLikeCount()
+            );
+            return response;
+        });
+
+        return PageResponse.of(dtoPage);
+    }
+
     private void validateBoard(Long boardId) {
         boardRepository.findByIdAndDeletedAtIsNull(boardId)
                 .orElseThrow(() -> new CustomException(ErrorCode.BOARD_NOT_FOUND));
@@ -122,6 +152,15 @@ public class PostQueryServiceImpl implements PostQueryService {
             return userClient.findAuthorsByIds(authorIds);
         } catch (RuntimeException e) {
             log.warn("[POST_QUERY][AUTHOR_LOOKUP_FAIL] boardId={} authorIds={}", boardId, authorIds, e);
+            return Map.of();
+        }
+    }
+
+    private Map<Long, AuthorSummary> findAuthorsForLikedPosts(Long userId, List<Long> authorIds) {
+        try {
+            return userClient.findAuthorsByIds(authorIds);
+        } catch (RuntimeException e) {
+            log.warn("[POST_QUERY][AUTHOR_LOOKUP_FAIL] likedUserId={} authorIds={}", userId, authorIds, e);
             return Map.of();
         }
     }

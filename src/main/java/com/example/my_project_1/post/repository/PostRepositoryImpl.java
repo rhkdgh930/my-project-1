@@ -16,6 +16,7 @@ import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 
+import static com.example.my_project_1.post.domain.QPostLike.postLike;
 import static com.example.my_project_1.post.domain.QPost.post;
 
 @RequiredArgsConstructor
@@ -51,6 +52,41 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
                         boardIdEq(boardId),
                         activePost(),
                         search(searchCondition)
+                )
+                .fetchOne();
+
+        return new PageImpl<>(
+                content,
+                pageable,
+                total != null ? total : 0L
+        );
+    }
+
+    @Override
+    public Page<Post> findLikedActivePostsByUserId(Long userId, Pageable pageable) {
+        List<Post> content = queryFactory
+                .select(post)
+                .from(postLike)
+                .join(post).on(postLike.postId.eq(post.id))
+                .where(
+                        postLike.userId.eq(userId),
+                        activePost()
+                )
+                .orderBy(
+                        postLike.createdAt.desc(),
+                        post.id.desc()
+                )
+                .offset(pageable.getOffset())
+                .limit(pageable.getPageSize())
+                .fetch();
+
+        Long total = queryFactory
+                .select(post.count())
+                .from(postLike)
+                .join(post).on(postLike.postId.eq(post.id))
+                .where(
+                        postLike.userId.eq(userId),
+                        activePost()
                 )
                 .fetchOne();
 

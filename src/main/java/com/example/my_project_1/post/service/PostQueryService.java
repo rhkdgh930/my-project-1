@@ -12,6 +12,7 @@ public interface PostQueryService {
             PostSearchCondition condition,
             Pageable pageable
     );
+    PageResponse<PostListResponse> getLikedPosts(Long userId, Pageable pageable);
     PostDetailResponse getPostDetail(Long boardId, Long postId);
     PostDetailResponse getPostDetail(Long boardId, Long postId, Long currentUserId);
 }

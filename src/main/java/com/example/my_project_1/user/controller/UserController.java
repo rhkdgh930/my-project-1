@@ -3,6 +3,9 @@ package com.example.my_project_1.user.controller;
 import com.example.my_project_1.auth.userdetails.UserDetailsImpl;
 import com.example.my_project_1.common.exception.ExceptionResponse;
 import com.example.my_project_1.common.exception.ValidExceptionResponse;
+import com.example.my_project_1.common.utils.PageResponse;
+import com.example.my_project_1.post.service.PostQueryService;
+import com.example.my_project_1.post.service.response.PostListResponse;
 import com.example.my_project_1.user.service.UserCommandService;
 import com.example.my_project_1.user.service.UserQueryService;
 import com.example.my_project_1.user.service.request.*;
@@ -22,6 +25,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import lombok.RequiredArgsConstructor;
+import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -37,6 +42,7 @@ public class UserController {
 
     private final UserCommandService userCommandService;
     private final UserQueryService userQueryService;
+    private final PostQueryService postQueryService;
 
     @Operation(
             summary = "이메일 인증 코드 발송",
@@ -116,6 +122,35 @@ public class UserController {
             @AuthenticationPrincipal UserDetailsImpl userDetails) {
 
         UserMeResponse response = userQueryService.getMe(userDetails.getUserId());
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(
+            summary = "내가 좋아요한 게시글 목록 조회",
+            description = """
+                    현재 로그인 사용자가 좋아요한 활성 게시글 목록을 조회합니다.
+                    삭제된 게시글과 삭제된 게시판 아래 게시글은 제외하며,
+                    정렬은 좋아요를 누른 최신순입니다.
+                    viewCount는 Redis view delta를 더해 보정하고 likeCount는 DB denormalized count를 사용합니다.
+                    """,
+            security = @SecurityRequirement(name = "jwtAuth")
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "좋아요한 게시글 목록 조회 성공",
+                    content = @Content(schema = @Schema(implementation = PageResponse.class))),
+            @ApiResponse(responseCode = "401", description = "인증 실패",
+                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
+    })
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+    @GetMapping("/me/liked-posts")
+    public ResponseEntity<PageResponse<PostListResponse>> getMyLikedPosts(
+            @AuthenticationPrincipal UserDetailsImpl userDetails,
+            @ParameterObject Pageable pageable) {
+
+        PageResponse<PostListResponse> response = postQueryService.getLikedPosts(
+                userDetails.getUserId(),
+                pageable
+        );
         return ResponseEntity.ok(response);
     }
 
