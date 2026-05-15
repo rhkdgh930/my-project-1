@@ -1,5 +1,12 @@
 # User AI Rules
 
+## 최신 정책 - Report / User Moderation
+
+- `USER` 신고는 `POST /api/admin/reports/{reportId}/actions/delete-target`에서 지원하지 않는다.
+- 현재 `USER` 신고 조치는 기존 Admin User 화면에서 정지 등 명시적 관리자 액션으로 처리한다.
+- `ACTION_TAKEN`은 자동 유저 정지를 수행하지 않는 상태값이다.
+- `USER` 신고 상세에서 Admin User 화면으로 더 자연스럽게 연결하는 작업은 TODO다.
+
 이 문서는 User lifecycle, public author 표시, profile 정책, user batch 정책을 정리한다.
 
 ## 현재 정책 - User Lifecycle

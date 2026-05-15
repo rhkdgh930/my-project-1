@@ -1,5 +1,16 @@
 # Report
 
+## 최신 정책 - 신고 기반 통합 조치
+
+- `Report` 도메인은 신고 접수와 관리자 검토 상태 관리만 담당한다.
+- `ACTION_TAKEN`은 자동 삭제/자동 정지를 수행하지 않는 상태값이다.
+- `POST /api/admin/reports/{reportId}/actions/delete-target`는 신고 기반 명시 조치 API다.
+- `POST` 신고는 게시글 삭제 후 `ACTION_TAKEN`으로 변경한다.
+- `COMMENT` 신고는 댓글 삭제 후 `ACTION_TAKEN`으로 변경한다.
+- `USER` 신고는 이 API에서 지원하지 않고 기존 Admin User 화면에서 처리하도록 안내한다.
+- `DELETE /api/admin/moderation/posts/{postId}`와 `DELETE /api/admin/moderation/comments/{commentId}`는 신고와 무관한 관리자 직접 조치용으로 유지한다.
+- 신고 `content` 민감정보 masking과 audit log는 TODO다.
+
 ## 현재 정책
 
 - `Report` 도메인은 신고 접수와 관리자 검토 상태 관리만 담당한다.

@@ -1,5 +1,24 @@
 # Board / Post AI Rules
 
+## 최신 정책 - Post Tag
+
+- 게시글 생성/수정 요청은 optional `tags`를 받을 수 있다.
+- `tags == null`이면 빈 목록처럼 처리한다.
+- 태그명은 `trim`하고 빈 태그는 제거한다.
+- 중복 판단은 `trim` 결과 기준이며, 영문 대소문자 정규화는 아직 하지 않는다.
+- 게시글당 태그는 최대 5개, 태그명은 최대 20자까지 허용한다.
+- `Tag`는 `id`, `name`, `createdAt`을 가진다.
+- `PostTag`는 `id`, `postId`, `tagId`를 가지며 `Post @ManyToOne` 없이 ID 참조 구조를 사용한다.
+- `unique(post_id, tag_id)`로 같은 게시글 중복 태그를 방어한다.
+- 목록/상세/인기글/마이페이지 목록 응답에 additive field `tags`를 노출한다.
+- 태그 조회는 postId 목록 기반 bulk 조회로 처리해 N+1을 피한다.
+
+## TODO - Post Tag
+
+- 태그 검색과 태그별 게시글 조회를 별도 범위로 검토한다.
+- 영문 태그 대소문자 정규화 정책을 검토한다.
+- 사용되지 않는 orphan `Tag` cleanup을 검토한다.
+
 이 문서는 Board/Post 조회, hidden soft delete, QueryDSL 검색, Redis view count, DB like, Post image Outbox 정책을 정리한다.
 
 ## 현재 정책 - Board / Post Soft Delete
