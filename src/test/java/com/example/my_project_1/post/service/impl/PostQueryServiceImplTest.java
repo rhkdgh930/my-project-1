@@ -289,6 +289,53 @@ class PostQueryServiceImplTest {
     }
 
     @Test
+    @DisplayName("인기글 목록은 author를 매핑하고 Redis view delta를 응답에만 더한다.")
+    void getPopularPosts_mapsAuthorAndAddsRedisViewDelta() {
+        Long boardId = 1L;
+        Post post = post(boardId, 10L, 100L);
+        post.updateCounts(40L, 8L);
+
+        when(boardRepository.findByIdAndDeletedAtIsNull(boardId))
+                .thenReturn(Optional.ofNullable(Board.create("board", "description")));
+        when(postRepository.findPopularActivePosts(boardId, 10))
+                .thenReturn(List.of(post));
+        when(userClient.findAuthorsByIds(List.of(100L)))
+                .thenReturn(Map.of(100L, AuthorSummary.active(100L, "nickname", PROFILE_IMAGE_URL)));
+        when(postRedisService.getViewDeltaOrNull(10L)).thenReturn(5L);
+
+        List<PostListResponse> response = postQueryService.getPopularPosts(boardId, 10);
+
+        assertThat(response).hasSize(1);
+        PostListResponse postResponse = response.get(0);
+        assertThat(postResponse.getPostId()).isEqualTo(10L);
+        assertThat(postResponse.getBoardId()).isEqualTo(boardId);
+        assertThat(postResponse.getAuthor().id()).isEqualTo(100L);
+        assertThat(postResponse.getViewCount()).isEqualTo(45L);
+        assertThat(postResponse.getLikeCount()).isEqualTo(8L);
+        verify(postRepository).findPopularActivePosts(boardId, 10);
+        verify(postRedisService, never()).increaseView(any());
+    }
+
+    @Test
+    @DisplayName("인기글 목록은 size를 1 이상 50 이하로 제한한다.")
+    void getPopularPosts_limitsSize() {
+        Long boardId = 1L;
+
+        when(boardRepository.findByIdAndDeletedAtIsNull(boardId))
+                .thenReturn(Optional.ofNullable(Board.create("board", "description")));
+        when(postRepository.findPopularActivePosts(boardId, 10)).thenReturn(List.of());
+        when(postRepository.findPopularActivePosts(boardId, 50)).thenReturn(List.of());
+
+        postQueryService.getPopularPosts(boardId, 0);
+        postQueryService.getPopularPosts(boardId, 100);
+
+        verify(postRepository).findPopularActivePosts(boardId, 10);
+        verify(postRepository).findPopularActivePosts(boardId, 50);
+        verify(userClient, never()).findAuthorsByIds(any());
+        verify(postRedisService, never()).getViewDeltaOrNull(any());
+    }
+
+    @Test
     @DisplayName("게시글 상세 조회는 active post 확인 후 조회수를 증가시킨다.")
     void getPostDetail_increasesViewAfterActivePostFound() {
         Long boardId = 1L;

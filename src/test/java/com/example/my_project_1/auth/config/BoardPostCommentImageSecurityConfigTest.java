@@ -190,6 +190,8 @@ class BoardPostCommentImageSecurityConfigTest {
                 .andExpect(status().isOk());
         mockMvc.perform(get("/api/boards/1/posts"))
                 .andExpect(status().isOk());
+        mockMvc.perform(get("/api/boards/1/posts/popular"))
+                .andExpect(status().isOk());
         mockMvc.perform(get("/api/boards/1/posts/1"))
                 .andExpect(status().isOk());
         mockMvc.perform(get("/api/posts/1/comments"))

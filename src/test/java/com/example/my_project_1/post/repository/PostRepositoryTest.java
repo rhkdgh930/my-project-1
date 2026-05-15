@@ -20,6 +20,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -280,6 +281,37 @@ class PostRepositoryTest {
 
         assertThat(result.getContent()).isEmpty();
         assertThat(result.getTotalElements()).isZero();
+    }
+
+    @Test
+    @DisplayName("findPopularActivePosts는 likeCount * 3 + viewCount 점수순과 id 역순으로 활성 게시글을 조회한다.")
+    void findPopularActivePosts_returnsActivePostsInScoreOrder() {
+        Board board = board("popular-board");
+        Post low = postRepository.save(post(board, 100L, "low", "content"));
+        low.updateCounts(10L, 1L); // 13
+        Post sameScoreOld = postRepository.save(post(board, 101L, "same old", "content"));
+        sameScoreOld.updateCounts(12L, 1L); // 15
+        Post sameScoreNew = postRepository.save(post(board, 102L, "same new", "content"));
+        sameScoreNew.updateCounts(9L, 2L); // 15
+        Post high = postRepository.save(post(board, 103L, "high", "content"));
+        high.updateCounts(20L, 2L); // 26
+
+        postRepository.save(post(board("other-popular-board"), 104L, "other board", "content"));
+        Post deletedPost = postRepository.save(post(board, 105L, "deleted", "content"));
+        deletedPost.updateCounts(100L, 100L);
+        deletedPost.delete(LocalDateTime.of(2026, 5, 12, 10, 0));
+        Board deletedBoard = board("deleted-popular-board");
+        deletedBoard.delete(LocalDateTime.of(2026, 5, 12, 10, 0));
+        Post deletedBoardPost = postRepository.save(post(deletedBoard, 106L, "deleted board post", "content"));
+        deletedBoardPost.updateCounts(100L, 100L);
+        postRepository.flush();
+        entityManager.clear();
+
+        List<Post> result = postRepository.findPopularActivePosts(board.getId(), 3);
+
+        assertThat(result)
+                .extracting(Post::getId)
+                .containsExactly(high.getId(), sameScoreNew.getId(), sameScoreOld.getId());
     }
 
     @Test
