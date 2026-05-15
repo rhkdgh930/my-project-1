@@ -28,6 +28,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @Tag(name = "Post API", description = "게시글 조회, 작성, 수정, 삭제, 좋아요 API")
 @RestController
 @RequestMapping("/api/boards/{boardId}/posts")
@@ -147,6 +149,31 @@ public class PostController {
             @ParameterObject Pageable pageable
     ) {
         return postQueryService.getPosts(boardId, condition, pageable);
+    }
+
+    @Operation(
+            summary = "인기글 조회",
+            description = """
+                삭제되지 않은 Board의 활성 게시글을 DB 기준 단순 점수로 조회합니다.
+                점수는 likeCount * 3 + viewCount 기준이며 Redis view delta는 순위 계산에 반영하지 않습니다.
+                응답의 viewCount는 기존 목록과 동일하게 Redis delta로 보정될 수 있습니다.
+                Public API입니다.
+                """
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "인기글 조회 성공",
+                    content = @Content(schema = @Schema(implementation = PostListResponse.class))),
+            @ApiResponse(responseCode = "404", description = "게시판 없음 또는 삭제된 게시판",
+                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
+    })
+    @GetMapping("/popular")
+    public List<PostListResponse> getPopularPosts(
+            @Parameter(description = "게시판 ID", example = "1", required = true)
+            @PathVariable Long boardId,
+            @Parameter(description = "조회 개수. 기본값 10, 최대 50", example = "10")
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        return postQueryService.getPopularPosts(boardId, size);
     }
 
     @Operation(

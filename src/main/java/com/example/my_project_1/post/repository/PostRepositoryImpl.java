@@ -7,6 +7,7 @@ import com.example.my_project_1.post.service.request.PostSortType;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.core.types.dsl.NumberExpression;
 import com.querydsl.core.types.dsl.StringExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
@@ -184,6 +185,24 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
                 pageable,
                 total != null ? total : 0L
         );
+    }
+
+    @Override
+    public List<Post> findPopularActivePosts(Long boardId, int size) {
+        NumberExpression<Long> score = post.likeCount.multiply(3L).add(post.viewCount);
+
+        return queryFactory
+                .selectFrom(post)
+                .where(
+                        boardIdEq(boardId),
+                        activePost()
+                )
+                .orderBy(
+                        score.desc(),
+                        post.id.desc()
+                )
+                .limit(size)
+                .fetch();
     }
 
     private BooleanExpression boardIdEq(Long boardId) {
