@@ -41,6 +41,19 @@ class CommentTest {
     }
 
     @Test
+    @DisplayName("관리자 삭제는 작성자 검증 없이 댓글을 tombstone 처리한다.")
+    void deleteByAdmin_setsDeletedAtAndMasksContent() {
+        Comment comment = Comment.createRoot(1L, 10L, "content");
+        LocalDateTime now = LocalDateTime.of(2026, 5, 1, 0, 0);
+
+        comment.deleteByAdmin(now);
+
+        assertThat(comment.isDeleted()).isTrue();
+        assertThat(comment.getDeletedAt()).isEqualTo(now);
+        assertThat(comment.getContent()).isEqualTo(Comment.DELETED_CONTENT);
+    }
+
+    @Test
     @DisplayName("삭제된 댓글은 수정할 수 없다.")
     void update_rejectsDeletedComment() {
         Comment comment = Comment.createRoot(1L, 10L, "content");

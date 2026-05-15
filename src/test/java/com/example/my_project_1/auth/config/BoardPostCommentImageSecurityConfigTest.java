@@ -37,6 +37,15 @@ import com.example.my_project_1.post.controller.PostController;
 import com.example.my_project_1.post.service.PostCommandService;
 import com.example.my_project_1.post.service.PostQueryService;
 import com.example.my_project_1.post.service.request.PostSearchCondition;
+import com.example.my_project_1.report.controller.AdminReportController;
+import com.example.my_project_1.report.controller.AdminModerationController;
+import com.example.my_project_1.report.controller.ReportController;
+import com.example.my_project_1.report.domain.ReportStatus;
+import com.example.my_project_1.report.domain.ReportTargetType;
+import com.example.my_project_1.report.service.ReportService;
+import com.example.my_project_1.report.service.AdminModerationService;
+import com.example.my_project_1.report.service.request.ReportStatusUpdateRequest;
+import com.example.my_project_1.report.service.response.ReportResponse;
 import com.example.my_project_1.user.controller.UserController;
 import com.example.my_project_1.user.domain.AccountStatus;
 import com.example.my_project_1.user.domain.UserStatus;
@@ -85,7 +94,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         ImageController.class,
         AuthController.class,
         UserController.class,
-        AdminOutboxController.class
+        AdminOutboxController.class,
+        ReportController.class,
+        AdminModerationController.class,
+        AdminReportController.class
 })
 @Import({
         SecurityConfig.class,
@@ -142,6 +154,12 @@ class BoardPostCommentImageSecurityConfigTest {
 
     @MockitoBean
     private AdminOutboxService adminOutboxService;
+
+    @MockitoBean
+    private ReportService reportService;
+
+    @MockitoBean
+    private AdminModerationService adminModerationService;
 
     @MockitoBean
     private JwtProvider jwtProvider;
@@ -472,6 +490,155 @@ class BoardPostCommentImageSecurityConfigTest {
         verify(postQueryService).getCommentedPosts(eq(1L), any(Pageable.class));
     }
 
+    @Test
+    @DisplayName("신고 생성 API는 인증이 필요하고 인증 사용자는 호출할 수 있다.")
+    void reportCreateApi_requiresAuthenticationAndAllowsAuthenticatedUser() throws Exception {
+        when(reportService.create(eq(1L), any()))
+                .thenReturn(reportResponse(1L));
+
+        mockMvc.perform(post("/api/reports")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "targetType": "POST",
+                                  "targetId": 10,
+                                  "reason": "스팸",
+                                  "content": "신고 상세 내용"
+                                }
+                                """))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(post("/api/reports")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "targetType": "POST",
+                                  "targetId": 10,
+                                  "reason": "스팸",
+                                  "content": "신고 상세 내용"
+                                }
+                                """)
+                        .with(authentication(new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                                userDetails(),
+                                null,
+                                userDetails().getAuthorities()
+                        ))))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value(1L))
+                .andExpect(jsonPath("$.targetType").value(ReportTargetType.POST.name()))
+                .andExpect(jsonPath("$.status").value(ReportStatus.PENDING.name()));
+    }
+
+    @Test
+    @DisplayName("Admin Report API는 ADMIN 권한이 필요하고 일반 사용자는 접근할 수 없다.")
+    void adminReportApis_requireAdminRole() throws Exception {
+        when(reportService.findReports(any(Pageable.class)))
+                .thenReturn(new PageResponse<>(List.of(reportResponse(1L)), 0, 20, 1, 1, true));
+        when(reportService.findReport(1L)).thenReturn(reportResponse(1L));
+        when(reportService.updateStatus(eq(1L), eq(1L), any(ReportStatusUpdateRequest.class)))
+                .thenReturn(reportResponse(1L, ReportStatus.REVIEWED));
+        when(adminModerationService.deleteTargetByReport(1L, 1L))
+                .thenReturn(reportResponse(1L, ReportStatus.ACTION_TAKEN));
+
+        mockMvc.perform(get("/api/admin/reports"))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(get("/api/admin/reports")
+                        .with(authentication(new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                                userDetails(),
+                                null,
+                                userDetails().getAuthorities()
+                        ))))
+                .andExpect(status().isForbidden());
+
+        UserDetailsImpl adminDetails = userDetails("ADMIN");
+        mockMvc.perform(get("/api/admin/reports")
+                        .with(authentication(new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                                adminDetails,
+                                null,
+                                adminDetails.getAuthorities()
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].id").value(1L));
+
+        mockMvc.perform(get("/api/admin/reports/1")
+                        .with(authentication(new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                                adminDetails,
+                                null,
+                                adminDetails.getAuthorities()
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").value("신고 상세 내용"));
+
+        mockMvc.perform(patch("/api/admin/reports/1/status")
+                        .contentType("application/json")
+                        .content("{\"status\":\"REVIEWED\"}")
+                        .with(authentication(new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                                adminDetails,
+                                null,
+                                adminDetails.getAuthorities()
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(ReportStatus.REVIEWED.name()));
+
+        mockMvc.perform(post("/api/admin/reports/1/actions/delete-target"))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(post("/api/admin/reports/1/actions/delete-target")
+                        .with(authentication(new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                                userDetails(),
+                                null,
+                                userDetails().getAuthorities()
+                        ))))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(post("/api/admin/reports/1/actions/delete-target")
+                        .with(authentication(new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                                adminDetails,
+                                null,
+                                adminDetails.getAuthorities()
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(ReportStatus.ACTION_TAKEN.name()));
+
+        verify(adminModerationService).deleteTargetByReport(1L, 1L);
+    }
+
+    @Test
+    @DisplayName("Admin Moderation API는 ADMIN 권한이 필요하고 명시적 조치 서비스를 호출한다.")
+    void adminModerationApis_requireAdminRole() throws Exception {
+        mockMvc.perform(delete("/api/admin/moderation/posts/10"))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(delete("/api/admin/moderation/posts/10")
+                        .with(authentication(new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                                userDetails(),
+                                null,
+                                userDetails().getAuthorities()
+                        ))))
+                .andExpect(status().isForbidden());
+
+        UserDetailsImpl adminDetails = userDetails("ADMIN");
+        mockMvc.perform(delete("/api/admin/moderation/posts/10")
+                        .with(authentication(new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                                adminDetails,
+                                null,
+                                adminDetails.getAuthorities()
+                        ))))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(delete("/api/admin/moderation/comments/100")
+                        .with(authentication(new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                                adminDetails,
+                                null,
+                                adminDetails.getAuthorities()
+                        ))))
+                .andExpect(status().isNoContent());
+
+        verify(adminModerationService).deletePost(10L);
+        verify(adminModerationService).deleteComment(100L);
+    }
+
     private UserDetailsImpl userDetails() {
         return userDetails("USER");
     }
@@ -503,5 +670,24 @@ class BoardPostCommentImageSecurityConfigTest {
         );
         ReflectionTestUtils.setField(event, "id", id);
         return event;
+    }
+
+    private ReportResponse reportResponse(Long id) {
+        return reportResponse(id, ReportStatus.PENDING);
+    }
+
+    private ReportResponse reportResponse(Long id, ReportStatus status) {
+        return new ReportResponse(
+                id,
+                ReportTargetType.POST,
+                10L,
+                1L,
+                "스팸",
+                "신고 상세 내용",
+                status,
+                LocalDateTime.parse("2026-05-15T10:00:00"),
+                status == ReportStatus.PENDING ? null : LocalDateTime.parse("2026-05-15T11:00:00"),
+                status == ReportStatus.PENDING ? null : 1L
+        );
     }
 }
