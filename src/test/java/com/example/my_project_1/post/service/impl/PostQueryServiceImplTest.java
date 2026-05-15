@@ -9,6 +9,7 @@ import com.example.my_project_1.post.domain.Post;
 import com.example.my_project_1.post.repository.PostLikeRepository;
 import com.example.my_project_1.post.repository.PostRepository;
 import com.example.my_project_1.post.service.PostRedisService;
+import com.example.my_project_1.post.service.PostTagService;
 import com.example.my_project_1.post.service.request.PostSearchCondition;
 import com.example.my_project_1.post.service.request.PostSortType;
 import com.example.my_project_1.post.service.response.PostDetailResponse;
@@ -47,6 +48,7 @@ class PostQueryServiceImplTest {
     private PostLikeRepository postLikeRepository;
     private UserClient userClient;
     private PostRedisService postRedisService;
+    private PostTagService postTagService;
     private PostQueryServiceImpl postQueryService;
 
     @BeforeEach
@@ -56,7 +58,15 @@ class PostQueryServiceImplTest {
         postLikeRepository = mock(PostLikeRepository.class);
         userClient = mock(UserClient.class);
         postRedisService = mock(PostRedisService.class);
-        postQueryService = new PostQueryServiceImpl(boardRepository, postRepository, postLikeRepository, userClient, postRedisService);
+        postTagService = mock(PostTagService.class);
+        postQueryService = new PostQueryServiceImpl(
+                boardRepository,
+                postRepository,
+                postLikeRepository,
+                userClient,
+                postRedisService,
+                postTagService
+        );
     }
 
     @Test
@@ -73,6 +83,8 @@ class PostQueryServiceImplTest {
         when(userClient.findAuthorsByIds(List.of(100L)))
                 .thenReturn(Map.of(100L, AuthorSummary.active(100L, "nickname", PROFILE_IMAGE_URL)));
         when(postRedisService.getViewDeltaOrNull(10L)).thenReturn(3L);
+        when(postTagService.findTagNamesByPostIds(List.of(10L)))
+                .thenReturn(Map.of(10L, List.of("Spring", "Redis")));
 
         PageResponse<PostListResponse> response = postQueryService.getPosts(boardId, null, pageable);
 
@@ -86,7 +98,9 @@ class PostQueryServiceImplTest {
         assertThat(response.getContent().get(0).getAuthor().profileImageUrl()).isEqualTo(PROFILE_IMAGE_URL);
         assertThat(response.getContent().get(0).getViewCount()).isEqualTo(3L);
         assertThat(response.getContent().get(0).getLikeCount()).isEqualTo(0L);
+        assertThat(response.getContent().get(0).getTags()).containsExactly("Spring", "Redis");
         verify(postRepository).searchActivePosts(boardId, null, pageable);
+        verify(postTagService).findTagNamesByPostIds(List.of(10L));
     }
 
     @Test
@@ -346,6 +360,8 @@ class PostQueryServiceImplTest {
         when(userClient.findAuthorsByIds(List.of(100L)))
                 .thenReturn(Map.of(100L, AuthorSummary.active(100L, "nickname", PROFILE_IMAGE_URL)));
         when(postRedisService.getViewDeltaOrNull(postId)).thenReturn(4L);
+        when(postTagService.findTagNamesByPostIds(List.of(postId)))
+                .thenReturn(Map.of(postId, List.of("Spring")));
 
         PostDetailResponse response = postQueryService.getPostDetail(boardId, postId);
 
@@ -359,6 +375,7 @@ class PostQueryServiceImplTest {
         assertThat(response.getAuthor().displayName()).isEqualTo("nickname");
         assertThat(response.getAuthor().status()).isEqualTo(AuthorStatus.ACTIVE);
         assertThat(response.getAuthor().profileImageUrl()).isEqualTo(PROFILE_IMAGE_URL);
+        assertThat(response.getTags()).containsExactly("Spring");
         InOrder inOrder = inOrder(postRepository, postRedisService);
         inOrder.verify(postRepository).findActiveById(postId);
         inOrder.verify(postRedisService).increaseView(postId);

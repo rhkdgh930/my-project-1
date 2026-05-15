@@ -17,6 +17,7 @@ import com.example.my_project_1.post.service.request.PostCreateRequest;
 import com.example.my_project_1.post.service.request.PostUpdateRequest;
 import com.example.my_project_1.post.service.response.PostDetailResponse;
 import com.example.my_project_1.post.service.response.PostLikeResponse;
+import com.example.my_project_1.post.service.PostTagService;
 import com.example.my_project_1.user.client.AuthorStatus;
 import com.example.my_project_1.user.client.AuthorSummary;
 import com.example.my_project_1.user.client.UserClient;
@@ -56,6 +57,7 @@ class PostCommandServiceImplTest {
     private BoardRepository boardRepository;
     private PostRepository postRepository;
     private PostLikeRepository postLikeRepository;
+    private PostTagService postTagService;
     private UserClient userClient;
     private OutboxPublisher outboxPublisher;
     private PostCommandServiceImpl postCommandService;
@@ -65,6 +67,7 @@ class PostCommandServiceImplTest {
         boardRepository = mock(BoardRepository.class);
         postRepository = mock(PostRepository.class);
         postLikeRepository = mock(PostLikeRepository.class);
+        postTagService = mock(PostTagService.class);
         userClient = mock(UserClient.class);
         outboxPublisher = mock(OutboxPublisher.class);
 
@@ -72,6 +75,7 @@ class PostCommandServiceImplTest {
                 boardRepository,
                 postRepository,
                 postLikeRepository,
+                postTagService,
                 userClient,
                 outboxPublisher,
                 CLOCK
@@ -173,6 +177,30 @@ class PostCommandServiceImplTest {
     }
 
     @Test
+    @DisplayName("post create는 태그를 저장하고 응답에 태그 목록을 포함한다.")
+    void create_replacesTagsAndReturnsTags() {
+        Long boardId = 1L;
+        Long userId = 100L;
+        Board board = board(boardId);
+        PostCreateRequest request = createRequest("title", "content", List.of(" Spring ", "Redis"));
+
+        when(boardRepository.findByIdAndDeletedAtIsNull(boardId)).thenReturn(Optional.of(board));
+        when(postRepository.save(any(Post.class))).thenAnswer(invocation -> {
+            Post post = invocation.getArgument(0);
+            ReflectionTestUtils.setField(post, "id", 10L);
+            return post;
+        });
+        when(postTagService.replaceTags(10L, request.getTags())).thenReturn(List.of("Spring", "Redis"));
+        when(userClient.findAuthorsByIds(List.of(userId)))
+                .thenReturn(Map.of(userId, AuthorSummary.active(userId, "nickname")));
+
+        PostDetailResponse response = postCommandService.create(boardId, userId, request);
+
+        assertThat(response.getTags()).containsExactly("Spring", "Redis");
+        verify(postTagService).replaceTags(10L, request.getTags());
+    }
+
+    @Test
     @DisplayName("post create response는 작성자 조회 실패 시 UNKNOWN author를 사용한다.")
     void create_usesUnknownAuthorWhenUserLookupThrows() {
         Long boardId = 1L;
@@ -210,6 +238,26 @@ class PostCommandServiceImplTest {
         assertThat(response.getUserId()).isEqualTo(userId);
         assertThat(response.getAuthor().id()).isNull();
         assertThat(response.getAuthor().status()).isEqualTo(AuthorStatus.UNKNOWN);
+    }
+
+    @Test
+    @DisplayName("post update는 기존 태그를 요청 태그 목록으로 교체하고 응답에 포함한다.")
+    void update_replacesTagsAndReturnsTags() {
+        Long boardId = 1L;
+        Long postId = 10L;
+        Long userId = 100L;
+        Post post = post(boardId, postId, userId);
+        PostUpdateRequest request = updateRequest("updated title", "updated content", List.of("JPA", "Redis"));
+
+        when(postRepository.findActiveById(postId)).thenReturn(Optional.of(post));
+        when(postTagService.replaceTags(postId, request.getTags())).thenReturn(List.of("JPA", "Redis"));
+        when(userClient.findAuthorsByIds(List.of(userId)))
+                .thenReturn(Map.of(userId, AuthorSummary.active(userId, "nickname")));
+
+        PostDetailResponse response = postCommandService.update(boardId, postId, userId, request);
+
+        assertThat(response.getTags()).containsExactly("JPA", "Redis");
+        verify(postTagService).replaceTags(postId, request.getTags());
     }
 
     @Test
@@ -487,16 +535,26 @@ class PostCommandServiceImplTest {
     }
 
     private static PostCreateRequest createRequest(String title, String content) {
+        return createRequest(title, content, null);
+    }
+
+    private static PostCreateRequest createRequest(String title, String content, List<String> tags) {
         PostCreateRequest request = new PostCreateRequest();
         ReflectionTestUtils.setField(request, "title", title);
         ReflectionTestUtils.setField(request, "content", content);
+        ReflectionTestUtils.setField(request, "tags", tags);
         return request;
     }
 
     private static PostUpdateRequest updateRequest(String title, String content) {
+        return updateRequest(title, content, null);
+    }
+
+    private static PostUpdateRequest updateRequest(String title, String content, List<String> tags) {
         PostUpdateRequest request = new PostUpdateRequest();
         ReflectionTestUtils.setField(request, "title", title);
         ReflectionTestUtils.setField(request, "content", content);
+        ReflectionTestUtils.setField(request, "tags", tags);
         return request;
     }
 }
