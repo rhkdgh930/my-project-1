@@ -98,6 +98,14 @@ public class Comment extends BaseEntity {
         super.softDelete(now);
     }
 
+    public void deleteByAdmin(LocalDateTime now) {
+        if (isDeleted()) {
+            return;
+        }
+        this.content = DELETED_CONTENT;
+        super.softDelete(now);
+    }
+
     private void validateAuthor(Long userId) {
         if (!this.userId.equals(userId)) {
             throw new CustomException(ErrorCode.ACCESS_DENIED);
