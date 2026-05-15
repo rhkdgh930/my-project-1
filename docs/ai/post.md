@@ -29,6 +29,16 @@
 - 정렬은 DB에 마지막으로 sync된 `viewCount`와 DB `likeCount` 기준이다.
 - `CONTENT` 검색은 큰 데이터에서 full-text index 또는 search engine 도입을 검토한다.
 
+## 현재 정책 - Popular Posts
+
+- 인기글 조회 API는 `GET /api/boards/{boardId}/posts/popular`이다.
+- Public API이며 삭제된 Board/Post는 제외한다.
+- 초기 점수는 DB 기준 `likeCount * 3 + viewCount`이다.
+- Redis view delta는 ranking 계산에 반영하지 않는다.
+- 응답의 `viewCount`는 기존 목록 응답처럼 `DB viewCount + Redis delta`로 보정한다.
+- 조회 호출 자체는 `viewCount`를 증가시키지 않는다.
+- 기본 size는 10이고 최대 50으로 제한한다.
+
 ## 현재 정책 - Redis View Count
 
 - Redis는 view count 전용으로 사용한다.
