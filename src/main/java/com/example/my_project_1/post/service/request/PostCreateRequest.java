@@ -4,6 +4,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 
+import java.util.List;
+
 @Getter
 @Schema(description = "게시글 작성 요청")
 public class PostCreateRequest {
@@ -16,4 +18,7 @@ public class PostCreateRequest {
             requiredMode = Schema.RequiredMode.REQUIRED)
     @NotBlank
     private String content;
+
+    @Schema(description = "게시글 태그 목록. null이면 빈 목록처럼 처리합니다.", example = "[\"Spring\", \"Redis\"]")
+    private List<String> tags;
 }

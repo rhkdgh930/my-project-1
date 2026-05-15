@@ -9,6 +9,7 @@ import com.example.my_project_1.post.repository.PostLikeRepository;
 import com.example.my_project_1.post.repository.PostRepository;
 import com.example.my_project_1.post.service.PostQueryService;
 import com.example.my_project_1.post.service.PostRedisService;
+import com.example.my_project_1.post.service.PostTagService;
 import com.example.my_project_1.post.service.request.PostSearchCondition;
 import com.example.my_project_1.post.service.response.PostListResponse;
 import com.example.my_project_1.post.service.response.PostDetailResponse;
@@ -38,6 +39,7 @@ public class PostQueryServiceImpl implements PostQueryService {
     private final PostLikeRepository postLikeRepository;
     private final UserClient userClient;
     private final PostRedisService postRedisService;
+    private final PostTagService postTagService;
 
     @Override
     public PageResponse<PostListResponse> getPosts(
@@ -62,6 +64,8 @@ public class PostQueryServiceImpl implements PostQueryService {
                 ? Map.of()
                 : findAuthorsForList(boardId, authorIds);
 
+        Map<Long, List<String>> tagMap = findTagsForPosts(page.getContent());
+
         Page<PostListResponse> dtoPage = page.map(post -> {
             AuthorSummary author = authorMap.getOrDefault(
                     post.getUserId(),
@@ -73,6 +77,7 @@ public class PostQueryServiceImpl implements PostQueryService {
                     addDelta(post.getViewCount(), postRedisService.getViewDeltaOrNull(post.getId())),
                     post.getLikeCount()
             );
+            response.updateTags(tagMap.getOrDefault(post.getId(), List.of()));
             return response;
         });
 
@@ -115,6 +120,7 @@ public class PostQueryServiceImpl implements PostQueryService {
         Map<Long, AuthorSummary> authorMap = authorIds.isEmpty()
                 ? Map.of()
                 : findAuthorsForList(boardId, authorIds);
+        Map<Long, List<String>> tagMap = findTagsForPosts(posts);
 
         return posts.stream()
                 .map(post -> {
@@ -128,6 +134,7 @@ public class PostQueryServiceImpl implements PostQueryService {
                             addDelta(post.getViewCount(), postRedisService.getViewDeltaOrNull(post.getId())),
                             post.getLikeCount()
                     );
+                    response.updateTags(tagMap.getOrDefault(post.getId(), List.of()));
                     return response;
                 })
                 .toList();
@@ -142,6 +149,7 @@ public class PostQueryServiceImpl implements PostQueryService {
         Map<Long, AuthorSummary> authorMap = authorIds.isEmpty()
                 ? Map.of()
                 : findAuthorsForMePage(userId, authorIds);
+        Map<Long, List<String>> tagMap = findTagsForPosts(page.getContent());
 
         Page<PostListResponse> dtoPage = page.map(post -> {
             AuthorSummary author = authorMap.getOrDefault(
@@ -154,6 +162,7 @@ public class PostQueryServiceImpl implements PostQueryService {
                     addDelta(post.getViewCount(), postRedisService.getViewDeltaOrNull(post.getId())),
                     post.getLikeCount()
             );
+            response.updateTags(tagMap.getOrDefault(post.getId(), List.of()));
             return response;
         });
 
@@ -195,7 +204,16 @@ public class PostQueryServiceImpl implements PostQueryService {
                 post.getLikeCount()
         );
         response.updateLikedByMe(isLikedByMe(postId, currentUserId));
+        response.updateTags(findTagsForPosts(List.of(post)).getOrDefault(postId, List.of()));
         return response;
+    }
+
+    private Map<Long, List<String>> findTagsForPosts(List<Post> posts) {
+        List<Long> postIds = posts.stream()
+                .map(Post::getId)
+                .toList();
+        Map<Long, List<String>> tagMap = postTagService.findTagNamesByPostIds(postIds);
+        return tagMap != null ? tagMap : Map.of();
     }
 
     private boolean isLikedByMe(Long postId, Long currentUserId) {

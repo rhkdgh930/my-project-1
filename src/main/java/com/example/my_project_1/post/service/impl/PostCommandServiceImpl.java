@@ -17,6 +17,7 @@ import com.example.my_project_1.post.event.PostDeletedOutboxEvent;
 import com.example.my_project_1.post.event.PostUpdatedOutboxEvent;
 import com.example.my_project_1.post.repository.PostRepository;
 import com.example.my_project_1.post.service.PostCommandService;
+import com.example.my_project_1.post.service.PostTagService;
 import com.example.my_project_1.post.service.request.PostCreateRequest;
 import com.example.my_project_1.post.service.request.PostUpdateRequest;
 import com.example.my_project_1.post.service.response.PostDetailResponse;
@@ -42,6 +43,7 @@ public class PostCommandServiceImpl implements PostCommandService {
     private final BoardRepository boardRepository;
     private final PostRepository postRepository;
     private final PostLikeRepository postLikeRepository;
+    private final PostTagService postTagService;
     private final UserClient userClient;
     private final OutboxPublisher outboxPublisher;
     private final Clock clock;
@@ -59,6 +61,7 @@ public class PostCommandServiceImpl implements PostCommandService {
         );
 
         postRepository.save(post);
+        List<String> tags = postTagService.replaceTags(post.getId(), request.getTags());
 
         List<String> keys = ImageUrlParser.extractStorageKeys(request.getContent());
 
@@ -70,7 +73,9 @@ public class PostCommandServiceImpl implements PostCommandService {
                 OutboxEventKey.postCreated(post.getId())
         );
 
-        return PostDetailResponse.from(post, getAuthorOrUnknown(userId));
+        PostDetailResponse response = PostDetailResponse.from(post, getAuthorOrUnknown(userId));
+        response.updateTags(tags);
+        return response;
     }
 
     @Override
@@ -88,6 +93,7 @@ public class PostCommandServiceImpl implements PostCommandService {
         }
 
         post.update(request.getTitle(), request.getContent());
+        List<String> tags = postTagService.replaceTags(post.getId(), request.getTags());
 
         List<String> keys =
                 ImageUrlParser.extractStorageKeys(request.getContent());
@@ -101,7 +107,9 @@ public class PostCommandServiceImpl implements PostCommandService {
                 OutboxEventKey.postUpdated(postId)
         );
 
-        return PostDetailResponse.from(post, getAuthorOrUnknown(userId));
+        PostDetailResponse response = PostDetailResponse.from(post, getAuthorOrUnknown(userId));
+        response.updateTags(tags);
+        return response;
     }
 
     @Override
