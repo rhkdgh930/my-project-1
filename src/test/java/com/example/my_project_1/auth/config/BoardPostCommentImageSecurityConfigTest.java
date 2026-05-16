@@ -49,6 +49,8 @@ import com.example.my_project_1.report.service.request.ReportStatusUpdateRequest
 import com.example.my_project_1.report.service.response.ReportResponse;
 import com.example.my_project_1.user.controller.UserController;
 import com.example.my_project_1.user.domain.AccountStatus;
+import com.example.my_project_1.user.domain.SuspensionReason;
+import com.example.my_project_1.user.domain.SuspensionType;
 import com.example.my_project_1.user.domain.UserStatus;
 import com.example.my_project_1.user.service.UserCommandService;
 import com.example.my_project_1.user.service.UserQueryService;
@@ -545,6 +547,13 @@ class BoardPostCommentImageSecurityConfigTest {
                 .thenReturn(reportResponse(1L, ReportStatus.REVIEWED));
         when(adminModerationService.deleteTargetByReport(1L, 1L))
                 .thenReturn(reportResponse(1L, ReportStatus.ACTION_TAKEN));
+        when(adminModerationService.suspendUserByReport(
+                eq(1L),
+                eq(1L),
+                eq(SuspensionType.TEMPORARY),
+                eq(SuspensionReason.SPAM),
+                any()
+        )).thenReturn(reportResponse(1L, ReportStatus.ACTION_TAKEN));
 
         mockMvc.perform(get("/api/admin/reports"))
                 .andExpect(status().isUnauthorized());
@@ -608,6 +617,42 @@ class BoardPostCommentImageSecurityConfigTest {
                 .andExpect(jsonPath("$.status").value(ReportStatus.ACTION_TAKEN.name()));
 
         verify(adminModerationService).deleteTargetByReport(1L, 1L);
+
+        mockMvc.perform(post("/api/admin/reports/1/actions/suspend-user"))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(post("/api/admin/reports/1/actions/suspend-user")
+                        .contentType("application/json")
+                        .content("""
+                                {"type":"TEMPORARY","reason":"SPAM","days":7}
+                                """)
+                        .with(authentication(new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                                userDetails(),
+                                null,
+                                userDetails().getAuthorities()
+                        ))))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(post("/api/admin/reports/1/actions/suspend-user")
+                        .contentType("application/json")
+                        .content("""
+                                {"type":"TEMPORARY","reason":"SPAM","days":7}
+                                """)
+                        .with(authentication(new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                                adminDetails,
+                                null,
+                                adminDetails.getAuthorities()
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(ReportStatus.ACTION_TAKEN.name()));
+
+        verify(adminModerationService).suspendUserByReport(
+                eq(1L),
+                eq(1L),
+                eq(SuspensionType.TEMPORARY),
+                eq(SuspensionReason.SPAM),
+                any()
+        );
     }
 
     @Test

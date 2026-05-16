@@ -13,12 +13,16 @@ import com.example.my_project_1.report.domain.ReportStatus;
 import com.example.my_project_1.report.domain.ReportTargetType;
 import com.example.my_project_1.report.repository.ReportRepository;
 import com.example.my_project_1.report.service.response.ReportResponse;
+import com.example.my_project_1.user.domain.SuspensionReason;
+import com.example.my_project_1.user.domain.SuspensionType;
+import com.example.my_project_1.user.service.AdminUserCommandService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -44,6 +48,7 @@ class AdminModerationServiceImplTest {
     private CommentRepository commentRepository;
     private ReportRepository reportRepository;
     private OutboxPublisher outboxPublisher;
+    private AdminUserCommandService adminUserCommandService;
     private AdminModerationServiceImpl service;
 
     @BeforeEach
@@ -52,7 +57,15 @@ class AdminModerationServiceImplTest {
         commentRepository = mock(CommentRepository.class);
         reportRepository = mock(ReportRepository.class);
         outboxPublisher = mock(OutboxPublisher.class);
-        service = new AdminModerationServiceImpl(postRepository, commentRepository, reportRepository, outboxPublisher, CLOCK);
+        adminUserCommandService = mock(AdminUserCommandService.class);
+        service = new AdminModerationServiceImpl(
+                postRepository,
+                commentRepository,
+                reportRepository,
+                outboxPublisher,
+                adminUserCommandService,
+                CLOCK
+        );
     }
 
     @Test
@@ -180,6 +193,99 @@ class AdminModerationServiceImplTest {
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.POST_NOT_FOUND);
 
+        assertThat(report.getStatus()).isEqualTo(ReportStatus.PENDING);
+    }
+
+    @Test
+    @DisplayName("USER 신고 정지 조치는 유저를 정지하고 신고 상태를 ACTION_TAKEN으로 변경한다.")
+    void suspendUserByReport_suspendsUserAndMarksActionTaken() {
+        Report report = report(1L, ReportTargetType.USER, 20L);
+        when(reportRepository.findById(1L)).thenReturn(Optional.of(report));
+
+        ReportResponse response = service.suspendUserByReport(
+                1L,
+                99L,
+                SuspensionType.TEMPORARY,
+                SuspensionReason.SPAM,
+                Duration.ofDays(7)
+        );
+
+        verify(adminUserCommandService).suspendUser(
+                20L,
+                SuspensionType.TEMPORARY,
+                SuspensionReason.SPAM,
+                Duration.ofDays(7)
+        );
+        assertThat(response.status()).isEqualTo(ReportStatus.ACTION_TAKEN);
+        assertThat(response.reviewerId()).isEqualTo(99L);
+        assertThat(response.reviewedAt()).isEqualTo(LocalDateTime.now(CLOCK));
+    }
+
+    @Test
+    @DisplayName("POST/COMMENT 신고는 USER 정지 조치 API에서 지원하지 않는다.")
+    void suspendUserByReport_rejectsPostOrCommentTarget() {
+        Report report = report(1L, ReportTargetType.POST, 10L);
+        when(reportRepository.findById(1L)).thenReturn(Optional.of(report));
+
+        assertThatThrownBy(() -> service.suspendUserByReport(
+                1L,
+                99L,
+                SuspensionType.PERMANENT,
+                SuspensionReason.OTHER,
+                null
+        ))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.UNSUPPORTED_REPORT_TARGET);
+
+        verify(adminUserCommandService, never()).suspendUser(
+                eq(10L),
+                eq(SuspensionType.PERMANENT),
+                eq(SuspensionReason.OTHER),
+                eq(null)
+        );
+    }
+
+    @Test
+    @DisplayName("없는 신고로 USER 정지 조치를 요청하면 REPORT_NOT_FOUND로 실패한다.")
+    void suspendUserByReport_rejectsMissingReport() {
+        when(reportRepository.findById(1L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.suspendUserByReport(
+                1L,
+                99L,
+                SuspensionType.PERMANENT,
+                SuspensionReason.OTHER,
+                null
+        ))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.REPORT_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("관리자는 신고 기반 조치로 자기 자신을 정지할 수 없다.")
+    void suspendUserByReport_rejectsSelfSuspension() {
+        Report report = report(1L, ReportTargetType.USER, 99L);
+        when(reportRepository.findById(1L)).thenReturn(Optional.of(report));
+
+        assertThatThrownBy(() -> service.suspendUserByReport(
+                1L,
+                99L,
+                SuspensionType.PERMANENT,
+                SuspensionReason.OTHER,
+                null
+        ))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.INVALID_USER_STATUS);
+
+        verify(adminUserCommandService, never()).suspendUser(
+                eq(99L),
+                eq(SuspensionType.PERMANENT),
+                eq(SuspensionReason.OTHER),
+                eq(null)
+        );
         assertThat(report.getStatus()).isEqualTo(ReportStatus.PENDING);
     }
 
