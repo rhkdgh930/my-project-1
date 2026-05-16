@@ -7,6 +7,7 @@ import com.example.my_project_1.admin.repository.AdminActionLogRepository;
 import com.example.my_project_1.admin.service.AdminActionLogService;
 import com.example.my_project_1.admin.service.request.AdminActionLogSearchCondition;
 import com.example.my_project_1.admin.service.response.AdminActionLogResponse;
+import com.example.my_project_1.common.monitoring.MonitoringService;
 import com.example.my_project_1.common.utils.DataSerializer;
 import com.example.my_project_1.common.utils.PageResponse;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +26,7 @@ import java.util.Map;
 public class AdminActionLogServiceImpl implements AdminActionLogService {
 
     private final AdminActionLogRepository repository;
+    private final MonitoringService monitoringService;
     private final Clock clock;
 
     @Override
@@ -47,6 +49,7 @@ public class AdminActionLogServiceImpl implements AdminActionLogService {
                 LocalDateTime.now(clock)
         );
         repository.save(log);
+        monitoringService.recordAdminAuditLogCreated(actionType, targetType);
     }
 
     @Override

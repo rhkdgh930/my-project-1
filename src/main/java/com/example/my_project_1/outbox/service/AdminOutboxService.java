@@ -5,6 +5,7 @@ import com.example.my_project_1.admin.domain.AdminActionType;
 import com.example.my_project_1.admin.service.AdminActionLogService;
 import com.example.my_project_1.common.exception.CustomException;
 import com.example.my_project_1.common.exception.ErrorCode;
+import com.example.my_project_1.common.monitoring.MonitoringService;
 import com.example.my_project_1.common.utils.PageResponse;
 import com.example.my_project_1.outbox.domain.OutboxEvent;
 import com.example.my_project_1.outbox.domain.OutboxStatus;
@@ -29,6 +30,7 @@ public class AdminOutboxService {
     private final OutboxRepository outboxRepository;
     private final OutboxPublisher outboxPublisher;
     private final AdminActionLogService adminActionLogService;
+    private final MonitoringService monitoringService;
 
     @Transactional(readOnly = true)
     public PageResponse<AdminOutboxResponse> findPage(OutboxStatus status, Pageable pageable) {
@@ -50,6 +52,7 @@ public class AdminOutboxService {
     public void retry(Long id) {
         OutboxEvent event = findRetryableEvent(id);
         event.resetForRetry(LocalDateTime.now(clock));
+        monitoringService.recordOutboxRetryRequest("retry");
     }
 
     public void retryNow(Long id) {
@@ -57,6 +60,7 @@ public class AdminOutboxService {
         event.resetForRetry(LocalDateTime.now(clock));
 
         outboxPublisher.requestProcessing(event.getId());
+        monitoringService.recordOutboxRetryRequest("retry_now");
     }
 
     public void retry(Long id, Long adminId) {

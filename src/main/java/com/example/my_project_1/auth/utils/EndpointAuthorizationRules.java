@@ -33,7 +33,13 @@ public final class EndpointAuthorizationRules {
             "/api/users/password-reset/**",
 
             "/favicon.ico",
-            "/images/**"
+            "/images/**",
+
+            "/actuator/health",
+            "/actuator/info",
+            "/actuator/metrics",
+            "/actuator/metrics/**",
+            "/actuator/prometheus"
     };
 
     /**

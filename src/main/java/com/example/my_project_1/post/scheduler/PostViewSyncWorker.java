@@ -1,5 +1,6 @@
 package com.example.my_project_1.post.scheduler;
 
+import com.example.my_project_1.common.monitoring.MonitoringService;
 import com.example.my_project_1.post.repository.PostRepository;
 import com.example.my_project_1.post.service.PostRedisService;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +16,7 @@ public class PostViewSyncWorker {
 
     private final PostRedisService redisService;
     private final PostRepository postRepository;
+    private final MonitoringService monitoringService;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void syncSingle(Long postId) {
@@ -22,16 +24,24 @@ public class PostViewSyncWorker {
 
         if (viewDelta == null || viewDelta <= 0) {
             redisService.removeViewDirty(postId);
+            monitoringService.recordPostViewSyncSkipped("empty_delta");
             return;
         }
 
-        int updated = postRepository.updateViewCountDelta(postId, viewDelta);
+        try {
+            int updated = postRepository.updateViewCountDelta(postId, viewDelta);
 
-        if (updated == 0) {
-            log.warn("[VIEW_SYNC][POST_NOT_FOUND_OR_NOT_UPDATED] postId={} delta={}", postId, viewDelta);
-            return;
+            if (updated == 0) {
+                log.warn("[VIEW_SYNC][POST_NOT_FOUND_OR_NOT_UPDATED] postId={} delta={}", postId, viewDelta);
+                monitoringService.recordPostViewSyncFail("not_updated");
+                return;
+            }
+
+            redisService.acknowledgeSyncedViewDelta(postId, viewDelta);
+            monitoringService.recordPostViewSyncSuccess();
+        } catch (Exception e) {
+            monitoringService.recordPostViewSyncFail("exception");
+            throw e;
         }
-
-        redisService.acknowledgeSyncedViewDelta(postId, viewDelta);
     }
 }

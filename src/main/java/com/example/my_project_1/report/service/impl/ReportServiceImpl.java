@@ -7,6 +7,7 @@ import com.example.my_project_1.comment.domain.Comment;
 import com.example.my_project_1.comment.repository.CommentRepository;
 import com.example.my_project_1.common.exception.CustomException;
 import com.example.my_project_1.common.exception.ErrorCode;
+import com.example.my_project_1.common.monitoring.MonitoringService;
 import com.example.my_project_1.common.utils.PageResponse;
 import com.example.my_project_1.post.repository.PostRepository;
 import com.example.my_project_1.report.domain.Report;
@@ -39,6 +40,7 @@ public class ReportServiceImpl implements ReportService {
     private final CommentRepository commentRepository;
     private final UserRepository userRepository;
     private final AdminActionLogService adminActionLogService;
+    private final MonitoringService monitoringService;
     private final Clock clock;
 
     @Override
@@ -55,7 +57,9 @@ public class ReportServiceImpl implements ReportService {
                     request.reason(),
                     request.content()
             );
-            return ReportResponse.from(reportRepository.saveAndFlush(report));
+            Report savedReport = reportRepository.saveAndFlush(report);
+            monitoringService.recordReportCreated(savedReport.getTargetType());
+            return ReportResponse.from(savedReport);
         } catch (DataIntegrityViolationException e) {
             throw new CustomException(ErrorCode.DUPLICATED_REPORT);
         }

@@ -7,6 +7,7 @@ import com.example.my_project_1.comment.domain.Comment;
 import com.example.my_project_1.comment.repository.CommentRepository;
 import com.example.my_project_1.common.exception.CustomException;
 import com.example.my_project_1.common.exception.ErrorCode;
+import com.example.my_project_1.common.monitoring.MonitoringService;
 import com.example.my_project_1.common.utils.DataSerializer;
 import com.example.my_project_1.outbox.domain.OutboxEventKey;
 import com.example.my_project_1.outbox.domain.OutboxEventType;
@@ -44,6 +45,7 @@ public class AdminModerationServiceImpl implements AdminModerationService {
     private final OutboxPublisher outboxPublisher;
     private final AdminUserCommandService adminUserCommandService;
     private final AdminActionLogService adminActionLogService;
+    private final MonitoringService monitoringService;
     private final Clock clock;
 
     @Override
@@ -82,6 +84,7 @@ public class AdminModerationServiceImpl implements AdminModerationService {
                 "관리자가 게시글을 삭제했습니다.",
                 Map.of()
         );
+        monitoringService.recordAdminModerationAction(AdminActionType.MODERATION_DELETE_POST, ReportTargetType.POST.name());
     }
 
     @Override
@@ -95,6 +98,7 @@ public class AdminModerationServiceImpl implements AdminModerationService {
                 "관리자가 댓글을 삭제했습니다.",
                 Map.of()
         );
+        monitoringService.recordAdminModerationAction(AdminActionType.MODERATION_DELETE_COMMENT, ReportTargetType.COMMENT.name());
     }
 
     @Override
@@ -122,6 +126,7 @@ public class AdminModerationServiceImpl implements AdminModerationService {
                         "targetId", report.getTargetId()
                 )
         );
+        monitoringService.recordAdminModerationAction(AdminActionType.REPORT_DELETE_TARGET, report.getTargetType().name());
         return ReportResponse.from(report);
     }
 
@@ -161,6 +166,7 @@ public class AdminModerationServiceImpl implements AdminModerationService {
                 "관리자가 USER 신고 대상 유저를 정지했습니다.",
                 metadata
         );
+        monitoringService.recordAdminModerationAction(AdminActionType.REPORT_SUSPEND_USER, ReportTargetType.USER.name());
         return ReportResponse.from(report);
     }
 }
