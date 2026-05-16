@@ -1,5 +1,8 @@
 package com.example.my_project_1.report.service.impl;
 
+import com.example.my_project_1.admin.domain.AdminActionTargetType;
+import com.example.my_project_1.admin.domain.AdminActionType;
+import com.example.my_project_1.admin.service.AdminActionLogService;
 import com.example.my_project_1.comment.domain.Comment;
 import com.example.my_project_1.comment.repository.CommentRepository;
 import com.example.my_project_1.common.exception.CustomException;
@@ -26,6 +29,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -49,6 +53,7 @@ class AdminModerationServiceImplTest {
     private ReportRepository reportRepository;
     private OutboxPublisher outboxPublisher;
     private AdminUserCommandService adminUserCommandService;
+    private AdminActionLogService adminActionLogService;
     private AdminModerationServiceImpl service;
 
     @BeforeEach
@@ -58,12 +63,14 @@ class AdminModerationServiceImplTest {
         reportRepository = mock(ReportRepository.class);
         outboxPublisher = mock(OutboxPublisher.class);
         adminUserCommandService = mock(AdminUserCommandService.class);
+        adminActionLogService = mock(AdminActionLogService.class);
         service = new AdminModerationServiceImpl(
                 postRepository,
                 commentRepository,
                 reportRepository,
                 outboxPublisher,
                 adminUserCommandService,
+                adminActionLogService,
                 CLOCK
         );
     }
@@ -109,6 +116,46 @@ class AdminModerationServiceImplTest {
     }
 
     @Test
+    @DisplayName("관리자 직접 게시글 삭제 성공 시 감사 로그를 저장한다.")
+    void deletePostByAdmin_writesAuditLog() {
+        Post post = mock(Post.class);
+        when(post.getId()).thenReturn(10L);
+        when(post.getUserId()).thenReturn(20L);
+        when(postRepository.findActiveById(10L)).thenReturn(Optional.of(post));
+
+        service.deletePost(10L, 99L);
+
+        verify(adminActionLogService).log(
+                99L,
+                AdminActionType.MODERATION_DELETE_POST,
+                AdminActionTargetType.POST,
+                10L,
+                "관리자가 게시글을 삭제했습니다.",
+                Map.of()
+        );
+    }
+
+    @Test
+    @DisplayName("관리자 직접 댓글 삭제 성공 시 감사 로그를 저장한다.")
+    void deleteCommentByAdmin_writesAuditLog() {
+        Comment comment = Comment.createRoot(10L, 20L, "댓글 내용");
+        ReflectionTestUtils.setField(comment, "id", 100L);
+        when(commentRepository.findByIdAndDeletedAtIsNull(100L)).thenReturn(Optional.of(comment));
+        when(postRepository.findActiveById(10L)).thenReturn(Optional.of(mock(Post.class)));
+
+        service.deleteComment(100L, 99L);
+
+        verify(adminActionLogService).log(
+                99L,
+                AdminActionType.MODERATION_DELETE_COMMENT,
+                AdminActionTargetType.COMMENT,
+                100L,
+                "관리자가 댓글을 삭제했습니다.",
+                Map.of()
+        );
+    }
+
+    @Test
     @DisplayName("삭제됐거나 없는 댓글을 관리자 삭제하면 COMMENT_NOT_FOUND로 실패한다.")
     void deleteComment_rejectsMissingComment() {
         when(commentRepository.findByIdAndDeletedAtIsNull(100L)).thenReturn(Optional.empty());
@@ -136,6 +183,14 @@ class AdminModerationServiceImplTest {
         assertThat(response.status()).isEqualTo(ReportStatus.ACTION_TAKEN);
         assertThat(response.reviewerId()).isEqualTo(99L);
         assertThat(response.reviewedAt()).isEqualTo(LocalDateTime.now(CLOCK));
+        verify(adminActionLogService).log(
+                eq(99L),
+                eq(AdminActionType.REPORT_DELETE_TARGET),
+                eq(AdminActionTargetType.REPORT),
+                eq(1L),
+                eq("관리자가 신고 대상 삭제 조치를 완료했습니다."),
+                org.mockito.ArgumentMatchers.anyMap()
+        );
     }
 
     @Test
@@ -153,6 +208,14 @@ class AdminModerationServiceImplTest {
         assertThat(comment.isDeleted()).isTrue();
         assertThat(response.status()).isEqualTo(ReportStatus.ACTION_TAKEN);
         assertThat(response.reviewerId()).isEqualTo(99L);
+        verify(adminActionLogService).log(
+                eq(99L),
+                eq(AdminActionType.REPORT_DELETE_TARGET),
+                eq(AdminActionTargetType.REPORT),
+                eq(1L),
+                eq("관리자가 신고 대상 삭제 조치를 완료했습니다."),
+                org.mockito.ArgumentMatchers.anyMap()
+        );
     }
 
     @Test
@@ -219,6 +282,14 @@ class AdminModerationServiceImplTest {
         assertThat(response.status()).isEqualTo(ReportStatus.ACTION_TAKEN);
         assertThat(response.reviewerId()).isEqualTo(99L);
         assertThat(response.reviewedAt()).isEqualTo(LocalDateTime.now(CLOCK));
+        verify(adminActionLogService).log(
+                eq(99L),
+                eq(AdminActionType.REPORT_SUSPEND_USER),
+                eq(AdminActionTargetType.REPORT),
+                eq(1L),
+                eq("관리자가 USER 신고 대상 유저를 정지했습니다."),
+                org.mockito.ArgumentMatchers.anyMap()
+        );
     }
 
     @Test

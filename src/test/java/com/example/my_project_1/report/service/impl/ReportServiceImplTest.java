@@ -1,5 +1,8 @@
 package com.example.my_project_1.report.service.impl;
 
+import com.example.my_project_1.admin.domain.AdminActionTargetType;
+import com.example.my_project_1.admin.domain.AdminActionType;
+import com.example.my_project_1.admin.service.AdminActionLogService;
 import com.example.my_project_1.comment.domain.Comment;
 import com.example.my_project_1.comment.repository.CommentRepository;
 import com.example.my_project_1.common.exception.CustomException;
@@ -51,6 +54,7 @@ class ReportServiceImplTest {
     private PostRepository postRepository;
     private CommentRepository commentRepository;
     private UserRepository userRepository;
+    private AdminActionLogService adminActionLogService;
     private ReportServiceImpl reportService;
 
     @BeforeEach
@@ -59,11 +63,13 @@ class ReportServiceImplTest {
         postRepository = mock(PostRepository.class);
         commentRepository = mock(CommentRepository.class);
         userRepository = mock(UserRepository.class);
+        adminActionLogService = mock(AdminActionLogService.class);
         reportService = new ReportServiceImpl(
                 reportRepository,
                 postRepository,
                 commentRepository,
                 userRepository,
+                adminActionLogService,
                 CLOCK
         );
     }
@@ -244,6 +250,14 @@ class ReportServiceImplTest {
         assertThat(response.status()).isEqualTo(ReportStatus.REVIEWED);
         assertThat(response.reviewerId()).isEqualTo(99L);
         assertThat(response.reviewedAt()).isEqualTo(LocalDateTime.now(CLOCK));
+        verify(adminActionLogService).log(
+                org.mockito.ArgumentMatchers.eq(99L),
+                org.mockito.ArgumentMatchers.eq(AdminActionType.REPORT_STATUS_CHANGE),
+                org.mockito.ArgumentMatchers.eq(AdminActionTargetType.REPORT),
+                org.mockito.ArgumentMatchers.eq(1L),
+                org.mockito.ArgumentMatchers.eq("관리자가 신고 상태를 변경했습니다."),
+                org.mockito.ArgumentMatchers.anyMap()
+        );
     }
 
     @Test

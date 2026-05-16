@@ -1,5 +1,8 @@
 package com.example.my_project_1.outbox.service;
 
+import com.example.my_project_1.admin.domain.AdminActionTargetType;
+import com.example.my_project_1.admin.domain.AdminActionType;
+import com.example.my_project_1.admin.service.AdminActionLogService;
 import com.example.my_project_1.common.exception.CustomException;
 import com.example.my_project_1.common.exception.ErrorCode;
 import com.example.my_project_1.common.utils.PageResponse;
@@ -20,6 +23,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -37,7 +41,8 @@ class AdminOutboxServiceTest {
     );
     private final OutboxRepository outboxRepository = mock(OutboxRepository.class);
     private final OutboxPublisher outboxPublisher = mock(OutboxPublisher.class);
-    private final AdminOutboxService service = new AdminOutboxService(clock, outboxRepository, outboxPublisher);
+    private final AdminActionLogService adminActionLogService = mock(AdminActionLogService.class);
+    private final AdminOutboxService service = new AdminOutboxService(clock, outboxRepository, outboxPublisher, adminActionLogService);
 
     @Test
     @DisplayName("status 필터가 없으면 전체 Outbox event page를 payload 없이 조회한다.")
@@ -159,6 +164,44 @@ class AdminOutboxServiceTest {
 
         assertResetForRetry(event);
         verify(outboxPublisher).requestProcessing(1L);
+    }
+
+    @Test
+    @DisplayName("Outbox event admin retry 성공 시 감사 로그를 저장한다.")
+    void retryByAdmin_writesAuditLog() {
+        OutboxEvent event = event(1L);
+        event.markFail(new RuntimeException("temporary failure"), LocalDateTime.now(clock));
+        when(outboxRepository.findById(1L)).thenReturn(Optional.of(event));
+
+        service.retry(1L, 99L);
+
+        verify(adminActionLogService).log(
+                99L,
+                AdminActionType.OUTBOX_RETRY,
+                AdminActionTargetType.OUTBOX,
+                1L,
+                "관리자가 Outbox 이벤트 재시도를 예약했습니다.",
+                Map.of()
+        );
+    }
+
+    @Test
+    @DisplayName("Outbox event retry-now 성공 시 감사 로그를 저장한다.")
+    void retryNowByAdmin_writesAuditLog() {
+        OutboxEvent event = event(1L);
+        event.markFail(new RuntimeException("temporary failure"), LocalDateTime.now(clock));
+        when(outboxRepository.findById(1L)).thenReturn(Optional.of(event));
+
+        service.retryNow(1L, 99L);
+
+        verify(adminActionLogService).log(
+                99L,
+                AdminActionType.OUTBOX_RETRY_NOW,
+                AdminActionTargetType.OUTBOX,
+                1L,
+                "관리자가 Outbox 이벤트 즉시 재시도를 요청했습니다.",
+                Map.of()
+        );
     }
 
     @Test

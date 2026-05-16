@@ -1,5 +1,10 @@
 package com.example.my_project_1.auth.config;
 
+import com.example.my_project_1.admin.controller.AdminActionLogController;
+import com.example.my_project_1.admin.domain.AdminActionTargetType;
+import com.example.my_project_1.admin.domain.AdminActionType;
+import com.example.my_project_1.admin.service.AdminActionLogService;
+import com.example.my_project_1.admin.service.response.AdminActionLogResponse;
 import com.example.my_project_1.auth.filter.JwtAuthenticationFilter;
 import com.example.my_project_1.auth.handler.*;
 import com.example.my_project_1.auth.controller.AuthController;
@@ -101,7 +106,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         AdminOutboxController.class,
         ReportController.class,
         AdminModerationController.class,
-        AdminReportController.class
+        AdminReportController.class,
+        AdminActionLogController.class
 })
 @Import({
         SecurityConfig.class,
@@ -158,6 +164,9 @@ class BoardPostCommentImageSecurityConfigTest {
 
     @MockitoBean
     private AdminOutboxService adminOutboxService;
+
+    @MockitoBean
+    private AdminActionLogService adminActionLogService;
 
     @MockitoBean
     private ReportService reportService;
@@ -686,8 +695,55 @@ class BoardPostCommentImageSecurityConfigTest {
                         ))))
                 .andExpect(status().isNoContent());
 
-        verify(adminModerationService).deletePost(10L);
-        verify(adminModerationService).deleteComment(100L);
+        verify(adminModerationService).deletePost(10L, 1L);
+        verify(adminModerationService).deleteComment(100L, 1L);
+    }
+
+    @Test
+    @DisplayName("Admin Audit Log API는 ADMIN 권한이 필요하고 관리자만 조회할 수 있다.")
+    void adminAuditLogApi_requiresAdminRole() throws Exception {
+        when(adminActionLogService.findLogs(
+                eq(AdminActionType.USER_SUSPEND),
+                eq(AdminActionTargetType.USER),
+                eq(1L),
+                any(Pageable.class)
+        )).thenReturn(new PageResponse<>(List.of(
+                new AdminActionLogResponse(
+                        1L,
+                        1L,
+                        AdminActionType.USER_SUSPEND,
+                        AdminActionTargetType.USER,
+                        2L,
+                        "관리자가 유저를 정지했습니다.",
+                        "{}",
+                        LocalDateTime.parse("2026-05-15T10:00:00")
+                )
+        ), 0, 20, 1, 1, true));
+
+        mockMvc.perform(get("/api/admin/audit-logs"))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(get("/api/admin/audit-logs")
+                        .with(authentication(new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                                userDetails(),
+                                null,
+                                userDetails().getAuthorities()
+                        ))))
+                .andExpect(status().isForbidden());
+
+        UserDetailsImpl adminDetails = userDetails("ADMIN");
+        mockMvc.perform(get("/api/admin/audit-logs")
+                        .param("actionType", "USER_SUSPEND")
+                        .param("targetType", "USER")
+                        .param("adminId", "1")
+                        .with(authentication(new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                                adminDetails,
+                                null,
+                                adminDetails.getAuthorities()
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].actionType").value(AdminActionType.USER_SUSPEND.name()))
+                .andExpect(jsonPath("$.content[0].targetType").value(AdminActionTargetType.USER.name()));
     }
 
     private UserDetailsImpl userDetails() {
