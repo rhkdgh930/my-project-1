@@ -17,11 +17,15 @@ import com.example.my_project_1.report.domain.ReportTargetType;
 import com.example.my_project_1.report.repository.ReportRepository;
 import com.example.my_project_1.report.service.AdminModerationService;
 import com.example.my_project_1.report.service.response.ReportResponse;
+import com.example.my_project_1.user.domain.SuspensionReason;
+import com.example.my_project_1.user.domain.SuspensionType;
+import com.example.my_project_1.user.service.AdminUserCommandService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.LocalDateTime;
 
 @Service
@@ -33,6 +37,7 @@ public class AdminModerationServiceImpl implements AdminModerationService {
     private final CommentRepository commentRepository;
     private final ReportRepository reportRepository;
     private final OutboxPublisher outboxPublisher;
+    private final AdminUserCommandService adminUserCommandService;
     private final Clock clock;
 
     @Override
@@ -72,6 +77,32 @@ public class AdminModerationServiceImpl implements AdminModerationService {
         } else {
             throw new CustomException(ErrorCode.UNSUPPORTED_REPORT_TARGET);
         }
+
+        report.updateStatus(ReportStatus.ACTION_TAKEN, reviewerId, LocalDateTime.now(clock));
+        return ReportResponse.from(report);
+    }
+
+    @Override
+    public ReportResponse suspendUserByReport(
+            Long reportId,
+            Long reviewerId,
+            SuspensionType type,
+            SuspensionReason reason,
+            Duration duration
+    ) {
+        Report report = reportRepository.findById(reportId)
+                .orElseThrow(() -> new CustomException(ErrorCode.REPORT_NOT_FOUND));
+
+        if (report.getTargetType() != ReportTargetType.USER) {
+            throw new CustomException(ErrorCode.UNSUPPORTED_REPORT_TARGET);
+        }
+
+        Long targetUserId = report.getTargetId();
+        if (targetUserId.equals(reviewerId)) {
+            throw new CustomException(ErrorCode.INVALID_USER_STATUS);
+        }
+
+        adminUserCommandService.suspendUser(targetUserId, type, reason, duration);
 
         report.updateStatus(ReportStatus.ACTION_TAKEN, reviewerId, LocalDateTime.now(clock));
         return ReportResponse.from(report);

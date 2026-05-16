@@ -8,6 +8,7 @@ import com.example.my_project_1.report.service.AdminModerationService;
 import com.example.my_project_1.report.service.ReportService;
 import com.example.my_project_1.report.service.request.ReportStatusUpdateRequest;
 import com.example.my_project_1.report.service.response.ReportResponse;
+import com.example.my_project_1.user.service.request.UserSuspensionRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -115,6 +116,43 @@ public class AdminReportController {
             @AuthenticationPrincipal UserDetailsImpl userDetails
     ) {
         return ResponseEntity.ok(adminModerationService.deleteTargetByReport(reportId, userDetails.getUserId()));
+    }
+
+    @Operation(
+            summary = "USER 신고 대상 유저 정지 조치",
+            description = """
+                    USER 신고를 기준으로 대상 유저를 명시적으로 정지하고 신고 상태를 ACTION_TAKEN으로 변경합니다.
+                    Report status 변경 API 자체는 자동 정지를 수행하지 않습니다.
+                    POST/COMMENT 신고 대상은 이 API에서 지원하지 않습니다.
+                    """,
+            security = @SecurityRequirement(name = "jwtAuth")
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "USER 신고 대상 정지 조치 성공",
+                    content = @Content(schema = @Schema(implementation = ReportResponse.class))),
+            @ApiResponse(responseCode = "400", description = "지원하지 않는 신고 대상 또는 유효하지 않은 정지 요청",
+                    content = @Content(schema = @Schema(oneOf = {ValidExceptionResponse.class, ExceptionResponse.class}))),
+            @ApiResponse(responseCode = "401", description = "인증 실패",
+                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
+            @ApiResponse(responseCode = "403", description = "ADMIN 권한 필요",
+                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
+            @ApiResponse(responseCode = "404", description = "신고 또는 대상 유저 없음",
+                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
+    })
+    @PostMapping("/{reportId}/actions/suspend-user")
+    public ResponseEntity<ReportResponse> suspendUser(
+            @Parameter(description = "신고 ID", example = "1", required = true)
+            @PathVariable Long reportId,
+            @AuthenticationPrincipal UserDetailsImpl userDetails,
+            @RequestBody @Valid UserSuspensionRequest request
+    ) {
+        return ResponseEntity.ok(adminModerationService.suspendUserByReport(
+                reportId,
+                userDetails.getUserId(),
+                request.getType(),
+                request.getReason(),
+                request.getDuration()
+        ));
     }
 
     @Operation(
