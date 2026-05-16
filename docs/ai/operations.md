@@ -66,6 +66,13 @@
 
 ## Observability TODO
 
+- 현재 개발 환경 모니터링은 Spring Boot Actuator와 Micrometer Prometheus registry를 사용한다.
+- 개발 기본 노출 endpoint는 `/actuator/health`, `/actuator/info`, `/actuator/metrics`, `/actuator/prometheus`로 제한한다.
+- `env`, `beans`, `heapdump`, `threaddump` 같은 민감하거나 과한 endpoint는 기본 노출하지 않는다.
+- Prometheus metric tag에는 `eventType`, `actionType`, `targetType`, `reason`, `mode` 같은 낮은 cardinality 값만 사용한다.
+- `userId`, email, token, payload, content 같은 개인정보나 고카디널리티 값은 metric tag에 넣지 않는다.
+- 현재 커스텀 counter는 Outbox 처리/재시도, Post view sync, Report 생성, 관리자 moderation action, Admin Audit Log 생성을 중심으로 둔다.
+- 운영 배포 전 actuator endpoint 인증/네트워크 제한 정책을 별도로 정한다.
 - stale dirty marker count
 - Outbox `PENDING`/`FAILED`/`DEAD`/`PROCESSING` count
 - stuck `PROCESSING` recovery count
