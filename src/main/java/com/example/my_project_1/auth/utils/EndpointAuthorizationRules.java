@@ -45,6 +45,7 @@ public final class EndpointAuthorizationRules {
             "/api/boards/*",
             "/api/boards/*/posts",
             "/api/boards/*/posts/*",
+            "/api/tags/*/posts",
             "/api/posts/*/comments"
     };
 

@@ -22,7 +22,9 @@ import java.util.stream.Collectors;
 
 import static com.example.my_project_1.comment.domain.QComment.comment;
 import static com.example.my_project_1.post.domain.QPostLike.postLike;
+import static com.example.my_project_1.post.domain.QPostTag.postTag;
 import static com.example.my_project_1.post.domain.QPost.post;
+import static com.example.my_project_1.post.domain.QTag.tag;
 
 @RequiredArgsConstructor
 public class PostRepositoryImpl implements PostRepositoryCustom {
@@ -179,6 +181,48 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
         List<Post> content = postIds.stream()
                 .map(postMap::get)
                 .toList();
+
+        return new PageImpl<>(
+                content,
+                pageable,
+                total != null ? total : 0L
+        );
+    }
+
+    @Override
+    public Page<Post> findActivePostsByTagName(String tagName, Pageable pageable) {
+        String normalizedTagName = tagName != null ? tagName.trim() : "";
+        if (normalizedTagName.isBlank()) {
+            return new PageImpl<>(List.of(), pageable, 0);
+        }
+
+        List<Post> content = queryFactory
+                .select(post)
+                .from(postTag)
+                .join(tag).on(postTag.tagId.eq(tag.id))
+                .join(post).on(postTag.postId.eq(post.id))
+                .where(
+                        tag.name.eq(normalizedTagName),
+                        activePost()
+                )
+                .orderBy(
+                        post.createdAt.desc(),
+                        post.id.desc()
+                )
+                .offset(pageable.getOffset())
+                .limit(pageable.getPageSize())
+                .fetch();
+
+        Long total = queryFactory
+                .select(post.count())
+                .from(postTag)
+                .join(tag).on(postTag.tagId.eq(tag.id))
+                .join(post).on(postTag.postId.eq(post.id))
+                .where(
+                        tag.name.eq(normalizedTagName),
+                        activePost()
+                )
+                .fetchOne();
 
         return new PageImpl<>(
                 content,

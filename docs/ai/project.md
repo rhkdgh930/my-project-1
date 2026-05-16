@@ -7,7 +7,7 @@
 - 신고 기반 명시 조치는 `POST /api/admin/reports/{reportId}/actions/delete-target`를 사용한다.
 - 기존 직접 moderation API인 `DELETE /api/admin/moderation/posts/{postId}`, `DELETE /api/admin/moderation/comments/{commentId}`는 유지한다.
 - 게시글은 생성/수정 시 optional `tags`를 받을 수 있고, 목록/상세/인기글/마이페이지 목록 응답에 additive field `tags`를 노출한다.
-- 태그 검색, 태그별 게시글 조회, 신고 content masking/audit log는 TODO다.
+- 태그별 게시글 조회는 `GET /api/tags/{tagName}/posts`로 제공하며, 태그 자동완성/목록 API와 신고 content masking/audit log는 TODO다.
 
 이 문서는 프로젝트 전체를 수정할 때 지켜야 하는 상위 기준이다. 세부 정책은 각 도메인 문서를 우선한다.
 

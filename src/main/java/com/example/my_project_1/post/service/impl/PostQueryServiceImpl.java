@@ -106,6 +106,14 @@ public class PostQueryServiceImpl implements PostQueryService {
     }
 
     @Override
+    public PageResponse<PostListResponse> getPostsByTagName(String tagName, Pageable pageable) {
+        String normalizedTagName = tagName != null ? tagName.trim() : "";
+        Page<Post> page = postRepository.findActivePostsByTagName(normalizedTagName, pageable);
+
+        return toTaggedPostListPage(normalizedTagName, page);
+    }
+
+    @Override
     public List<PostListResponse> getPopularPosts(Long boardId, int size) {
         validateBoard(boardId);
 
@@ -149,6 +157,35 @@ public class PostQueryServiceImpl implements PostQueryService {
         Map<Long, AuthorSummary> authorMap = authorIds.isEmpty()
                 ? Map.of()
                 : findAuthorsForMePage(userId, authorIds);
+        Map<Long, List<String>> tagMap = findTagsForPosts(page.getContent());
+
+        Page<PostListResponse> dtoPage = page.map(post -> {
+            AuthorSummary author = authorMap.getOrDefault(
+                    post.getUserId(),
+                    AuthorSummary.unknown()
+            );
+
+            PostListResponse response = PostListResponse.from(post, author);
+            response.updateCounts(
+                    addDelta(post.getViewCount(), postRedisService.getViewDeltaOrNull(post.getId())),
+                    post.getLikeCount()
+            );
+            response.updateTags(tagMap.getOrDefault(post.getId(), List.of()));
+            return response;
+        });
+
+        return PageResponse.of(dtoPage);
+    }
+
+    private PageResponse<PostListResponse> toTaggedPostListPage(String tagName, Page<Post> page) {
+        List<Long> authorIds = page.getContent().stream()
+                .map(Post::getUserId)
+                .distinct()
+                .toList();
+
+        Map<Long, AuthorSummary> authorMap = authorIds.isEmpty()
+                ? Map.of()
+                : findAuthorsForTagPage(tagName, authorIds);
         Map<Long, List<String>> tagMap = findTagsForPosts(page.getContent());
 
         Page<PostListResponse> dtoPage = page.map(post -> {
@@ -238,6 +275,15 @@ public class PostQueryServiceImpl implements PostQueryService {
             return userClient.findAuthorsByIds(authorIds);
         } catch (RuntimeException e) {
             log.warn("[POST_QUERY][AUTHOR_LOOKUP_FAIL] likedUserId={} authorIds={}", userId, authorIds, e);
+            return Map.of();
+        }
+    }
+
+    private Map<Long, AuthorSummary> findAuthorsForTagPage(String tagName, List<Long> authorIds) {
+        try {
+            return userClient.findAuthorsByIds(authorIds);
+        } catch (RuntimeException e) {
+            log.warn("[POST_QUERY][AUTHOR_LOOKUP_FAIL] tagName={} authorIds={}", tagName, authorIds, e);
             return Map.of();
         }
     }

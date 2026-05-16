@@ -21,5 +21,7 @@ public interface PostRepositoryCustom {
 
     Page<Post> findCommentedActivePostsByUserId(Long userId, Pageable pageable);
 
+    Page<Post> findActivePostsByTagName(String tagName, Pageable pageable);
+
     List<Post> findPopularActivePosts(Long boardId, int size);
 }

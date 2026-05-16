@@ -17,6 +17,7 @@ public interface PostQueryService {
     PageResponse<PostListResponse> getLikedPosts(Long userId, Pageable pageable);
     PageResponse<PostListResponse> getMyPosts(Long userId, Pageable pageable);
     PageResponse<PostListResponse> getCommentedPosts(Long userId, Pageable pageable);
+    PageResponse<PostListResponse> getPostsByTagName(String tagName, Pageable pageable);
     List<PostListResponse> getPopularPosts(Long boardId, int size);
     PostDetailResponse getPostDetail(Long boardId, Long postId);
     PostDetailResponse getPostDetail(Long boardId, Long postId, Long currentUserId);
