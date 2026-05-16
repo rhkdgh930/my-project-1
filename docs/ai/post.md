@@ -1,5 +1,17 @@
 # Board / Post AI Rules
 
+## 최신 정책 - Tag Posts
+
+- 태그별 게시글 조회 API는 `GET /api/tags/{tagName}/posts`다.
+- Public API이며 `tagName`은 `trim` 기준으로 조회한다.
+- 현재 영문 대소문자 정규화는 하지 않으므로 `Java`와 `java`는 다른 태그다.
+- 존재하지 않는 태그명은 에러가 아니라 빈 `PageResponse<PostListResponse>`를 반환한다.
+- 삭제된 게시글과 삭제된 게시판 아래 게시글은 제외한다.
+- 정렬은 `post.createdAt desc`, `post.id desc` 최신순이다.
+- 응답 `viewCount`는 기존 목록 응답처럼 `DB viewCount + Redis delta`로 보정한다.
+- 태그별 게시글 조회는 `viewCount`를 증가시키지 않는다.
+- 응답의 `tags`는 기존 정책대로 postId 목록 기반 bulk 조회로 채운다.
+
 ## 최신 정책 - Post Tag
 
 - 게시글 생성/수정 요청은 optional `tags`를 받을 수 있다.
@@ -15,7 +27,7 @@
 
 ## TODO - Post Tag
 
-- 태그 검색과 태그별 게시글 조회를 별도 범위로 검토한다.
+- 태그 자동완성, 태그 목록 API, 복합 태그 검색은 별도 범위로 검토한다.
 - 영문 태그 대소문자 정규화 정책을 검토한다.
 - 사용되지 않는 orphan `Tag` cleanup을 검토한다.
 
