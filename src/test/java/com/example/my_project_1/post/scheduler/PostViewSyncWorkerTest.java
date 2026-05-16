@@ -1,5 +1,6 @@
 package com.example.my_project_1.post.scheduler;
 
+import com.example.my_project_1.common.monitoring.MonitoringService;
 import com.example.my_project_1.post.repository.PostRepository;
 import com.example.my_project_1.post.service.PostRedisService;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,13 +19,15 @@ class PostViewSyncWorkerTest {
 
     private PostRedisService redisService;
     private PostRepository postRepository;
+    private MonitoringService monitoringService;
     private PostViewSyncWorker worker;
 
     @BeforeEach
     void setUp() {
         redisService = mock(PostRedisService.class);
         postRepository = mock(PostRepository.class);
-        worker = new PostViewSyncWorker(redisService, postRepository);
+        monitoringService = mock(MonitoringService.class);
+        worker = new PostViewSyncWorker(redisService, postRepository, monitoringService);
     }
 
     @Test
@@ -38,6 +41,7 @@ class PostViewSyncWorkerTest {
         verify(postRepository, never()).updateViewCountDelta(anyLong(), anyLong());
         verify(redisService).removeViewDirty(postId);
         verify(redisService, never()).acknowledgeSyncedViewDelta(anyLong(), anyLong());
+        verify(monitoringService).recordPostViewSyncSkipped("empty_delta");
     }
 
     @Test
@@ -51,6 +55,7 @@ class PostViewSyncWorkerTest {
         verify(postRepository, never()).updateViewCountDelta(anyLong(), anyLong());
         verify(redisService).removeViewDirty(postId);
         verify(redisService, never()).acknowledgeSyncedViewDelta(anyLong(), anyLong());
+        verify(monitoringService).recordPostViewSyncSkipped("empty_delta");
     }
 
     @Test
@@ -65,6 +70,7 @@ class PostViewSyncWorkerTest {
         verify(postRepository).updateViewCountDelta(postId, 100L);
         verify(redisService).acknowledgeSyncedViewDelta(postId, 100L);
         verify(redisService, never()).removeViewDirty(postId);
+        verify(monitoringService).recordPostViewSyncSuccess();
     }
 
     @Test
@@ -79,6 +85,7 @@ class PostViewSyncWorkerTest {
         verify(postRepository).updateViewCountDelta(postId, 100L);
         verify(redisService, never()).acknowledgeSyncedViewDelta(anyLong(), anyLong());
         verify(redisService, never()).removeViewDirty(postId);
+        verify(monitoringService).recordPostViewSyncFail("not_updated");
     }
 
     @Test
@@ -95,5 +102,6 @@ class PostViewSyncWorkerTest {
 
         verify(redisService, never()).acknowledgeSyncedViewDelta(anyLong(), anyLong());
         verify(redisService, never()).removeViewDirty(postId);
+        verify(monitoringService).recordPostViewSyncFail("exception");
     }
 }

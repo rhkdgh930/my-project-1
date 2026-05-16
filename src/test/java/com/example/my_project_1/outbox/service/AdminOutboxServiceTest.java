@@ -5,6 +5,7 @@ import com.example.my_project_1.admin.domain.AdminActionType;
 import com.example.my_project_1.admin.service.AdminActionLogService;
 import com.example.my_project_1.common.exception.CustomException;
 import com.example.my_project_1.common.exception.ErrorCode;
+import com.example.my_project_1.common.monitoring.MonitoringService;
 import com.example.my_project_1.common.utils.PageResponse;
 import com.example.my_project_1.outbox.domain.OutboxEvent;
 import com.example.my_project_1.outbox.domain.OutboxEventType;
@@ -42,7 +43,14 @@ class AdminOutboxServiceTest {
     private final OutboxRepository outboxRepository = mock(OutboxRepository.class);
     private final OutboxPublisher outboxPublisher = mock(OutboxPublisher.class);
     private final AdminActionLogService adminActionLogService = mock(AdminActionLogService.class);
-    private final AdminOutboxService service = new AdminOutboxService(clock, outboxRepository, outboxPublisher, adminActionLogService);
+    private final MonitoringService monitoringService = mock(MonitoringService.class);
+    private final AdminOutboxService service = new AdminOutboxService(
+            clock,
+            outboxRepository,
+            outboxPublisher,
+            adminActionLogService,
+            monitoringService
+    );
 
     @Test
     @DisplayName("status 필터가 없으면 전체 Outbox event page를 payload 없이 조회한다.")
@@ -125,6 +133,7 @@ class AdminOutboxServiceTest {
 
         assertResetForRetry(event);
         verify(outboxPublisher, never()).requestProcessing(1L);
+        verify(monitoringService).recordOutboxRetryRequest("retry");
     }
 
     @Test
@@ -151,6 +160,7 @@ class AdminOutboxServiceTest {
 
         assertResetForRetry(event);
         verify(outboxPublisher).requestProcessing(1L);
+        verify(monitoringService).recordOutboxRetryRequest("retry_now");
     }
 
     @Test

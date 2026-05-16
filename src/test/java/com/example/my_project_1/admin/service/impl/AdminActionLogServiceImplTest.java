@@ -6,6 +6,7 @@ import com.example.my_project_1.admin.domain.AdminActionType;
 import com.example.my_project_1.admin.repository.AdminActionLogRepository;
 import com.example.my_project_1.admin.service.request.AdminActionLogSearchCondition;
 import com.example.my_project_1.admin.service.response.AdminActionLogResponse;
+import com.example.my_project_1.common.monitoring.MonitoringService;
 import com.example.my_project_1.common.utils.PageResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -33,7 +34,8 @@ class AdminActionLogServiceImplTest {
             ZoneId.of("Asia/Seoul")
     );
     private final AdminActionLogRepository repository = mock(AdminActionLogRepository.class);
-    private final AdminActionLogServiceImpl service = new AdminActionLogServiceImpl(repository, clock);
+    private final MonitoringService monitoringService = mock(MonitoringService.class);
+    private final AdminActionLogServiceImpl service = new AdminActionLogServiceImpl(repository, monitoringService, clock);
 
     @Test
     @DisplayName("관리자 조치 감사 로그를 저장한다.")
@@ -48,6 +50,7 @@ class AdminActionLogServiceImplTest {
         );
 
         verify(repository).save(any(AdminActionLog.class));
+        verify(monitoringService).recordAdminAuditLogCreated(AdminActionType.USER_SUSPEND, AdminActionTargetType.USER);
     }
 
     @Test

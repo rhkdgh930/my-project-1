@@ -7,6 +7,7 @@ import com.example.my_project_1.comment.domain.Comment;
 import com.example.my_project_1.comment.repository.CommentRepository;
 import com.example.my_project_1.common.exception.CustomException;
 import com.example.my_project_1.common.exception.ErrorCode;
+import com.example.my_project_1.common.monitoring.MonitoringService;
 import com.example.my_project_1.outbox.domain.OutboxEventType;
 import com.example.my_project_1.outbox.service.OutboxPublisher;
 import com.example.my_project_1.post.domain.Post;
@@ -54,6 +55,7 @@ class AdminModerationServiceImplTest {
     private OutboxPublisher outboxPublisher;
     private AdminUserCommandService adminUserCommandService;
     private AdminActionLogService adminActionLogService;
+    private MonitoringService monitoringService;
     private AdminModerationServiceImpl service;
 
     @BeforeEach
@@ -64,6 +66,7 @@ class AdminModerationServiceImplTest {
         outboxPublisher = mock(OutboxPublisher.class);
         adminUserCommandService = mock(AdminUserCommandService.class);
         adminActionLogService = mock(AdminActionLogService.class);
+        monitoringService = mock(MonitoringService.class);
         service = new AdminModerationServiceImpl(
                 postRepository,
                 commentRepository,
@@ -71,6 +74,7 @@ class AdminModerationServiceImplTest {
                 outboxPublisher,
                 adminUserCommandService,
                 adminActionLogService,
+                monitoringService,
                 CLOCK
         );
     }
@@ -133,6 +137,7 @@ class AdminModerationServiceImplTest {
                 "관리자가 게시글을 삭제했습니다.",
                 Map.of()
         );
+        verify(monitoringService).recordAdminModerationAction(AdminActionType.MODERATION_DELETE_POST, ReportTargetType.POST.name());
     }
 
     @Test
@@ -153,6 +158,7 @@ class AdminModerationServiceImplTest {
                 "관리자가 댓글을 삭제했습니다.",
                 Map.of()
         );
+        verify(monitoringService).recordAdminModerationAction(AdminActionType.MODERATION_DELETE_COMMENT, ReportTargetType.COMMENT.name());
     }
 
     @Test
@@ -191,6 +197,7 @@ class AdminModerationServiceImplTest {
                 eq("관리자가 신고 대상 삭제 조치를 완료했습니다."),
                 org.mockito.ArgumentMatchers.anyMap()
         );
+        verify(monitoringService).recordAdminModerationAction(AdminActionType.REPORT_DELETE_TARGET, ReportTargetType.POST.name());
     }
 
     @Test
@@ -216,6 +223,7 @@ class AdminModerationServiceImplTest {
                 eq("관리자가 신고 대상 삭제 조치를 완료했습니다."),
                 org.mockito.ArgumentMatchers.anyMap()
         );
+        verify(monitoringService).recordAdminModerationAction(AdminActionType.REPORT_DELETE_TARGET, ReportTargetType.COMMENT.name());
     }
 
     @Test
@@ -290,6 +298,7 @@ class AdminModerationServiceImplTest {
                 eq("관리자가 USER 신고 대상 유저를 정지했습니다."),
                 org.mockito.ArgumentMatchers.anyMap()
         );
+        verify(monitoringService).recordAdminModerationAction(AdminActionType.REPORT_SUSPEND_USER, ReportTargetType.USER.name());
     }
 
     @Test

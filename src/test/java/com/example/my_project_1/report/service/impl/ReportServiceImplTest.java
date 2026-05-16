@@ -7,6 +7,7 @@ import com.example.my_project_1.comment.domain.Comment;
 import com.example.my_project_1.comment.repository.CommentRepository;
 import com.example.my_project_1.common.exception.CustomException;
 import com.example.my_project_1.common.exception.ErrorCode;
+import com.example.my_project_1.common.monitoring.MonitoringService;
 import com.example.my_project_1.common.utils.PageResponse;
 import com.example.my_project_1.post.domain.Post;
 import com.example.my_project_1.post.repository.PostRepository;
@@ -55,6 +56,7 @@ class ReportServiceImplTest {
     private CommentRepository commentRepository;
     private UserRepository userRepository;
     private AdminActionLogService adminActionLogService;
+    private MonitoringService monitoringService;
     private ReportServiceImpl reportService;
 
     @BeforeEach
@@ -64,12 +66,14 @@ class ReportServiceImplTest {
         commentRepository = mock(CommentRepository.class);
         userRepository = mock(UserRepository.class);
         adminActionLogService = mock(AdminActionLogService.class);
+        monitoringService = mock(MonitoringService.class);
         reportService = new ReportServiceImpl(
                 reportRepository,
                 postRepository,
                 commentRepository,
                 userRepository,
                 adminActionLogService,
+                monitoringService,
                 CLOCK
         );
     }
@@ -92,6 +96,7 @@ class ReportServiceImplTest {
         assertThat(response.targetId()).isEqualTo(10L);
         assertThat(response.reporterId()).isEqualTo(1L);
         assertThat(response.status()).isEqualTo(ReportStatus.PENDING);
+        verify(monitoringService).recordReportCreated(ReportTargetType.POST);
     }
 
     @Test
