@@ -303,6 +303,51 @@ class PostQueryServiceImplTest {
     }
 
     @Test
+    @DisplayName("태그별 게시글 목록은 작성자와 Redis view delta와 태그를 매핑해서 반환한다.")
+    void getPostsByTagName_mapsAuthorAndAddsRedisViewDeltaAndTags() {
+        Pageable pageable = PageRequest.of(0, 10);
+        Post post = post(1L, 10L, 100L);
+        post.updateCounts(50L, 9L);
+
+        when(postRepository.findActivePostsByTagName("Spring", pageable))
+                .thenReturn(new PageImpl<>(List.of(post), pageable, 1));
+        when(userClient.findAuthorsByIds(List.of(100L)))
+                .thenReturn(Map.of(100L, AuthorSummary.active(100L, "nickname", PROFILE_IMAGE_URL)));
+        when(postRedisService.getViewDeltaOrNull(10L)).thenReturn(6L);
+        when(postTagService.findTagNamesByPostIds(List.of(10L)))
+                .thenReturn(Map.of(10L, List.of("Spring", "Redis")));
+
+        PageResponse<PostListResponse> response = postQueryService.getPostsByTagName(" Spring ", pageable);
+
+        assertThat(response.getContent()).hasSize(1);
+        PostListResponse postResponse = response.getContent().get(0);
+        assertThat(postResponse.getPostId()).isEqualTo(10L);
+        assertThat(postResponse.getBoardId()).isEqualTo(1L);
+        assertThat(postResponse.getAuthor().id()).isEqualTo(100L);
+        assertThat(postResponse.getViewCount()).isEqualTo(56L);
+        assertThat(postResponse.getLikeCount()).isEqualTo(9L);
+        assertThat(postResponse.getTags()).containsExactly("Spring", "Redis");
+        verify(postRepository).findActivePostsByTagName("Spring", pageable);
+        verify(postRedisService, never()).increaseView(any());
+    }
+
+    @Test
+    @DisplayName("태그별 게시글 목록이 비어 있으면 작성자와 Redis 조회를 생략한다.")
+    void getPostsByTagName_skipsLookupsWhenPageIsEmpty() {
+        Pageable pageable = PageRequest.of(0, 10);
+
+        when(postRepository.findActivePostsByTagName("Missing", pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        PageResponse<PostListResponse> response = postQueryService.getPostsByTagName("Missing", pageable);
+
+        assertThat(response.getContent()).isEmpty();
+        assertThat(response.getTotalElements()).isZero();
+        verify(userClient, never()).findAuthorsByIds(any());
+        verify(postRedisService, never()).getViewDeltaOrNull(any());
+    }
+
+    @Test
     @DisplayName("인기글 목록은 author를 매핑하고 Redis view delta를 응답에만 더한다.")
     void getPopularPosts_mapsAuthorAndAddsRedisViewDelta() {
         Long boardId = 1L;

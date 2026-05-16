@@ -34,6 +34,7 @@ import com.example.my_project_1.outbox.domain.OutboxEventType;
 import com.example.my_project_1.outbox.service.AdminOutboxService;
 import com.example.my_project_1.outbox.service.response.AdminOutboxDetailResponse;
 import com.example.my_project_1.post.controller.PostController;
+import com.example.my_project_1.post.controller.TagPostController;
 import com.example.my_project_1.post.service.PostCommandService;
 import com.example.my_project_1.post.service.PostQueryService;
 import com.example.my_project_1.post.service.request.PostSearchCondition;
@@ -90,6 +91,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         BoardController.class,
         AdminBoardController.class,
         PostController.class,
+        TagPostController.class,
         CommentController.class,
         ImageController.class,
         AuthController.class,
@@ -200,6 +202,8 @@ class BoardPostCommentImageSecurityConfigTest {
         when(boardQueryService.findAllBoards()).thenReturn(List.of());
         when(postQueryService.getPosts(eq(1L), any(PostSearchCondition.class), any(Pageable.class)))
                 .thenReturn(new PageResponse<>(List.of(), 0, 20, 0, 0, true));
+        when(postQueryService.getPostsByTagName(eq("Spring"), any(Pageable.class)))
+                .thenReturn(new PageResponse<>(List.of(), 0, 20, 0, 0, true));
         when(commentQueryService.getComments(1L)).thenReturn(List.of());
 
         mockMvc.perform(get("/api/boards"))
@@ -211,6 +215,8 @@ class BoardPostCommentImageSecurityConfigTest {
         mockMvc.perform(get("/api/boards/1/posts/popular"))
                 .andExpect(status().isOk());
         mockMvc.perform(get("/api/boards/1/posts/1"))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/tags/Spring/posts"))
                 .andExpect(status().isOk());
         mockMvc.perform(get("/api/posts/1/comments"))
                 .andExpect(status().isOk());

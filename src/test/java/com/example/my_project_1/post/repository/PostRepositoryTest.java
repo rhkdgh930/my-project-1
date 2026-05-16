@@ -5,6 +5,8 @@ import com.example.my_project_1.comment.domain.Comment;
 import com.example.my_project_1.common.config.QueryDslConfig;
 import com.example.my_project_1.post.domain.Post;
 import com.example.my_project_1.post.domain.PostLike;
+import com.example.my_project_1.post.domain.PostTag;
+import com.example.my_project_1.post.domain.Tag;
 import com.example.my_project_1.post.service.request.PostSearchCondition;
 import com.example.my_project_1.post.service.request.PostSearchType;
 import com.example.my_project_1.post.service.request.PostSortType;
@@ -39,6 +41,12 @@ class PostRepositoryTest {
 
     @Autowired
     private PostLikeRepository postLikeRepository;
+
+    @Autowired
+    private PostTagRepository postTagRepository;
+
+    @Autowired
+    private TagRepository tagRepository;
 
     @Autowired
     private TestEntityManager entityManager;
@@ -281,6 +289,42 @@ class PostRepositoryTest {
 
         assertThat(result.getContent()).isEmpty();
         assertThat(result.getTotalElements()).isZero();
+    }
+
+    @Test
+    @DisplayName("태그명으로 활성 게시글을 최신순으로 조회하고 삭제된 게시글과 다른 태그 게시글은 제외한다.")
+    void findActivePostsByTagName_returnsActivePostsInLatestOrder() {
+        Board board = board("tag-board");
+        Tag spring = tagRepository.saveAndFlush(Tag.create("Spring"));
+        Tag redis = tagRepository.saveAndFlush(Tag.create("Redis"));
+        Post oldTagged = postRepository.save(post(board, 100L, "old tagged", "content"));
+        Post latestTagged = postRepository.save(post(board, 101L, "latest tagged", "content"));
+        Post otherTagged = postRepository.save(post(board, 102L, "other tagged", "content"));
+        Post deletedPost = postRepository.save(post(board, 103L, "deleted", "content"));
+        deletedPost.delete(LocalDateTime.of(2026, 5, 12, 10, 0));
+        Board deletedBoard = board("deleted-tag-board");
+        deletedBoard.delete(LocalDateTime.of(2026, 5, 12, 10, 0));
+        Post deletedBoardPost = postRepository.save(post(deletedBoard, 104L, "deleted board post", "content"));
+        postRepository.flush();
+
+        postTagRepository.save(PostTag.create(oldTagged.getId(), spring.getId()));
+        postTagRepository.save(PostTag.create(latestTagged.getId(), spring.getId()));
+        postTagRepository.save(PostTag.create(otherTagged.getId(), redis.getId()));
+        postTagRepository.save(PostTag.create(deletedPost.getId(), spring.getId()));
+        postTagRepository.save(PostTag.create(deletedBoardPost.getId(), spring.getId()));
+        postTagRepository.flush();
+        entityManager.clear();
+
+        Page<Post> result = postRepository.findActivePostsByTagName("Spring", PageRequest.of(0, 10));
+        Page<Post> missing = postRepository.findActivePostsByTagName("Missing", PageRequest.of(0, 10));
+        Page<Post> lowerCase = postRepository.findActivePostsByTagName("spring", PageRequest.of(0, 10));
+
+        assertThat(result.getTotalElements()).isEqualTo(2);
+        assertThat(result.getContent())
+                .extracting(Post::getId)
+                .containsExactly(latestTagged.getId(), oldTagged.getId());
+        assertThat(missing.getContent()).isEmpty();
+        assertThat(lowerCase.getContent()).isEmpty();
     }
 
     @Test
