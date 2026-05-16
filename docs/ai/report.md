@@ -12,6 +12,18 @@
 - `suspend-user`는 관리자 자기 자신 정지를 금지한다.
 - `suspend-user`의 정지 정책은 기존 `AdminUserCommandService.suspendUser` 정책을 재사용한다.
 - 기존 직접 moderation API인 `DELETE /api/admin/moderation/posts/{postId}`, `DELETE /api/admin/moderation/comments/{commentId}`는 신고와 무관한 관리자 직접 조치용으로 유지한다.
+- 신고 상태 변경, 신고 기반 `delete-target`, 신고 기반 `suspend-user`, 관리자 직접 게시글/댓글 삭제 성공 후에는 `AdminActionLog`를 남긴다.
+
+## 최신 정책 - Admin Audit Log
+
+- `AdminActionLog`는 관리자 주요 조치 성공 후 기록하는 append-only 감사 로그다.
+- Audit Log 수정/삭제 API는 제공하지 않는다.
+- 저장 필드는 `adminId`, `actionType`, `targetType`, `targetId`, `description`, `metadata`, `createdAt`이다.
+- 조회 API는 `GET /api/admin/audit-logs`이며 `actionType`, `targetType`, `adminId`로 필터링할 수 있다.
+- 현재는 성공한 관리자 조치만 기록한다.
+- 같은 트랜잭션에서 저장하므로 Audit Log 저장 실패 시 원 조치도 rollback될 수 있다.
+- `metadata`는 `DataSerializer` 기반 JSON 문자열이며 민감정보를 넣지 않는다.
+- 프론트는 `/admin/audit-logs` 화면과 Admin Home 카드를 제공한다.
 
 ## 최신 정책 - USER 신고 정지 조치
 
@@ -31,7 +43,7 @@
 - `COMMENT` 신고는 댓글 삭제 후 `ACTION_TAKEN`으로 변경한다.
 - `USER` 신고는 이 API에서 지원하지 않고 기존 Admin User 화면에서 처리하도록 안내한다.
 - `DELETE /api/admin/moderation/posts/{postId}`와 `DELETE /api/admin/moderation/comments/{commentId}`는 신고와 무관한 관리자 직접 조치용으로 유지한다.
-- 신고 `content` 민감정보 masking과 audit log는 TODO다.
+- 신고 `content` 민감정보 masking은 TODO다.
 
 ## 현재 정책
 
@@ -61,5 +73,8 @@
 ## TODO
 
 - 신고 payload/content에 민감정보가 포함될 수 있으므로 관리자 화면 마스킹 정책을 검토한다.
-- 신고 조치 이력과 감사 로그가 필요해지면 별도 audit 정책으로 분리한다.
+- 실패한 관리자 조치 로그 저장 여부를 검토한다.
+- Audit Log 보존 기간과 cleanup 정책을 정한다.
+- Audit Log `metadata` masking을 고도화한다.
+- request IP/user agent 기록 여부를 검토한다.
 - `ADMIN` 계정 정지 금지 여부를 운영 정책으로 명확히 정한다.

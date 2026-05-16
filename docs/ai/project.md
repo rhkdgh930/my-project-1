@@ -1,13 +1,14 @@
 # Project AI Rules
 
-## 최신 정책 요약 - Report / Moderation / Tag
+## 최신 정책 요약 - Report / Moderation / Tag / Audit
 
 - `Report` 도메인은 신고 접수와 관리자 검토 상태 관리만 담당한다.
 - `ACTION_TAKEN`은 자동 삭제/자동 정지를 수행하지 않는 상태값이다.
 - 신고 기반 명시 조치는 `POST /api/admin/reports/{reportId}/actions/delete-target`와 `POST /api/admin/reports/{reportId}/actions/suspend-user`를 사용한다.
 - 기존 직접 moderation API인 `DELETE /api/admin/moderation/posts/{postId}`, `DELETE /api/admin/moderation/comments/{commentId}`는 유지한다.
+- `AdminActionLog`는 관리자 주요 조치 성공 후 기록하는 append-only 감사 로그이며 `GET /api/admin/audit-logs`로 조회한다.
 - 게시글은 생성/수정 시 optional `tags`를 받을 수 있고, 목록/상세/인기글/마이페이지 목록 응답에 additive field `tags`를 노출한다.
-- 태그별 게시글 조회는 `GET /api/tags/{tagName}/posts`로 제공하며, 태그 자동완성/목록 API와 신고 content masking/audit log는 TODO다.
+- 태그별 게시글 조회는 `GET /api/tags/{tagName}/posts`로 제공하며, 태그 자동완성/목록 API와 신고 content masking은 TODO다.
 
 이 문서는 프로젝트 전체를 수정할 때 지켜야 하는 상위 기준이다. 세부 정책은 각 도메인 문서를 우선한다.
 
@@ -19,6 +20,7 @@
 - Auth/User/Post/Comment/Image/Outbox/Common은 각각 독립된 정책 문서를 가진다.
 - Redis는 인증 보조와 post view count delta에 사용한다. 좋아요에는 사용하지 않는다.
 - Outbox는 트랜잭션 이후 side effect를 안정적으로 처리하는 경계다.
+- 관리자 조치 이력은 `AdminActionLog`로 남기며, 자동 보안 판단 시스템이 아니라 운영 감사용 기록이다.
 
 ## 주의사항
 

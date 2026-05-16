@@ -16,6 +16,7 @@
 - 현재 `USER` 신고 조치는 기존 Admin User 화면에서 정지 등 명시적 관리자 액션으로 처리한다.
 - `ACTION_TAKEN`은 자동 유저 정지를 수행하지 않는 상태값이다.
 - `USER` 신고 상세에는 신고 기반 유저 정지 폼이 있다. 기존 Admin User 화면은 직접 정지 조치용으로 유지한다.
+- 유저 정지와 유저 정지 해제 성공 후에는 `AdminActionLog`에 `USER_SUSPEND`, `USER_UNSUSPEND` 조치를 기록한다.
 
 이 문서는 User lifecycle, public author 표시, profile 정책, user batch 정책을 정리한다.
 
@@ -68,6 +69,5 @@
 
 ## TODO
 
-- suspension audit 기록이 필요하면 별도 admin/audit 정책으로 추가한다.
 - batch metric, retry/failure report를 보강한다.
 - User lifecycle policy가 더 커지면 `WithdrawalPolicy`, `DormancyPolicy`, `SuspensionPolicy` 분리를 검토한다.

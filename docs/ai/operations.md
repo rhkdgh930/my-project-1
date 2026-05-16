@@ -1,9 +1,13 @@
 # Operations AI Rules
 
-## 최신 TODO - Report / Moderation / Tag
+## 최신 TODO - Report / Moderation / Tag / Audit
 
 - 신고 `content`에는 민감정보가 포함될 수 있으므로 관리자 화면 masking 정책을 검토한다.
-- 신고 조치 이력과 관리자 audit log가 필요하면 별도 audit 정책으로 분리한다.
+- `AdminActionLog`는 현재 성공한 관리자 조치만 기록한다. 실패한 관리자 조치 로그 저장 여부는 TODO다.
+- Audit Log 보존 기간과 cleanup 정책을 정한다.
+- Audit Log `metadata` masking을 고도화한다.
+- 운영 DB migration 도입 시 `admin_action_log` 테이블을 명시한다.
+- request IP/user agent 기록 여부를 검토한다.
 - `ADMIN` 계정 정지 금지 여부를 운영 정책으로 명확히 정한다.
 - 태그 자동완성, 태그 목록 API, orphan `Tag` cleanup은 운영/기능 확장 시 별도 범위로 검토한다.
 - 운영 DB migration 도입 시 `tag`, `post_tag`, `unique(post_id, tag_id)`와 필요한 FK를 명시한다.

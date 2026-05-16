@@ -31,6 +31,8 @@
 
 - `resetForRetry`는 재처리 가능한 이벤트를 `PENDING`으로 되돌린다.
 - admin retry와 retry-now는 `FAILED` 또는 `DEAD` 상태를 재처리 대상으로 삼는다.
+- admin retry 성공 후 `AdminActionLog`에 `OUTBOX_RETRY`를 기록한다.
+- admin retry-now 성공 후 `AdminActionLog`에 `OUTBOX_RETRY_NOW`를 기록한다.
 - admin 목록 조회는 payload를 노출하지 않는다.
 - admin 상세 조회는 ADMIN 전용 기준으로 payload를 읽기 전용 노출한다.
 - `SUCCESS`는 already succeeded 정책으로 재처리를 거부한다.
