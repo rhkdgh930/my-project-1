@@ -1,5 +1,6 @@
 package com.example.my_project_1.report.controller;
 
+import com.example.my_project_1.auth.userdetails.UserDetailsImpl;
 import com.example.my_project_1.common.exception.ExceptionResponse;
 import com.example.my_project_1.report.service.AdminModerationService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -13,6 +14,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -44,9 +46,10 @@ public class AdminModerationController {
     @DeleteMapping("/posts/{postId}")
     public ResponseEntity<Void> deletePost(
             @Parameter(description = "게시글 ID", example = "1", required = true)
-            @PathVariable Long postId
+            @PathVariable Long postId,
+            @AuthenticationPrincipal UserDetailsImpl userDetails
     ) {
-        adminModerationService.deletePost(postId);
+        adminModerationService.deletePost(postId, userDetails.getUserId());
         return ResponseEntity.noContent().build();
     }
 
@@ -67,9 +70,10 @@ public class AdminModerationController {
     @DeleteMapping("/comments/{commentId}")
     public ResponseEntity<Void> deleteComment(
             @Parameter(description = "댓글 ID", example = "1", required = true)
-            @PathVariable Long commentId
+            @PathVariable Long commentId,
+            @AuthenticationPrincipal UserDetailsImpl userDetails
     ) {
-        adminModerationService.deleteComment(commentId);
+        adminModerationService.deleteComment(commentId, userDetails.getUserId());
         return ResponseEntity.noContent().build();
     }
 }

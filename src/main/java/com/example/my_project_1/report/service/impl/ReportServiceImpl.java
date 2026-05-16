@@ -1,5 +1,8 @@
 package com.example.my_project_1.report.service.impl;
 
+import com.example.my_project_1.admin.domain.AdminActionTargetType;
+import com.example.my_project_1.admin.domain.AdminActionType;
+import com.example.my_project_1.admin.service.AdminActionLogService;
 import com.example.my_project_1.comment.domain.Comment;
 import com.example.my_project_1.comment.repository.CommentRepository;
 import com.example.my_project_1.common.exception.CustomException;
@@ -24,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -34,6 +38,7 @@ public class ReportServiceImpl implements ReportService {
     private final PostRepository postRepository;
     private final CommentRepository commentRepository;
     private final UserRepository userRepository;
+    private final AdminActionLogService adminActionLogService;
     private final Clock clock;
 
     @Override
@@ -73,6 +78,18 @@ public class ReportServiceImpl implements ReportService {
     public ReportResponse updateStatus(Long reportId, Long reviewerId, ReportStatusUpdateRequest request) {
         Report report = findById(reportId);
         report.updateStatus(request.status(), reviewerId, LocalDateTime.now(clock));
+        adminActionLogService.log(
+                reviewerId,
+                AdminActionType.REPORT_STATUS_CHANGE,
+                AdminActionTargetType.REPORT,
+                reportId,
+                "관리자가 신고 상태를 변경했습니다.",
+                Map.of(
+                        "status", request.status().name(),
+                        "targetType", report.getTargetType().name(),
+                        "targetId", report.getTargetId()
+                )
+        );
         return ReportResponse.from(report);
     }
 

@@ -12,6 +12,10 @@ public interface AdminModerationService {
 
     void deleteComment(Long commentId);
 
+    void deletePost(Long postId, Long adminId);
+
+    void deleteComment(Long commentId, Long adminId);
+
     ReportResponse deleteTargetByReport(Long reportId, Long reviewerId);
 
     ReportResponse suspendUserByReport(

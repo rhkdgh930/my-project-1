@@ -1,5 +1,6 @@
 package com.example.my_project_1.outbox.controller;
 
+import com.example.my_project_1.auth.userdetails.UserDetailsImpl;
 import com.example.my_project_1.common.exception.ExceptionResponse;
 import com.example.my_project_1.common.utils.PageResponse;
 import com.example.my_project_1.outbox.domain.OutboxStatus;
@@ -21,6 +22,7 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -120,9 +122,10 @@ public class AdminOutboxController {
     @PostMapping("/{id}/retry")
     public ResponseEntity<Void> retry(
             @Parameter(description = "Outbox event ID", example = "1", required = true)
-            @PathVariable Long id
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserDetailsImpl userDetails
     ) {
-        adminOutboxService.retry(id);
+        adminOutboxService.retry(id, userDetails.getUserId());
         return ResponseEntity.noContent().build();
     }
 
@@ -160,9 +163,10 @@ public class AdminOutboxController {
     @PostMapping("/{id}/retry-now")
     public ResponseEntity<Void> retryNow(
             @Parameter(description = "Outbox event ID", example = "1", required = true)
-            @PathVariable Long id
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserDetailsImpl userDetails
     ) {
-        adminOutboxService.retryNow(id);
+        adminOutboxService.retryNow(id, userDetails.getUserId());
         return ResponseEntity.accepted().build();
     }
 }

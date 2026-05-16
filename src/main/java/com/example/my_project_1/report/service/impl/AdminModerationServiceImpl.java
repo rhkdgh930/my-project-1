@@ -1,5 +1,8 @@
 package com.example.my_project_1.report.service.impl;
 
+import com.example.my_project_1.admin.domain.AdminActionTargetType;
+import com.example.my_project_1.admin.domain.AdminActionType;
+import com.example.my_project_1.admin.service.AdminActionLogService;
 import com.example.my_project_1.comment.domain.Comment;
 import com.example.my_project_1.comment.repository.CommentRepository;
 import com.example.my_project_1.common.exception.CustomException;
@@ -27,6 +30,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -38,6 +43,7 @@ public class AdminModerationServiceImpl implements AdminModerationService {
     private final ReportRepository reportRepository;
     private final OutboxPublisher outboxPublisher;
     private final AdminUserCommandService adminUserCommandService;
+    private final AdminActionLogService adminActionLogService;
     private final Clock clock;
 
     @Override
@@ -66,6 +72,32 @@ public class AdminModerationServiceImpl implements AdminModerationService {
     }
 
     @Override
+    public void deletePost(Long postId, Long adminId) {
+        deletePost(postId);
+        adminActionLogService.log(
+                adminId,
+                AdminActionType.MODERATION_DELETE_POST,
+                AdminActionTargetType.POST,
+                postId,
+                "관리자가 게시글을 삭제했습니다.",
+                Map.of()
+        );
+    }
+
+    @Override
+    public void deleteComment(Long commentId, Long adminId) {
+        deleteComment(commentId);
+        adminActionLogService.log(
+                adminId,
+                AdminActionType.MODERATION_DELETE_COMMENT,
+                AdminActionTargetType.COMMENT,
+                commentId,
+                "관리자가 댓글을 삭제했습니다.",
+                Map.of()
+        );
+    }
+
+    @Override
     public ReportResponse deleteTargetByReport(Long reportId, Long reviewerId) {
         Report report = reportRepository.findById(reportId)
                 .orElseThrow(() -> new CustomException(ErrorCode.REPORT_NOT_FOUND));
@@ -79,6 +111,17 @@ public class AdminModerationServiceImpl implements AdminModerationService {
         }
 
         report.updateStatus(ReportStatus.ACTION_TAKEN, reviewerId, LocalDateTime.now(clock));
+        adminActionLogService.log(
+                reviewerId,
+                AdminActionType.REPORT_DELETE_TARGET,
+                AdminActionTargetType.REPORT,
+                reportId,
+                "관리자가 신고 대상 삭제 조치를 완료했습니다.",
+                Map.of(
+                        "targetType", report.getTargetType().name(),
+                        "targetId", report.getTargetId()
+                )
+        );
         return ReportResponse.from(report);
     }
 
@@ -105,6 +148,19 @@ public class AdminModerationServiceImpl implements AdminModerationService {
         adminUserCommandService.suspendUser(targetUserId, type, reason, duration);
 
         report.updateStatus(ReportStatus.ACTION_TAKEN, reviewerId, LocalDateTime.now(clock));
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("targetUserId", targetUserId);
+        metadata.put("type", type.name());
+        metadata.put("reason", reason.name());
+        metadata.put("days", duration == null ? null : duration.toDays());
+        adminActionLogService.log(
+                reviewerId,
+                AdminActionType.REPORT_SUSPEND_USER,
+                AdminActionTargetType.REPORT,
+                reportId,
+                "관리자가 USER 신고 대상 유저를 정지했습니다.",
+                metadata
+        );
         return ReportResponse.from(report);
     }
 }

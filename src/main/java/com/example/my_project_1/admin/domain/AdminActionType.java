@@ -1,0 +1,13 @@
+package com.example.my_project_1.admin.domain;
+
+public enum AdminActionType {
+    USER_SUSPEND,
+    USER_UNSUSPEND,
+    REPORT_STATUS_CHANGE,
+    REPORT_DELETE_TARGET,
+    REPORT_SUSPEND_USER,
+    MODERATION_DELETE_POST,
+    MODERATION_DELETE_COMMENT,
+    OUTBOX_RETRY,
+    OUTBOX_RETRY_NOW
+}
