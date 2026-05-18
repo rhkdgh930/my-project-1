@@ -1,5 +1,23 @@
 # User AI Rules
 
+## 최신 정책 - USER Report Suspend
+
+- `USER` 신고 상세에서는 `POST /api/admin/reports/{reportId}/actions/suspend-user`로 신고 기반 명시 정지 조치를 수행할 수 있다.
+- 정지 타입과 사유, 기간 정책은 기존 Admin User suspend 정책을 재사용한다.
+- 정지 성공 후 신고 상태는 `ACTION_TAKEN`으로 변경된다.
+- `ACTION_TAKEN` 상태 변경 자체가 자동 정지를 수행하지는 않는다.
+- 자기 자신 정지는 금지한다.
+- `POST`/`COMMENT` 신고에 `suspend-user`를 호출하면 `UNSUPPORTED_REPORT_TARGET`로 실패한다.
+- `ADMIN` 계정 정지 금지 여부는 아직 별도 운영 정책으로 남아 있다.
+
+## 최신 정책 - Report / User Moderation
+
+- `USER` 신고는 `POST /api/admin/reports/{reportId}/actions/delete-target`에서 지원하지 않는다.
+- 현재 `USER` 신고 조치는 기존 Admin User 화면에서 정지 등 명시적 관리자 액션으로 처리한다.
+- `ACTION_TAKEN`은 자동 유저 정지를 수행하지 않는 상태값이다.
+- `USER` 신고 상세에는 신고 기반 유저 정지 폼이 있다. 기존 Admin User 화면은 직접 정지 조치용으로 유지한다.
+- 유저 정지와 유저 정지 해제 성공 후에는 `AdminActionLog`에 `USER_SUSPEND`, `USER_UNSUSPEND` 조치를 기록한다.
+
 이 문서는 User lifecycle, public author 표시, profile 정책, user batch 정책을 정리한다.
 
 ## 현재 정책 - User Lifecycle
@@ -51,6 +69,5 @@
 
 ## TODO
 
-- suspension audit 기록이 필요하면 별도 admin/audit 정책으로 추가한다.
 - batch metric, retry/failure report를 보강한다.
 - User lifecycle policy가 더 커지면 `WithdrawalPolicy`, `DormancyPolicy`, `SuspensionPolicy` 분리를 검토한다.

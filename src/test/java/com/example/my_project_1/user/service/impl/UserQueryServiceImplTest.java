@@ -1,5 +1,6 @@
 package com.example.my_project_1.user.service.impl;
 
+import com.example.my_project_1.auth.service.UserAccountPolicy;
 import com.example.my_project_1.common.exception.CustomException;
 import com.example.my_project_1.common.exception.ErrorCode;
 import com.example.my_project_1.user.domain.Email;
@@ -20,13 +21,13 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 class UserQueryServiceImplTest {
 
     private final UserRepository userRepository = mock(UserRepository.class);
-    private final UserQueryServiceImpl userQueryService = new UserQueryServiceImpl(userRepository);
+    private final UserAccountPolicy userAccountPolicy = mock(UserAccountPolicy.class);
+    private final UserQueryServiceImpl userQueryService = new UserQueryServiceImpl(userRepository, userAccountPolicy);
 
     @Test
     @DisplayName("내 정보 조회는 민감 정보를 제외한 현재 사용자 정보를 반환한다.")
@@ -59,6 +60,10 @@ class UserQueryServiceImplTest {
         user.completeWithdrawal();
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
 
+        doThrow(new CustomException(ErrorCode.USER_NOT_FOUND))
+                .when(userAccountPolicy)
+                .validateMeReadable(user);
+
         assertThatThrownBy(() -> userQueryService.getMe(1L))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
@@ -72,6 +77,10 @@ class UserQueryServiceImplTest {
         user.requestWithdrawal(LocalDateTime.parse("2026-01-01T00:00:00"));
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
 
+        doThrow(new CustomException(ErrorCode.WITHDRAWAL_PENDING))
+                .when(userAccountPolicy)
+                .validateMeReadable(user);
+
         assertThatThrownBy(() -> userQueryService.getMe(1L))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
@@ -84,6 +93,10 @@ class UserQueryServiceImplTest {
         User user = activeUser();
         user.markDormant();
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+
+        doThrow(new CustomException(ErrorCode.USER_DORMANT))
+                .when(userAccountPolicy)
+                .validateMeReadable(user);
 
         assertThatThrownBy(() -> userQueryService.getMe(1L))
                 .isInstanceOf(CustomException.class)
@@ -102,6 +115,10 @@ class UserQueryServiceImplTest {
                 LocalDateTime.parse("2026-01-01T00:00:00")
         );
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+
+        doThrow(new CustomException(ErrorCode.USER_SUSPENDED))
+                .when(userAccountPolicy)
+                .validateMeReadable(user);
 
         assertThatThrownBy(() -> userQueryService.getMe(1L))
                 .isInstanceOf(CustomException.class)

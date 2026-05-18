@@ -25,6 +25,7 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import com.example.my_project_1.auth.userdetails.UserDetailsImpl;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
@@ -60,10 +61,12 @@ public class AdminUserController {
     public ResponseEntity<Void> suspendUser(
             @Parameter(description = "차단할 유저 ID", example = "1", required = true)
             @PathVariable Long userId,
-            @Valid @RequestBody UserSuspensionRequest request
+            @Valid @RequestBody UserSuspensionRequest request,
+            @AuthenticationPrincipal UserDetailsImpl userDetails
     ) {
 
-        adminCommandService.suspendUser(
+        adminCommandService.suspendUserByAdmin(
+                userDetails.getUserId(),
                 userId,
                 request.getType(),
                 request.getReason(),
@@ -92,9 +95,10 @@ public class AdminUserController {
     @PostMapping("/{userId}/unsuspend")
     public ResponseEntity<Void> unSuspendUser(
             @Parameter(description = "차단을 복구할 유저 ID", example = "1", required = true)
-            @PathVariable Long userId) {
+            @PathVariable Long userId,
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
 
-        adminCommandService.unSuspendUser(userId);
+        adminCommandService.unSuspendUserByAdmin(userDetails.getUserId(), userId);
 
         return ResponseEntity.noContent().build();
     }

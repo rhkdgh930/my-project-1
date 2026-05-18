@@ -1,5 +1,6 @@
 package com.example.my_project_1.outbox.service;
 
+import com.example.my_project_1.common.monitoring.MonitoringService;
 import com.example.my_project_1.outbox.domain.OutboxEventType;
 import com.example.my_project_1.outbox.handler.OutboxHandler;
 import org.junit.jupiter.api.DisplayName;
@@ -15,12 +16,13 @@ import static org.mockito.Mockito.when;
 class OutboxProcessorTest {
 
     private final OutboxEventManager outboxEventManager = mock(OutboxEventManager.class);
+    private final MonitoringService monitoringService = mock(MonitoringService.class);
 
     @Test
     @DisplayName("claim 성공한 이벤트만 handler를 실행하고 SUCCESS로 기록한다.")
     void process_handlesClaimedEventAndMarksSuccess() {
         TestHandler handler = handler();
-        OutboxProcessor processor = new OutboxProcessor(outboxEventManager, List.of(handler));
+        OutboxProcessor processor = new OutboxProcessor(outboxEventManager, monitoringService, List.of(handler));
         when(outboxEventManager.claim(1L))
                 .thenReturn(new OutboxEventSnapshot(1L, OutboxEventType.USER_ACCOUNT_CHANGED, "{}"));
 
@@ -28,13 +30,14 @@ class OutboxProcessorTest {
 
         verify(handler).handle("{}");
         verify(outboxEventManager).markSuccess(1L);
+        verify(monitoringService).recordOutboxProcessSuccess(OutboxEventType.USER_ACCOUNT_CHANGED);
     }
 
     @Test
     @DisplayName("claim 실패 시 handler를 호출하지 않는다.")
     void process_skipsWhenClaimFails() {
         TestHandler handler = handler();
-        OutboxProcessor processor = new OutboxProcessor(outboxEventManager, List.of(handler));
+        OutboxProcessor processor = new OutboxProcessor(outboxEventManager, monitoringService, List.of(handler));
         when(outboxEventManager.claim(1L)).thenReturn(null);
 
         processor.process(1L);
@@ -47,20 +50,21 @@ class OutboxProcessorTest {
     @Test
     @DisplayName("handler가 없으면 DEAD로 기록한다.")
     void process_marksDeadWhenHandlerMissing() {
-        OutboxProcessor processorWithoutHandler = new OutboxProcessor(outboxEventManager, List.of());
+        OutboxProcessor processorWithoutHandler = new OutboxProcessor(outboxEventManager, monitoringService, List.of());
         when(outboxEventManager.claim(1L))
                 .thenReturn(new OutboxEventSnapshot(1L, OutboxEventType.USER_ACCOUNT_CHANGED, "{}"));
 
         processorWithoutHandler.process(1L);
 
         verify(outboxEventManager).markDead(1L, "HANDLER_NOT_FOUND");
+        verify(monitoringService).recordOutboxProcessFail(OutboxEventType.USER_ACCOUNT_CHANGED);
     }
 
     @Test
     @DisplayName("handler 실패 시 FAILED로 기록한다.")
     void process_marksFailWhenHandlerThrows() {
         TestHandler handler = handler();
-        OutboxProcessor processor = new OutboxProcessor(outboxEventManager, List.of(handler));
+        OutboxProcessor processor = new OutboxProcessor(outboxEventManager, monitoringService, List.of(handler));
         RuntimeException exception = new RuntimeException("handler failed");
         when(outboxEventManager.claim(1L))
                 .thenReturn(new OutboxEventSnapshot(1L, OutboxEventType.USER_ACCOUNT_CHANGED, "{}"));
@@ -69,6 +73,7 @@ class OutboxProcessorTest {
         processor.process(1L);
 
         verify(outboxEventManager).markFail(1L, exception);
+        verify(monitoringService).recordOutboxProcessFail(OutboxEventType.USER_ACCOUNT_CHANGED);
     }
 
     private interface TestHandler extends OutboxHandler {

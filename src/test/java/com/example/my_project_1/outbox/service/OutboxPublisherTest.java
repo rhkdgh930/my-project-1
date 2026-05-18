@@ -30,11 +30,17 @@ class OutboxPublisherTest {
     );
 
     private final OutboxRepository outboxRepository = mock(OutboxRepository.class);
+    private final OutboxEventInsertService outboxEventInsertService = mock(OutboxEventInsertService.class);
     private final ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
-    private final OutboxPublisher outboxPublisher = new OutboxPublisher(outboxRepository, eventPublisher, CLOCK);
+    private final OutboxPublisher outboxPublisher = new OutboxPublisher(
+            outboxRepository,
+            outboxEventInsertService,
+            eventPublisher,
+            CLOCK
+    );
 
     @Test
-    @DisplayName("publish는 event 저장 후 OutboxSavedEvent를 발행한다.")
+    @DisplayName("publish는 이벤트를 저장하고 OutboxSavedEvent를 발행한다.")
     void publish_savesEventAndPublishesSavedEvent() {
         outboxPublisher.publish(OutboxEventType.DORMANCY_NOTIFY, "{}", "event-key");
 
@@ -50,34 +56,22 @@ class OutboxPublisherTest {
     }
 
     @Test
-    @DisplayName("publishIfAbsent는 기존 eventKey가 있으면 false를 반환하고 event를 발행하지 않는다.")
-    void publishIfAbsent_returnsFalseWhenEventKeyAlreadyExists() {
-        when(outboxRepository.existsByEventKey("event-key")).thenReturn(true);
-
-        boolean published = outboxPublisher.publishIfAbsent(OutboxEventType.DORMANCY_NOTIFY, "{}", "event-key");
-
-        assertThat(published).isFalse();
-        verify(outboxRepository, never()).saveAndFlush(any());
-        verify(eventPublisher, never()).publishEvent(any());
-    }
-
-    @Test
-    @DisplayName("publishIfAbsent는 저장 성공 시 true를 반환하고 event를 발행한다.")
+    @DisplayName("publishIfAbsent는 저장에 성공하면 true를 반환하고 이벤트를 발행한다.")
     void publishIfAbsent_returnsTrueAndPublishesEventWhenSaveSucceeds() {
-        when(outboxRepository.existsByEventKey("event-key")).thenReturn(false);
+        when(outboxEventInsertService.saveAndFlush(any(OutboxEvent.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
 
         boolean published = outboxPublisher.publishIfAbsent(OutboxEventType.DORMANCY_NOTIFY, "{}", "event-key");
 
         assertThat(published).isTrue();
-        verify(outboxRepository).saveAndFlush(any(OutboxEvent.class));
+        verify(outboxEventInsertService).saveAndFlush(any(OutboxEvent.class));
         verify(eventPublisher).publishEvent(any(OutboxSavedEvent.class));
     }
 
     @Test
-    @DisplayName("publishIfAbsent는 unique constraint 충돌이면 false를 반환하고 event를 발행하지 않는다.")
+    @DisplayName("publishIfAbsent는 eventKey unique 충돌이면 false를 반환하고 이벤트를 발행하지 않는다.")
     void publishIfAbsent_returnsFalseWhenUniqueConstraintRaceHappens() {
-        when(outboxRepository.existsByEventKey("event-key")).thenReturn(false);
-        when(outboxRepository.saveAndFlush(any(OutboxEvent.class)))
+        when(outboxEventInsertService.saveAndFlush(any(OutboxEvent.class)))
                 .thenThrow(new DataIntegrityViolationException("duplicate"));
 
         boolean published = outboxPublisher.publishIfAbsent(OutboxEventType.DORMANCY_NOTIFY, "{}", "event-key");

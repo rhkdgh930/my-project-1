@@ -1,5 +1,36 @@
 # Board / Post AI Rules
 
+## 최신 정책 - Tag Posts
+
+- 태그별 게시글 조회 API는 `GET /api/tags/{tagName}/posts`다.
+- Public API이며 `tagName`은 `trim` 기준으로 조회한다.
+- 현재 영문 대소문자 정규화는 하지 않으므로 `Java`와 `java`는 다른 태그다.
+- 존재하지 않는 태그명은 에러가 아니라 빈 `PageResponse<PostListResponse>`를 반환한다.
+- 삭제된 게시글과 삭제된 게시판 아래 게시글은 제외한다.
+- 정렬은 `post.createdAt desc`, `post.id desc` 최신순이다.
+- 응답 `viewCount`는 기존 목록 응답처럼 `DB viewCount + Redis delta`로 보정한다.
+- 태그별 게시글 조회는 `viewCount`를 증가시키지 않는다.
+- 응답의 `tags`는 기존 정책대로 postId 목록 기반 bulk 조회로 채운다.
+
+## 최신 정책 - Post Tag
+
+- 게시글 생성/수정 요청은 optional `tags`를 받을 수 있다.
+- `tags == null`이면 빈 목록처럼 처리한다.
+- 태그명은 `trim`하고 빈 태그는 제거한다.
+- 중복 판단은 `trim` 결과 기준이며, 영문 대소문자 정규화는 아직 하지 않는다.
+- 게시글당 태그는 최대 5개, 태그명은 최대 20자까지 허용한다.
+- `Tag`는 `id`, `name`, `createdAt`을 가진다.
+- `PostTag`는 `id`, `postId`, `tagId`를 가지며 `Post @ManyToOne` 없이 ID 참조 구조를 사용한다.
+- `unique(post_id, tag_id)`로 같은 게시글 중복 태그를 방어한다.
+- 목록/상세/인기글/마이페이지 목록 응답에 additive field `tags`를 노출한다.
+- 태그 조회는 postId 목록 기반 bulk 조회로 처리해 N+1을 피한다.
+
+## TODO - Post Tag
+
+- 태그 자동완성, 태그 목록 API, 복합 태그 검색은 별도 범위로 검토한다.
+- 영문 태그 대소문자 정규화 정책을 검토한다.
+- 사용되지 않는 orphan `Tag` cleanup을 검토한다.
+
 이 문서는 Board/Post 조회, hidden soft delete, QueryDSL 검색, Redis view count, DB like, Post image Outbox 정책을 정리한다.
 
 ## 현재 정책 - Board / Post Soft Delete
@@ -28,6 +59,16 @@
 - 정렬 기준은 `LATEST`: `createdAt desc, id desc`, `OLDEST`: `createdAt asc, id asc`, `VIEW_COUNT`: `viewCount desc, id desc`, `LIKE_COUNT`: `likeCount desc, id desc`이다.
 - 정렬은 DB에 마지막으로 sync된 `viewCount`와 DB `likeCount` 기준이다.
 - `CONTENT` 검색은 큰 데이터에서 full-text index 또는 search engine 도입을 검토한다.
+
+## 현재 정책 - Popular Posts
+
+- 인기글 조회 API는 `GET /api/boards/{boardId}/posts/popular`이다.
+- Public API이며 삭제된 Board/Post는 제외한다.
+- 초기 점수는 DB 기준 `likeCount * 3 + viewCount`이다.
+- Redis view delta는 ranking 계산에 반영하지 않는다.
+- 응답의 `viewCount`는 기존 목록 응답처럼 `DB viewCount + Redis delta`로 보정한다.
+- 조회 호출 자체는 `viewCount`를 증가시키지 않는다.
+- 기본 size는 10이고 최대 50으로 제한한다.
 
 ## 현재 정책 - Redis View Count
 

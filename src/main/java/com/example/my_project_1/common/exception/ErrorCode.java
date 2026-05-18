@@ -35,6 +35,9 @@ public enum ErrorCode {
     INVALID_SUSPENSION_DURATION(HttpStatus.BAD_REQUEST, "차단 기간이 유효하지 않습니다."),
     COMMENT_ALREADY_DELETED(HttpStatus.BAD_REQUEST, "삭제된 댓글에는 답글을 작성할 수 없습니다."),
     COMMENT_DEPTH_EXCEEDED(HttpStatus.BAD_REQUEST, "대댓글은 1단계까지만 허용됩니다."),
+    DUPLICATED_REPORT(HttpStatus.BAD_REQUEST, "이미 신고한 대상입니다."),
+    SELF_REPORT_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "자기 자신은 신고할 수 없습니다."),
+    UNSUPPORTED_REPORT_TARGET(HttpStatus.BAD_REQUEST, "지원하지 않는 신고 대상입니다."),
 
     // 추가: 이미 처리된 상태에 대한 요청
     ALREADY_EXIST_BOARD_NAME(HttpStatus.BAD_REQUEST, "이미 존재하는 게시판 이름 입니다."),
@@ -47,6 +50,7 @@ public enum ErrorCode {
     POST_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 게시물 입니다."),
     COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 댓글입니다."),
     OUTBOX_EVENT_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 아웃박스 이벤트입니다."),
+    REPORT_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 신고입니다."),
 
     /* 401 UNAUTHORIZED: 인증 실패 */
     WITHDRAWAL_COMPLETED(HttpStatus.UNAUTHORIZED, "이미 탈퇴 처리된 계정입니다."),

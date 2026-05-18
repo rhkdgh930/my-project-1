@@ -1,5 +1,17 @@
 # Operations AI Rules
 
+## 최신 TODO - Report / Moderation / Tag / Audit
+
+- 신고 `content`에는 민감정보가 포함될 수 있으므로 관리자 화면 masking 정책을 검토한다.
+- `AdminActionLog`는 현재 성공한 관리자 조치만 기록한다. 실패한 관리자 조치 로그 저장 여부는 TODO다.
+- Audit Log 보존 기간과 cleanup 정책을 정한다.
+- Audit Log `metadata` masking을 고도화한다.
+- 운영 DB migration 도입 시 `admin_action_log` 테이블을 명시한다.
+- request IP/user agent 기록 여부를 검토한다.
+- `ADMIN` 계정 정지 금지 여부를 운영 정책으로 명확히 정한다.
+- 태그 자동완성, 태그 목록 API, orphan `Tag` cleanup은 운영/기능 확장 시 별도 범위로 검토한다.
+- 운영 DB migration 도입 시 `tag`, `post_tag`, `unique(post_id, tag_id)`와 필요한 FK를 명시한다.
+
 이 문서는 운영/공개 전 TODO를 모은다. 현재 구현 정책이 아니라 배포 전 점검 목록이다.
 
 ## GitHub 공개 전
@@ -52,8 +64,26 @@
 - profile image cleanup 대상/실패 count를 관찰한다.
 - 파일 삭제 cleanup 실패를 metric/log/admin 진단 기능으로 보강한다.
 
+## Local Observability
+
+- 로컬 개발/포트폴리오 시연용 Prometheus/Grafana 구성은 `docker-compose.observability.yml`을 사용한다.
+- Spring Boot 앱은 compose에 포함하지 않고 로컬에서 `.\gradlew.bat bootRun`으로 실행한다.
+- Prometheus는 `monitoring/prometheus/prometheus.yml` 설정으로 `host.docker.internal:8080`의 `/actuator/prometheus`를 scrape한다.
+- Windows Docker Desktop 기준으로 `host.docker.internal`을 사용한다. Linux 환경에서 동작하지 않으면 compose의 `extra_hosts` 또는 Docker gateway 주소를 환경에 맞게 조정한다.
+- Grafana는 `monitoring/grafana/provisioning`으로 Prometheus datasource와 기본 dashboard를 자동 등록한다.
+- 로컬 확인 URL은 Spring Boot actuator `http://localhost:8080/actuator/prometheus`, Prometheus `http://localhost:9090`, Grafana `http://localhost:3000`이다.
+- Grafana 기본 계정은 로컬 개발용 `admin/admin`이며 운영용 secret으로 취급하지 않는다.
+- 실행은 `docker compose -f docker-compose.observability.yml up -d`, 종료는 `docker compose -f docker-compose.observability.yml down`을 사용한다.
+
 ## Observability TODO
 
+- 현재 개발 환경 모니터링은 Spring Boot Actuator와 Micrometer Prometheus registry를 사용한다.
+- 개발 기본 노출 endpoint는 `/actuator/health`, `/actuator/info`, `/actuator/metrics`, `/actuator/prometheus`로 제한한다.
+- `env`, `beans`, `heapdump`, `threaddump` 같은 민감하거나 과한 endpoint는 기본 노출하지 않는다.
+- Prometheus metric tag에는 `eventType`, `actionType`, `targetType`, `reason`, `mode` 같은 낮은 cardinality 값만 사용한다.
+- `userId`, email, token, payload, content 같은 개인정보나 고카디널리티 값은 metric tag에 넣지 않는다.
+- 현재 커스텀 counter는 Outbox 처리/재시도, Post view sync, Report 생성, 관리자 moderation action, Admin Audit Log 생성을 중심으로 둔다.
+- 운영 배포 전 actuator endpoint 인증/네트워크 제한 정책을 별도로 정한다.
 - stale dirty marker count
 - Outbox `PENDING`/`FAILED`/`DEAD`/`PROCESSING` count
 - stuck `PROCESSING` recovery count

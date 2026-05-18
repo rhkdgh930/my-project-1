@@ -1,9 +1,12 @@
 package com.example.my_project_1.post.repository;
 
 import com.example.my_project_1.board.domain.Board;
+import com.example.my_project_1.comment.domain.Comment;
 import com.example.my_project_1.common.config.QueryDslConfig;
 import com.example.my_project_1.post.domain.Post;
 import com.example.my_project_1.post.domain.PostLike;
+import com.example.my_project_1.post.domain.PostTag;
+import com.example.my_project_1.post.domain.Tag;
 import com.example.my_project_1.post.service.request.PostSearchCondition;
 import com.example.my_project_1.post.service.request.PostSearchType;
 import com.example.my_project_1.post.service.request.PostSortType;
@@ -16,8 +19,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -36,6 +41,12 @@ class PostRepositoryTest {
 
     @Autowired
     private PostLikeRepository postLikeRepository;
+
+    @Autowired
+    private PostTagRepository postTagRepository;
+
+    @Autowired
+    private TagRepository tagRepository;
 
     @Autowired
     private TestEntityManager entityManager;
@@ -163,6 +174,191 @@ class PostRepositoryTest {
     }
 
     @Test
+    @DisplayName("findLikedActivePostsByUserId는 현재 사용자가 좋아요한 활성 게시글을 좋아요 최신순으로 조회한다.")
+    void findLikedActivePostsByUserId_returnsLikedActivePostsInLikedLatestOrder() {
+        Long userId = 200L;
+        Board board = board("liked-board");
+        Post oldLiked = postRepository.save(post(board, 100L, "old liked", "content"));
+        Post latestLiked = postRepository.save(post(board, 101L, "latest liked", "content"));
+        Post otherUserLiked = postRepository.save(post(board, 102L, "other user liked", "content"));
+        Post deletedPost = postRepository.save(post(board, 103L, "deleted", "content"));
+        deletedPost.delete(LocalDateTime.of(2026, 5, 12, 10, 0));
+        Board deletedBoard = board("deleted-liked-board");
+        deletedBoard.delete(LocalDateTime.of(2026, 5, 12, 10, 0));
+        Post deletedBoardPost = postRepository.save(post(deletedBoard, 104L, "deleted board post", "content"));
+
+        postLikeRepository.save(like(oldLiked.getId(), userId, LocalDateTime.of(2026, 5, 13, 10, 0)));
+        postLikeRepository.save(like(latestLiked.getId(), userId, LocalDateTime.of(2026, 5, 14, 10, 0)));
+        postLikeRepository.save(like(otherUserLiked.getId(), 201L, LocalDateTime.of(2026, 5, 15, 10, 0)));
+        postLikeRepository.save(like(deletedPost.getId(), userId, LocalDateTime.of(2026, 5, 16, 10, 0)));
+        postLikeRepository.save(like(deletedBoardPost.getId(), userId, LocalDateTime.of(2026, 5, 17, 10, 0)));
+        postLikeRepository.flush();
+        entityManager.clear();
+
+        Page<Post> result = postRepository.findLikedActivePostsByUserId(userId, PageRequest.of(0, 10));
+
+        assertThat(result.getTotalElements()).isEqualTo(2);
+        assertThat(result.getContent())
+                .extracting(Post::getId)
+                .containsExactly(latestLiked.getId(), oldLiked.getId());
+    }
+
+    @Test
+    @DisplayName("findLikedActivePostsByUserId는 좋아요한 게시글이 없으면 빈 페이지를 반환한다.")
+    void findLikedActivePostsByUserId_returnsEmptyPageWhenUserHasNoLikes() {
+        Page<Post> result = postRepository.findLikedActivePostsByUserId(999L, PageRequest.of(0, 10));
+
+        assertThat(result.getContent()).isEmpty();
+        assertThat(result.getTotalElements()).isZero();
+    }
+
+    @Test
+    @DisplayName("findActivePostsByUserId는 현재 사용자가 작성한 활성 게시글을 최신순으로 조회한다.")
+    void findActivePostsByUserId_returnsMyActivePostsInLatestOrder() {
+        Long userId = 200L;
+        Board board = board("my-post-board");
+        Post oldPost = postRepository.save(post(board, userId, "old", "content"));
+        Post latestPost = postRepository.save(post(board, userId, "latest", "content"));
+        postRepository.save(post(board, 201L, "other user", "content"));
+        Post deletedPost = postRepository.save(post(board, userId, "deleted", "content"));
+        deletedPost.delete(LocalDateTime.of(2026, 5, 12, 10, 0));
+        Board deletedBoard = board("deleted-my-post-board");
+        deletedBoard.delete(LocalDateTime.of(2026, 5, 12, 10, 0));
+        postRepository.save(post(deletedBoard, userId, "deleted board post", "content"));
+        postRepository.flush();
+
+        Page<Post> result = postRepository.findActivePostsByUserId(userId, PageRequest.of(0, 10));
+
+        assertThat(result.getTotalElements()).isEqualTo(2);
+        assertThat(result.getContent())
+                .extracting(Post::getId)
+                .containsExactly(latestPost.getId(), oldPost.getId());
+    }
+
+    @Test
+    @DisplayName("findActivePostsByUserId는 작성한 게시글이 없으면 빈 페이지를 반환한다.")
+    void findActivePostsByUserId_returnsEmptyPageWhenUserHasNoPosts() {
+        Page<Post> result = postRepository.findActivePostsByUserId(999L, PageRequest.of(0, 10));
+
+        assertThat(result.getContent()).isEmpty();
+        assertThat(result.getTotalElements()).isZero();
+    }
+
+    @Test
+    @DisplayName("findCommentedActivePostsByUserId는 내가 댓글 단 활성 게시글을 댓글 최신순으로 중복 없이 조회한다.")
+    void findCommentedActivePostsByUserId_returnsDistinctPostsInLatestCommentOrder() {
+        Long userId = 200L;
+        Board board = board("commented-board");
+        Post duplicatePost = postRepository.save(post(board, 100L, "duplicate", "content"));
+        Post latestPost = postRepository.save(post(board, 101L, "latest", "content"));
+        Post replyPost = postRepository.save(post(board, 102L, "reply", "content"));
+        Post otherUserPost = postRepository.save(post(board, 103L, "other user", "content"));
+        Post deletedCommentOnlyPost = postRepository.save(post(board, 104L, "deleted comment only", "content"));
+        Post deletedPost = postRepository.save(post(board, 105L, "deleted post", "content"));
+        deletedPost.delete(LocalDateTime.of(2026, 5, 12, 10, 0));
+        Board deletedBoard = board("deleted-commented-board");
+        deletedBoard.delete(LocalDateTime.of(2026, 5, 12, 10, 0));
+        Post deletedBoardPost = postRepository.save(post(deletedBoard, 106L, "deleted board post", "content"));
+        postRepository.flush();
+
+        rootComment(duplicatePost, userId, LocalDateTime.of(2026, 5, 13, 10, 0));
+        rootComment(duplicatePost, userId, LocalDateTime.of(2026, 5, 15, 10, 0));
+        rootComment(latestPost, userId, LocalDateTime.of(2026, 5, 16, 10, 0));
+        rootComment(otherUserPost, 201L, LocalDateTime.of(2026, 5, 19, 10, 0));
+        Comment deletedComment = rootComment(deletedCommentOnlyPost, userId, LocalDateTime.of(2026, 5, 20, 10, 0));
+        deletedComment.delete(userId, LocalDateTime.of(2026, 5, 20, 11, 0));
+        rootComment(deletedPost, userId, LocalDateTime.of(2026, 5, 21, 10, 0));
+        rootComment(deletedBoardPost, userId, LocalDateTime.of(2026, 5, 22, 10, 0));
+        Comment parent = rootComment(replyPost, 201L, LocalDateTime.of(2026, 5, 17, 10, 0));
+        replyComment(parent, userId, LocalDateTime.of(2026, 5, 18, 10, 0));
+        entityManager.flush();
+        entityManager.clear();
+
+        Page<Post> result = postRepository.findCommentedActivePostsByUserId(userId, PageRequest.of(0, 10));
+
+        assertThat(result.getTotalElements()).isEqualTo(3);
+        assertThat(result.getContent())
+                .extracting(Post::getId)
+                .containsExactly(replyPost.getId(), latestPost.getId(), duplicatePost.getId());
+    }
+
+    @Test
+    @DisplayName("findCommentedActivePostsByUserId는 내가 댓글 단 게시글이 없으면 빈 페이지를 반환한다.")
+    void findCommentedActivePostsByUserId_returnsEmptyPageWhenUserHasNoComments() {
+        Page<Post> result = postRepository.findCommentedActivePostsByUserId(999L, PageRequest.of(0, 10));
+
+        assertThat(result.getContent()).isEmpty();
+        assertThat(result.getTotalElements()).isZero();
+    }
+
+    @Test
+    @DisplayName("태그명으로 활성 게시글을 최신순으로 조회하고 삭제된 게시글과 다른 태그 게시글은 제외한다.")
+    void findActivePostsByTagName_returnsActivePostsInLatestOrder() {
+        Board board = board("tag-board");
+        Tag spring = tagRepository.saveAndFlush(Tag.create("Spring"));
+        Tag redis = tagRepository.saveAndFlush(Tag.create("Redis"));
+        Post oldTagged = postRepository.save(post(board, 100L, "old tagged", "content"));
+        Post latestTagged = postRepository.save(post(board, 101L, "latest tagged", "content"));
+        Post otherTagged = postRepository.save(post(board, 102L, "other tagged", "content"));
+        Post deletedPost = postRepository.save(post(board, 103L, "deleted", "content"));
+        deletedPost.delete(LocalDateTime.of(2026, 5, 12, 10, 0));
+        Board deletedBoard = board("deleted-tag-board");
+        deletedBoard.delete(LocalDateTime.of(2026, 5, 12, 10, 0));
+        Post deletedBoardPost = postRepository.save(post(deletedBoard, 104L, "deleted board post", "content"));
+        postRepository.flush();
+
+        postTagRepository.save(PostTag.create(oldTagged.getId(), spring.getId()));
+        postTagRepository.save(PostTag.create(latestTagged.getId(), spring.getId()));
+        postTagRepository.save(PostTag.create(otherTagged.getId(), redis.getId()));
+        postTagRepository.save(PostTag.create(deletedPost.getId(), spring.getId()));
+        postTagRepository.save(PostTag.create(deletedBoardPost.getId(), spring.getId()));
+        postTagRepository.flush();
+        entityManager.clear();
+
+        Page<Post> result = postRepository.findActivePostsByTagName("Spring", PageRequest.of(0, 10));
+        Page<Post> missing = postRepository.findActivePostsByTagName("Missing", PageRequest.of(0, 10));
+        Page<Post> lowerCase = postRepository.findActivePostsByTagName("spring", PageRequest.of(0, 10));
+
+        assertThat(result.getTotalElements()).isEqualTo(2);
+        assertThat(result.getContent())
+                .extracting(Post::getId)
+                .containsExactly(latestTagged.getId(), oldTagged.getId());
+        assertThat(missing.getContent()).isEmpty();
+        assertThat(lowerCase.getContent()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("findPopularActivePosts는 likeCount * 3 + viewCount 점수순과 id 역순으로 활성 게시글을 조회한다.")
+    void findPopularActivePosts_returnsActivePostsInScoreOrder() {
+        Board board = board("popular-board");
+        Post low = postRepository.save(post(board, 100L, "low", "content"));
+        low.updateCounts(10L, 1L); // 13
+        Post sameScoreOld = postRepository.save(post(board, 101L, "same old", "content"));
+        sameScoreOld.updateCounts(12L, 1L); // 15
+        Post sameScoreNew = postRepository.save(post(board, 102L, "same new", "content"));
+        sameScoreNew.updateCounts(9L, 2L); // 15
+        Post high = postRepository.save(post(board, 103L, "high", "content"));
+        high.updateCounts(20L, 2L); // 26
+
+        postRepository.save(post(board("other-popular-board"), 104L, "other board", "content"));
+        Post deletedPost = postRepository.save(post(board, 105L, "deleted", "content"));
+        deletedPost.updateCounts(100L, 100L);
+        deletedPost.delete(LocalDateTime.of(2026, 5, 12, 10, 0));
+        Board deletedBoard = board("deleted-popular-board");
+        deletedBoard.delete(LocalDateTime.of(2026, 5, 12, 10, 0));
+        Post deletedBoardPost = postRepository.save(post(deletedBoard, 106L, "deleted board post", "content"));
+        deletedBoardPost.updateCounts(100L, 100L);
+        postRepository.flush();
+        entityManager.clear();
+
+        List<Post> result = postRepository.findPopularActivePosts(board.getId(), 3);
+
+        assertThat(result)
+                .extracting(Post::getId)
+                .containsExactly(high.getId(), sameScoreNew.getId(), sameScoreOld.getId());
+    }
+
+    @Test
     @DisplayName("updateLikeCountDelta는 likeCount를 원자적으로 증감하고 음수로 만들지 않는다.")
     void updateLikeCountDelta_updatesAtomicallyAndDoesNotGoNegative() {
         Post post = postRepository.save(post(board("delta-board"), 100L, "title", "content"));
@@ -210,5 +406,25 @@ class PostRepositoryTest {
 
     private static Post post(Board board, Long userId, String title, String content) {
         return Post.create(board, userId, title, content);
+    }
+
+    private static PostLike like(Long postId, Long userId, LocalDateTime createdAt) {
+        PostLike postLike = PostLike.create(postId, userId);
+        ReflectionTestUtils.setField(postLike, "createdAt", createdAt);
+        return postLike;
+    }
+
+    private Comment rootComment(Post post, Long userId, LocalDateTime createdAt) {
+        Comment comment = Comment.createRoot(post.getId(), userId, "content");
+        entityManager.persist(comment);
+        ReflectionTestUtils.setField(comment, "createdAt", createdAt);
+        return comment;
+    }
+
+    private Comment replyComment(Comment parent, Long userId, LocalDateTime createdAt) {
+        Comment comment = Comment.createReply(parent, userId, "reply");
+        entityManager.persist(comment);
+        ReflectionTestUtils.setField(comment, "createdAt", createdAt);
+        return comment;
     }
 }

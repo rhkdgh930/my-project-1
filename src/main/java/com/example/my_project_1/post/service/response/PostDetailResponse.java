@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
 @Schema(description = "게시글 상세 응답")
@@ -36,6 +37,9 @@ public class PostDetailResponse {
 
     @Schema(description = "응답 시점 기준 좋아요 수", example = "3")
     private long likeCount;
+
+    @Schema(description = "게시글 태그 목록")
+    private List<String> tags = List.of();
 
     @Schema(description = "현재 로그인 사용자의 좋아요 여부. 비로그인 사용자는 false입니다.", example = "false")
     private boolean likedByMe;
@@ -69,5 +73,9 @@ public class PostDetailResponse {
     public void updateCounts(long viewCount, long likeCount) {
         this.viewCount = viewCount;
         this.likeCount = likeCount;
+    }
+
+    public void updateTags(List<String> tags) {
+        this.tags = tags != null ? List.copyOf(tags) : List.of();
     }
 }

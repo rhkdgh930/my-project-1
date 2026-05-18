@@ -9,6 +9,7 @@ import com.example.my_project_1.post.domain.Post;
 import com.example.my_project_1.post.repository.PostLikeRepository;
 import com.example.my_project_1.post.repository.PostRepository;
 import com.example.my_project_1.post.service.PostRedisService;
+import com.example.my_project_1.post.service.PostTagService;
 import com.example.my_project_1.post.service.request.PostSearchCondition;
 import com.example.my_project_1.post.service.request.PostSortType;
 import com.example.my_project_1.post.service.response.PostDetailResponse;
@@ -47,6 +48,7 @@ class PostQueryServiceImplTest {
     private PostLikeRepository postLikeRepository;
     private UserClient userClient;
     private PostRedisService postRedisService;
+    private PostTagService postTagService;
     private PostQueryServiceImpl postQueryService;
 
     @BeforeEach
@@ -56,7 +58,15 @@ class PostQueryServiceImplTest {
         postLikeRepository = mock(PostLikeRepository.class);
         userClient = mock(UserClient.class);
         postRedisService = mock(PostRedisService.class);
-        postQueryService = new PostQueryServiceImpl(boardRepository, postRepository, postLikeRepository, userClient, postRedisService);
+        postTagService = mock(PostTagService.class);
+        postQueryService = new PostQueryServiceImpl(
+                boardRepository,
+                postRepository,
+                postLikeRepository,
+                userClient,
+                postRedisService,
+                postTagService
+        );
     }
 
     @Test
@@ -73,11 +83,14 @@ class PostQueryServiceImplTest {
         when(userClient.findAuthorsByIds(List.of(100L)))
                 .thenReturn(Map.of(100L, AuthorSummary.active(100L, "nickname", PROFILE_IMAGE_URL)));
         when(postRedisService.getViewDeltaOrNull(10L)).thenReturn(3L);
+        when(postTagService.findTagNamesByPostIds(List.of(10L)))
+                .thenReturn(Map.of(10L, List.of("Spring", "Redis")));
 
         PageResponse<PostListResponse> response = postQueryService.getPosts(boardId, null, pageable);
 
         assertThat(response.getContent()).hasSize(1);
         assertThat(response.getContent().get(0).getPostId()).isEqualTo(10L);
+        assertThat(response.getContent().get(0).getBoardId()).isEqualTo(boardId);
         assertThat(response.getContent().get(0).getNickname()).isEqualTo("nickname");
         assertThat(response.getContent().get(0).getAuthor().id()).isEqualTo(100L);
         assertThat(response.getContent().get(0).getAuthor().displayName()).isEqualTo("nickname");
@@ -85,7 +98,9 @@ class PostQueryServiceImplTest {
         assertThat(response.getContent().get(0).getAuthor().profileImageUrl()).isEqualTo(PROFILE_IMAGE_URL);
         assertThat(response.getContent().get(0).getViewCount()).isEqualTo(3L);
         assertThat(response.getContent().get(0).getLikeCount()).isEqualTo(0L);
+        assertThat(response.getContent().get(0).getTags()).containsExactly("Spring", "Redis");
         verify(postRepository).searchActivePosts(boardId, null, pageable);
+        verify(postTagService).findTagNamesByPostIds(List.of(10L));
     }
 
     @Test
@@ -155,6 +170,231 @@ class PostQueryServiceImplTest {
     }
 
     @Test
+    @DisplayName("좋아요한 게시글 목록은 author를 매핑하고 Redis view delta를 더해 반환한다.")
+    void getLikedPosts_mapsAuthorAndAddsRedisViewDelta() {
+        Long userId = 200L;
+        Pageable pageable = PageRequest.of(0, 10);
+        Post post = post(1L, 10L, 100L);
+        post.updateCounts(20L, 5L);
+
+        when(postRepository.findLikedActivePostsByUserId(userId, pageable))
+                .thenReturn(new PageImpl<>(List.of(post), pageable, 1));
+        when(userClient.findAuthorsByIds(List.of(100L)))
+                .thenReturn(Map.of(100L, AuthorSummary.active(100L, "nickname", PROFILE_IMAGE_URL)));
+        when(postRedisService.getViewDeltaOrNull(10L)).thenReturn(3L);
+
+        PageResponse<PostListResponse> response = postQueryService.getLikedPosts(userId, pageable);
+
+        assertThat(response.getContent()).hasSize(1);
+        PostListResponse postResponse = response.getContent().get(0);
+        assertThat(postResponse.getPostId()).isEqualTo(10L);
+        assertThat(postResponse.getBoardId()).isEqualTo(1L);
+        assertThat(postResponse.getAuthor().id()).isEqualTo(100L);
+        assertThat(postResponse.getAuthor().profileImageUrl()).isEqualTo(PROFILE_IMAGE_URL);
+        assertThat(postResponse.getViewCount()).isEqualTo(23L);
+        assertThat(postResponse.getLikeCount()).isEqualTo(5L);
+        verify(postRepository).findLikedActivePostsByUserId(userId, pageable);
+        verify(postRedisService, never()).increaseView(any());
+    }
+
+    @Test
+    @DisplayName("좋아요한 게시글 목록이 비어 있으면 author 조회와 Redis 조회를 생략한다.")
+    void getLikedPosts_skipsLookupsWhenPageIsEmpty() {
+        Long userId = 200L;
+        Pageable pageable = PageRequest.of(0, 10);
+
+        when(postRepository.findLikedActivePostsByUserId(userId, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        PageResponse<PostListResponse> response = postQueryService.getLikedPosts(userId, pageable);
+
+        assertThat(response.getContent()).isEmpty();
+        assertThat(response.getTotalElements()).isZero();
+        verify(userClient, never()).findAuthorsByIds(any());
+        verify(postRedisService, never()).getViewDeltaOrNull(any());
+    }
+
+    @Test
+    @DisplayName("내가 작성한 게시글 목록은 author를 매핑하고 Redis view delta를 더해 반환한다.")
+    void getMyPosts_mapsAuthorAndAddsRedisViewDelta() {
+        Long userId = 200L;
+        Pageable pageable = PageRequest.of(0, 10);
+        Post post = post(1L, 10L, userId);
+        post.updateCounts(30L, 7L);
+
+        when(postRepository.findActivePostsByUserId(userId, pageable))
+                .thenReturn(new PageImpl<>(List.of(post), pageable, 1));
+        when(userClient.findAuthorsByIds(List.of(userId)))
+                .thenReturn(Map.of(userId, AuthorSummary.active(userId, "nickname", PROFILE_IMAGE_URL)));
+        when(postRedisService.getViewDeltaOrNull(10L)).thenReturn(4L);
+
+        PageResponse<PostListResponse> response = postQueryService.getMyPosts(userId, pageable);
+
+        assertThat(response.getContent()).hasSize(1);
+        PostListResponse postResponse = response.getContent().get(0);
+        assertThat(postResponse.getPostId()).isEqualTo(10L);
+        assertThat(postResponse.getBoardId()).isEqualTo(1L);
+        assertThat(postResponse.getAuthor().id()).isEqualTo(userId);
+        assertThat(postResponse.getViewCount()).isEqualTo(34L);
+        assertThat(postResponse.getLikeCount()).isEqualTo(7L);
+        verify(postRepository).findActivePostsByUserId(userId, pageable);
+        verify(postRedisService, never()).increaseView(any());
+    }
+
+    @Test
+    @DisplayName("내가 작성한 게시글 목록이 비어 있으면 author 조회와 Redis 조회를 생략한다.")
+    void getMyPosts_skipsLookupsWhenPageIsEmpty() {
+        Long userId = 200L;
+        Pageable pageable = PageRequest.of(0, 10);
+
+        when(postRepository.findActivePostsByUserId(userId, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        PageResponse<PostListResponse> response = postQueryService.getMyPosts(userId, pageable);
+
+        assertThat(response.getContent()).isEmpty();
+        assertThat(response.getTotalElements()).isZero();
+        verify(userClient, never()).findAuthorsByIds(any());
+        verify(postRedisService, never()).getViewDeltaOrNull(any());
+    }
+
+    @Test
+    @DisplayName("내가 댓글 단 게시글 목록은 author를 매핑하고 Redis view delta를 더해 반환한다.")
+    void getCommentedPosts_mapsAuthorAndAddsRedisViewDelta() {
+        Long userId = 200L;
+        Pageable pageable = PageRequest.of(0, 10);
+        Post post = post(1L, 10L, 100L);
+        post.updateCounts(40L, 8L);
+
+        when(postRepository.findCommentedActivePostsByUserId(userId, pageable))
+                .thenReturn(new PageImpl<>(List.of(post), pageable, 1));
+        when(userClient.findAuthorsByIds(List.of(100L)))
+                .thenReturn(Map.of(100L, AuthorSummary.active(100L, "nickname", PROFILE_IMAGE_URL)));
+        when(postRedisService.getViewDeltaOrNull(10L)).thenReturn(5L);
+
+        PageResponse<PostListResponse> response = postQueryService.getCommentedPosts(userId, pageable);
+
+        assertThat(response.getContent()).hasSize(1);
+        PostListResponse postResponse = response.getContent().get(0);
+        assertThat(postResponse.getPostId()).isEqualTo(10L);
+        assertThat(postResponse.getBoardId()).isEqualTo(1L);
+        assertThat(postResponse.getAuthor().id()).isEqualTo(100L);
+        assertThat(postResponse.getViewCount()).isEqualTo(45L);
+        assertThat(postResponse.getLikeCount()).isEqualTo(8L);
+        verify(postRepository).findCommentedActivePostsByUserId(userId, pageable);
+        verify(postRedisService, never()).increaseView(any());
+    }
+
+    @Test
+    @DisplayName("내가 댓글 단 게시글 목록이 비어 있으면 author 조회와 Redis 조회를 생략한다.")
+    void getCommentedPosts_skipsLookupsWhenPageIsEmpty() {
+        Long userId = 200L;
+        Pageable pageable = PageRequest.of(0, 10);
+
+        when(postRepository.findCommentedActivePostsByUserId(userId, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        PageResponse<PostListResponse> response = postQueryService.getCommentedPosts(userId, pageable);
+
+        assertThat(response.getContent()).isEmpty();
+        assertThat(response.getTotalElements()).isZero();
+        verify(userClient, never()).findAuthorsByIds(any());
+        verify(postRedisService, never()).getViewDeltaOrNull(any());
+    }
+
+    @Test
+    @DisplayName("태그별 게시글 목록은 작성자와 Redis view delta와 태그를 매핑해서 반환한다.")
+    void getPostsByTagName_mapsAuthorAndAddsRedisViewDeltaAndTags() {
+        Pageable pageable = PageRequest.of(0, 10);
+        Post post = post(1L, 10L, 100L);
+        post.updateCounts(50L, 9L);
+
+        when(postRepository.findActivePostsByTagName("Spring", pageable))
+                .thenReturn(new PageImpl<>(List.of(post), pageable, 1));
+        when(userClient.findAuthorsByIds(List.of(100L)))
+                .thenReturn(Map.of(100L, AuthorSummary.active(100L, "nickname", PROFILE_IMAGE_URL)));
+        when(postRedisService.getViewDeltaOrNull(10L)).thenReturn(6L);
+        when(postTagService.findTagNamesByPostIds(List.of(10L)))
+                .thenReturn(Map.of(10L, List.of("Spring", "Redis")));
+
+        PageResponse<PostListResponse> response = postQueryService.getPostsByTagName(" Spring ", pageable);
+
+        assertThat(response.getContent()).hasSize(1);
+        PostListResponse postResponse = response.getContent().get(0);
+        assertThat(postResponse.getPostId()).isEqualTo(10L);
+        assertThat(postResponse.getBoardId()).isEqualTo(1L);
+        assertThat(postResponse.getAuthor().id()).isEqualTo(100L);
+        assertThat(postResponse.getViewCount()).isEqualTo(56L);
+        assertThat(postResponse.getLikeCount()).isEqualTo(9L);
+        assertThat(postResponse.getTags()).containsExactly("Spring", "Redis");
+        verify(postRepository).findActivePostsByTagName("Spring", pageable);
+        verify(postRedisService, never()).increaseView(any());
+    }
+
+    @Test
+    @DisplayName("태그별 게시글 목록이 비어 있으면 작성자와 Redis 조회를 생략한다.")
+    void getPostsByTagName_skipsLookupsWhenPageIsEmpty() {
+        Pageable pageable = PageRequest.of(0, 10);
+
+        when(postRepository.findActivePostsByTagName("Missing", pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        PageResponse<PostListResponse> response = postQueryService.getPostsByTagName("Missing", pageable);
+
+        assertThat(response.getContent()).isEmpty();
+        assertThat(response.getTotalElements()).isZero();
+        verify(userClient, never()).findAuthorsByIds(any());
+        verify(postRedisService, never()).getViewDeltaOrNull(any());
+    }
+
+    @Test
+    @DisplayName("인기글 목록은 author를 매핑하고 Redis view delta를 응답에만 더한다.")
+    void getPopularPosts_mapsAuthorAndAddsRedisViewDelta() {
+        Long boardId = 1L;
+        Post post = post(boardId, 10L, 100L);
+        post.updateCounts(40L, 8L);
+
+        when(boardRepository.findByIdAndDeletedAtIsNull(boardId))
+                .thenReturn(Optional.ofNullable(Board.create("board", "description")));
+        when(postRepository.findPopularActivePosts(boardId, 10))
+                .thenReturn(List.of(post));
+        when(userClient.findAuthorsByIds(List.of(100L)))
+                .thenReturn(Map.of(100L, AuthorSummary.active(100L, "nickname", PROFILE_IMAGE_URL)));
+        when(postRedisService.getViewDeltaOrNull(10L)).thenReturn(5L);
+
+        List<PostListResponse> response = postQueryService.getPopularPosts(boardId, 10);
+
+        assertThat(response).hasSize(1);
+        PostListResponse postResponse = response.get(0);
+        assertThat(postResponse.getPostId()).isEqualTo(10L);
+        assertThat(postResponse.getBoardId()).isEqualTo(boardId);
+        assertThat(postResponse.getAuthor().id()).isEqualTo(100L);
+        assertThat(postResponse.getViewCount()).isEqualTo(45L);
+        assertThat(postResponse.getLikeCount()).isEqualTo(8L);
+        verify(postRepository).findPopularActivePosts(boardId, 10);
+        verify(postRedisService, never()).increaseView(any());
+    }
+
+    @Test
+    @DisplayName("인기글 목록은 size를 1 이상 50 이하로 제한한다.")
+    void getPopularPosts_limitsSize() {
+        Long boardId = 1L;
+
+        when(boardRepository.findByIdAndDeletedAtIsNull(boardId))
+                .thenReturn(Optional.ofNullable(Board.create("board", "description")));
+        when(postRepository.findPopularActivePosts(boardId, 10)).thenReturn(List.of());
+        when(postRepository.findPopularActivePosts(boardId, 50)).thenReturn(List.of());
+
+        postQueryService.getPopularPosts(boardId, 0);
+        postQueryService.getPopularPosts(boardId, 100);
+
+        verify(postRepository).findPopularActivePosts(boardId, 10);
+        verify(postRepository).findPopularActivePosts(boardId, 50);
+        verify(userClient, never()).findAuthorsByIds(any());
+        verify(postRedisService, never()).getViewDeltaOrNull(any());
+    }
+
+    @Test
     @DisplayName("게시글 상세 조회는 active post 확인 후 조회수를 증가시킨다.")
     void getPostDetail_increasesViewAfterActivePostFound() {
         Long boardId = 1L;
@@ -165,6 +405,8 @@ class PostQueryServiceImplTest {
         when(userClient.findAuthorsByIds(List.of(100L)))
                 .thenReturn(Map.of(100L, AuthorSummary.active(100L, "nickname", PROFILE_IMAGE_URL)));
         when(postRedisService.getViewDeltaOrNull(postId)).thenReturn(4L);
+        when(postTagService.findTagNamesByPostIds(List.of(postId)))
+                .thenReturn(Map.of(postId, List.of("Spring")));
 
         PostDetailResponse response = postQueryService.getPostDetail(boardId, postId);
 
@@ -178,6 +420,7 @@ class PostQueryServiceImplTest {
         assertThat(response.getAuthor().displayName()).isEqualTo("nickname");
         assertThat(response.getAuthor().status()).isEqualTo(AuthorStatus.ACTIVE);
         assertThat(response.getAuthor().profileImageUrl()).isEqualTo(PROFILE_IMAGE_URL);
+        assertThat(response.getTags()).containsExactly("Spring");
         InOrder inOrder = inOrder(postRepository, postRedisService);
         inOrder.verify(postRepository).findActiveById(postId);
         inOrder.verify(postRedisService).increaseView(postId);

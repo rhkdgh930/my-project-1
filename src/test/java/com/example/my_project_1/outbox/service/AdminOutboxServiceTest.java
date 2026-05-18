@@ -1,12 +1,17 @@
 package com.example.my_project_1.outbox.service;
 
+import com.example.my_project_1.admin.domain.AdminActionTargetType;
+import com.example.my_project_1.admin.domain.AdminActionType;
+import com.example.my_project_1.admin.service.AdminActionLogService;
 import com.example.my_project_1.common.exception.CustomException;
 import com.example.my_project_1.common.exception.ErrorCode;
+import com.example.my_project_1.common.monitoring.MonitoringService;
 import com.example.my_project_1.common.utils.PageResponse;
 import com.example.my_project_1.outbox.domain.OutboxEvent;
 import com.example.my_project_1.outbox.domain.OutboxEventType;
 import com.example.my_project_1.outbox.domain.OutboxStatus;
 import com.example.my_project_1.outbox.repository.OutboxRepository;
+import com.example.my_project_1.outbox.service.response.AdminOutboxDetailResponse;
 import com.example.my_project_1.outbox.service.response.AdminOutboxResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -19,6 +24,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -36,7 +42,15 @@ class AdminOutboxServiceTest {
     );
     private final OutboxRepository outboxRepository = mock(OutboxRepository.class);
     private final OutboxPublisher outboxPublisher = mock(OutboxPublisher.class);
-    private final AdminOutboxService service = new AdminOutboxService(clock, outboxRepository, outboxPublisher);
+    private final AdminActionLogService adminActionLogService = mock(AdminActionLogService.class);
+    private final MonitoringService monitoringService = mock(MonitoringService.class);
+    private final AdminOutboxService service = new AdminOutboxService(
+            clock,
+            outboxRepository,
+            outboxPublisher,
+            adminActionLogService,
+            monitoringService
+    );
 
     @Test
     @DisplayName("status 필터가 없으면 전체 Outbox event page를 payload 없이 조회한다.")
@@ -78,6 +92,37 @@ class AdminOutboxServiceTest {
     }
 
     @Test
+    @DisplayName("Outbox event 상세 조회는 payload를 포함한다.")
+    void findById_returnsDetailWithPayload() {
+        OutboxEvent event = event(1L);
+        when(outboxRepository.findById(1L)).thenReturn(Optional.of(event));
+
+        AdminOutboxDetailResponse response = service.findById(1L);
+
+        assertThat(response.getId()).isEqualTo(1L);
+        assertThat(response.getEventType()).isEqualTo(OutboxEventType.USER_ACCOUNT_CHANGED);
+        assertThat(response.getEventKey()).isEqualTo("event-key");
+        assertThat(response.getStatus()).isEqualTo(OutboxStatus.PENDING);
+        assertThat(response.getPayload()).isEqualTo("{\"userId\":1}");
+        assertThat(response.getRetryCount()).isZero();
+        assertThat(response.getCreatedAt()).isEqualTo(LocalDateTime.now(clock));
+        assertThat(response.getLastTriedAt()).isNull();
+        assertThat(response.getNextRetryAt()).isEqualTo(LocalDateTime.now(clock));
+        assertThat(response.getLastError()).isNull();
+    }
+
+    @Test
+    @DisplayName("없는 Outbox event id 상세 조회는 OUTBOX_EVENT_NOT_FOUND로 실패한다.")
+    void findById_rejectsMissingEvent() {
+        when(outboxRepository.findById(1L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.findById(1L))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.OUTBOX_EVENT_NOT_FOUND);
+    }
+
+    @Test
     @DisplayName("FAILED 상태의 Outbox event는 admin retry를 허용한다.")
     void retry_allowsFailedEvent() {
         OutboxEvent event = event(1L);
@@ -88,6 +133,7 @@ class AdminOutboxServiceTest {
 
         assertResetForRetry(event);
         verify(outboxPublisher, never()).requestProcessing(1L);
+        verify(monitoringService).recordOutboxRetryRequest("retry");
     }
 
     @Test
@@ -114,6 +160,7 @@ class AdminOutboxServiceTest {
 
         assertResetForRetry(event);
         verify(outboxPublisher).requestProcessing(1L);
+        verify(monitoringService).recordOutboxRetryRequest("retry_now");
     }
 
     @Test
@@ -127,6 +174,44 @@ class AdminOutboxServiceTest {
 
         assertResetForRetry(event);
         verify(outboxPublisher).requestProcessing(1L);
+    }
+
+    @Test
+    @DisplayName("Outbox event admin retry 성공 시 감사 로그를 저장한다.")
+    void retryByAdmin_writesAuditLog() {
+        OutboxEvent event = event(1L);
+        event.markFail(new RuntimeException("temporary failure"), LocalDateTime.now(clock));
+        when(outboxRepository.findById(1L)).thenReturn(Optional.of(event));
+
+        service.retry(1L, 99L);
+
+        verify(adminActionLogService).log(
+                99L,
+                AdminActionType.OUTBOX_RETRY,
+                AdminActionTargetType.OUTBOX,
+                1L,
+                "관리자가 Outbox 이벤트 재시도를 예약했습니다.",
+                Map.of()
+        );
+    }
+
+    @Test
+    @DisplayName("Outbox event retry-now 성공 시 감사 로그를 저장한다.")
+    void retryNowByAdmin_writesAuditLog() {
+        OutboxEvent event = event(1L);
+        event.markFail(new RuntimeException("temporary failure"), LocalDateTime.now(clock));
+        when(outboxRepository.findById(1L)).thenReturn(Optional.of(event));
+
+        service.retryNow(1L, 99L);
+
+        verify(adminActionLogService).log(
+                99L,
+                AdminActionType.OUTBOX_RETRY_NOW,
+                AdminActionTargetType.OUTBOX,
+                1L,
+                "관리자가 Outbox 이벤트 즉시 재시도를 요청했습니다.",
+                Map.of()
+        );
     }
 
     @Test
@@ -213,7 +298,7 @@ class AdminOutboxServiceTest {
     private OutboxEvent event(Long id) {
         OutboxEvent event = OutboxEvent.create(
                 OutboxEventType.USER_ACCOUNT_CHANGED,
-                "{}",
+                "{\"userId\":1}",
                 "event-key",
                 LocalDateTime.now(clock)
         );

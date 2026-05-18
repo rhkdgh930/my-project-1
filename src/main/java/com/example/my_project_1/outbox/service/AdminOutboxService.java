@@ -1,11 +1,16 @@
 package com.example.my_project_1.outbox.service;
 
+import com.example.my_project_1.admin.domain.AdminActionTargetType;
+import com.example.my_project_1.admin.domain.AdminActionType;
+import com.example.my_project_1.admin.service.AdminActionLogService;
 import com.example.my_project_1.common.exception.CustomException;
 import com.example.my_project_1.common.exception.ErrorCode;
+import com.example.my_project_1.common.monitoring.MonitoringService;
 import com.example.my_project_1.common.utils.PageResponse;
 import com.example.my_project_1.outbox.domain.OutboxEvent;
 import com.example.my_project_1.outbox.domain.OutboxStatus;
 import com.example.my_project_1.outbox.repository.OutboxRepository;
+import com.example.my_project_1.outbox.service.response.AdminOutboxDetailResponse;
 import com.example.my_project_1.outbox.service.response.AdminOutboxResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -15,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.Map;
 
 @Transactional
 @Service
@@ -23,6 +29,8 @@ public class AdminOutboxService {
     private final Clock clock;
     private final OutboxRepository outboxRepository;
     private final OutboxPublisher outboxPublisher;
+    private final AdminActionLogService adminActionLogService;
+    private final MonitoringService monitoringService;
 
     @Transactional(readOnly = true)
     public PageResponse<AdminOutboxResponse> findPage(OutboxStatus status, Pageable pageable) {
@@ -33,9 +41,18 @@ public class AdminOutboxService {
         return PageResponse.of(page.map(AdminOutboxResponse::from));
     }
 
+    @Transactional(readOnly = true)
+    public AdminOutboxDetailResponse findById(Long id) {
+        OutboxEvent event = outboxRepository.findById(id)
+                .orElseThrow(() -> new CustomException(ErrorCode.OUTBOX_EVENT_NOT_FOUND));
+
+        return AdminOutboxDetailResponse.from(event);
+    }
+
     public void retry(Long id) {
         OutboxEvent event = findRetryableEvent(id);
         event.resetForRetry(LocalDateTime.now(clock));
+        monitoringService.recordOutboxRetryRequest("retry");
     }
 
     public void retryNow(Long id) {
@@ -43,6 +60,31 @@ public class AdminOutboxService {
         event.resetForRetry(LocalDateTime.now(clock));
 
         outboxPublisher.requestProcessing(event.getId());
+        monitoringService.recordOutboxRetryRequest("retry_now");
+    }
+
+    public void retry(Long id, Long adminId) {
+        retry(id);
+        adminActionLogService.log(
+                adminId,
+                AdminActionType.OUTBOX_RETRY,
+                AdminActionTargetType.OUTBOX,
+                id,
+                "관리자가 Outbox 이벤트 재시도를 예약했습니다.",
+                Map.of()
+        );
+    }
+
+    public void retryNow(Long id, Long adminId) {
+        retryNow(id);
+        adminActionLogService.log(
+                adminId,
+                AdminActionType.OUTBOX_RETRY_NOW,
+                AdminActionTargetType.OUTBOX,
+                id,
+                "관리자가 Outbox 이벤트 즉시 재시도를 요청했습니다.",
+                Map.of()
+        );
     }
 
     private OutboxEvent findRetryableEvent(Long id) {

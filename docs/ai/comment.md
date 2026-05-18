@@ -1,5 +1,12 @@
 # Comment AI Rules
 
+## 최신 정책 - Admin Moderation
+
+- 신고 기반 `COMMENT` 조치는 `POST /api/admin/reports/{reportId}/actions/delete-target`에서 댓글 삭제와 신고 상태 `ACTION_TAKEN` 변경을 한 유스케이스로 처리한다.
+- `ACTION_TAKEN` 상태 변경 API 자체는 댓글을 자동 삭제하지 않는다.
+- 신고와 무관한 관리자 직접 댓글 삭제 API `DELETE /api/admin/moderation/comments/{commentId}`는 유지한다.
+- 일반 댓글 삭제 정책은 tombstone 모델을 유지한다.
+
 이 문서는 댓글/대댓글 작성, 수정, 삭제, tombstone 표시 정책을 정리한다.
 
 ## 현재 정책 - Endpoint / Security

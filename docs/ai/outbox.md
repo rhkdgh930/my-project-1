@@ -31,6 +31,10 @@
 
 - `resetForRetry`는 재처리 가능한 이벤트를 `PENDING`으로 되돌린다.
 - admin retry와 retry-now는 `FAILED` 또는 `DEAD` 상태를 재처리 대상으로 삼는다.
+- admin retry 성공 후 `AdminActionLog`에 `OUTBOX_RETRY`를 기록한다.
+- admin retry-now 성공 후 `AdminActionLog`에 `OUTBOX_RETRY_NOW`를 기록한다.
+- admin 목록 조회는 payload를 노출하지 않는다.
+- admin 상세 조회는 ADMIN 전용 기준으로 payload를 읽기 전용 노출한다.
 - `SUCCESS`는 already succeeded 정책으로 재처리를 거부한다.
 - `PENDING`은 already pending 정책으로 재처리를 거부한다.
 - `PROCESSING`은 already processing 또는 409 계열 정책으로 재처리를 거부한다.
@@ -61,4 +65,5 @@
 - email exactly-once는 현재 미보장이다.
 - email 중복 발송 완화가 필요하면 dedupe key 또는 발송 이력 정책을 검토한다.
 - handler별 retryable/non-retryable exception 분류를 강화할 수 있다.
+- admin 상세 payload에 민감 정보가 포함될 수 있으므로 masking 정책을 검토한다.
 - SUCCESS event retention 기간과 cleanup scheduler 주기를 운영 정책으로 확정한다.

@@ -9,4 +9,8 @@ public interface AdminUserCommandService {
     void suspendUser(Long userId, SuspensionType type, SuspensionReason reason, Duration duration);
 
     void unSuspendUser(Long userId);
+
+    void suspendUserByAdmin(Long adminId, Long userId, SuspensionType type, SuspensionReason reason, Duration duration);
+
+    void unSuspendUserByAdmin(Long adminId, Long userId);
 }

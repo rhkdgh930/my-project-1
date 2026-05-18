@@ -125,4 +125,16 @@ class PostControllerTest {
         assertThat(actual.getContent()).isEmpty();
         verify(postQueryService).getPosts(boardId, condition, pageable);
     }
+
+    @Test
+    @DisplayName("인기글 조회는 boardId와 size를 query service에 전달한다.")
+    void getPopularPosts_passesBoardIdAndSize() {
+        Long boardId = 1L;
+        when(postQueryService.getPopularPosts(boardId, 10)).thenReturn(List.of());
+
+        List<PostListResponse> actual = postController.getPopularPosts(boardId, 10);
+
+        assertThat(actual).isEmpty();
+        verify(postQueryService).getPopularPosts(boardId, 10);
+    }
 }

@@ -15,6 +15,7 @@
 
 - `DataSerializer`는 JSON 직렬화/역직렬화와 Java Time 호환을 담당한다.
 - Outbox payload와 Redis JSON payload는 `DataSerializer` 변경 영향을 받는다.
+- Admin Audit Log의 `metadata`도 `DataSerializer` 기반 JSON 문자열로 저장한다.
 - 시간 의존 로직은 가능한 `Clock` bean을 사용한다.
 - JSON 응답과 문서는 UTF-8 인코딩을 유지한다.
 
